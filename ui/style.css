@@ -12,3 +12,21 @@ html.embedded-chat,body.embedded{background:transparent}.embedded.panel-chat .ch
 .messages-window::-webkit-scrollbar{display:none;width:0;height:0}
 .interaction-settings label:not(.inline-check){display:flex;justify-content:space-between;margin:14px 0 7px;font-size:13px}.interaction-settings input[type=range]{width:100%;accent-color:var(--accent)}.interaction-settings .inline-check{margin:14px 0}.interaction-settings output{color:var(--muted)}
 .chat-footer{position:relative}.latest-button{display:block;margin:0 auto 8px;background:var(--accent);color:white;padding:8px 14px;border-radius:20px;font-size:12px;box-shadow:0 2px 12px #35234820}.copy-message{display:block;margin-top:5px;font-size:10px;opacity:0;color:inherit;padding:2px 0}.message-bubble:hover .copy-message,.message-bubble:focus-within .copy-message{opacity:.7}.copy-message:focus-visible{opacity:1}@media(hover:none){.copy-message{opacity:.7}}
+.status-strip{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;background:var(--paper);padding:12px 16px;border-radius:12px;font-size:12px;margin-bottom:18px}
+.status-strip .status-indicator{margin-right:auto;font-weight:500}
+.settings-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.settings-tabs [role=tab]{padding:10px 14px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:8px 8px 0 0}
+.settings-tabs [role=tab]:hover{color:var(--ink);background:var(--paper)}
+.settings-tabs [role=tab][aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+.settings-tab{padding-top:6px}
+.settings-tab h3{font-size:14px;font-weight:500;margin:18px 0 4px}
+.setting-row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.companion-controls .setting-row label:not(.consent-label){margin:0}
+.setting-row .control-help{margin:4px 0 0}
+.info-card{background:var(--paper);border-radius:12px;padding:12px 14px;margin:18px 0 8px;font-size:13px}
+.info-card .control-help:last-child{margin-bottom:0}
+.control-row .action-btn{flex:1}
+.danger-btn{width:100%;color:#9a3b4a}
+.danger-btn:hover{background:#f8e7ea}
+.model-list:has(> :only-child){display:none}
+@media(max-width:480px){.settings-tabs{overflow-x:auto}.settings-tabs [role=tab]{white-space:nowrap;padding:10px}}

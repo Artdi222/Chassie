@@ -35,6 +35,22 @@ document.addEventListener('DOMContentLoaded', () => {
     $('menu-toggle').onclick = () => showPanel('settings');
     $('sidebar-close').onclick = $('close-models').onclick = $('panel-backdrop').onclick = () => showPanel(null);
     $('open-models').onclick = () => showPanel('models');
+    const tabs = [...document.querySelectorAll('.settings-tabs [role=tab]')];
+    function selectTab(tab, focus) {
+        for (const t of tabs) {
+            const active = t === tab;
+            t.setAttribute('aria-selected', active); t.tabIndex = active ? 0 : -1;
+            $(t.getAttribute('aria-controls')).hidden = !active;
+        }
+        if (focus) tab.focus();
+    }
+    tabs.forEach((t, i) => {
+        t.onclick = () => selectTab(t);
+        t.onkeydown = e => {
+            const step = {ArrowRight: 1, ArrowLeft: -1}[e.key];
+            if (step) { e.preventDefault(); selectTab(tabs[(i + step + tabs.length) % tabs.length], true); }
+        };
+    });
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') { if (!embedded) showPanel(null); $('avatar-menu').hidden = true; }
         if (e.key === 'Tab' && !embedded && !$('panel-backdrop').hidden) {
@@ -86,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const m = entry(), s = studio.selection;
         if (!m || !s) return;
         $('model-title').textContent = m.name;
-        $('model-description').textContent = `${m.expressions.length} presets available · ${m.id.replace('_', ' ')}`;
+        $('model-description').textContent = `Your companion · ${m.expressions.length} expressions`;
         $('model-list').replaceChildren(...studio.models.map(m => {
             const b = button('', s.model_id === m.id, () => send({type: 'select_model', model_id: m.id}));
             b.className = 'model-option'; b.dataset.modelId = m.id; b.dataset.focusKey = m.id;

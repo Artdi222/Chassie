@@ -122,7 +122,6 @@ class Orchestrator:
         await web.TCPSite(self._web_runner,'127.0.0.1',cfg.get('port',8000)).start()
         if isinstance(self._tts,TTSEngine):self._tts.start()
         self._tasks=[asyncio.create_task(self._vts_reconnect_loop()),asyncio.create_task(self._stt_poll_loop()),asyncio.create_task(self._face_monitor_loop())]
-        if isinstance(self._tts,TTSEngine):self._tasks.append(asyncio.create_task(self._speech_status_loop()))
         if self._vision:
             self._vision.start()
             self._tasks.append(asyncio.create_task(self._vision_status_loop()))
@@ -209,7 +208,6 @@ class Orchestrator:
                 raise RuntimeError('Generated sentence audio exceeds the 60-second limit.')
             if len(pcm): chunks.append(pcm)
         if not chunks: raise RuntimeError('Speech synthesis returned no audio.')
-        if isinstance(self._tts,TTSEngine):await self._broadcast_to_ui({'type':'speech_status',**self._tts.status()})
         return chunks
 
     async def _begin_playback(self):
@@ -514,15 +512,6 @@ class Orchestrator:
             try: event=self._stt_queue.get_nowait()
             except queue.Empty: await asyncio.sleep(.02);continue
             await self._handle_speech_event(event)
-
-    async def _speech_status_loop(self):
-        previous=None
-        while self._running:
-            status=self._tts.status()
-            if status!=previous:
-                previous=status
-                await self._broadcast_to_ui({'type':'speech_status',**status})
-            await asyncio.sleep(.5)
 
     def _settings(self):
         faces={p['profile_id'] for p in self._memory.list_faces()}

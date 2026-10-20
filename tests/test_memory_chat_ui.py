@@ -28,7 +28,7 @@ async def test_simplified_memory_consent_and_chat_scroll_copy_retry(app):
             page.on('pageerror',lambda e:errors.append(str(e)))
             page.on('console',lambda msg:errors.append(msg.text) if msg.type=='error' and 'parsing WebSocket' in msg.text else None)
             await page.goto(url+'/?panel=settings')
-            await page.get_by_text('Memory & people',exact=True).click()
+            await page.get_by_role('tab',name='People & memory').click()
             await page.get_by_text('Your memories are active.',exact=True).wait_for()
             await page.wait_for_function("document.getElementById('vault-state').textContent.includes('/synthetic/Memory')")
             assert not await page.locator('#profile-select').is_visible()
@@ -42,6 +42,7 @@ async def test_simplified_memory_consent_and_chat_scroll_copy_retry(app):
             await page.get_by_text('Synthetic friend · Face remembered',exact=True).wait_for()
             assert not await page.locator('#person-consent').is_checked()
             assert app._session_context.owner_profile_id==owner.id
+            await page.get_by_text('Saved memories',exact=True).click()
             await page.locator('#load-memories').click()
             await page.get_by_text('A handwritten workspace note',exact=True).wait_for()
             assert await page.locator('#memory-list button').count()==0

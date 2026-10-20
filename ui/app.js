@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 break;
             case "voice_draft_cleared":
                 if (chatInput.value === voiceDraft) chatInput.value = "";
-                voiceDraft = "";
+                voiceDraft = ""; insertDraft.hidden = true;
                 break;
             case "memories":
                 renderMemories(data.items);
@@ -102,9 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 break;
             case "person_enrolled":
                 document.getElementById("person-form").reset();
-                break;
-            case "speech_status":
-                renderSpeechStatus(data);
                 break;
             case "avatar_inventory":
                 inventory = data.capabilities.emotions || {};
@@ -152,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function handleSTTTranscription(text) {
         if (!text) return;
         const previous = voiceDraft;
-        voiceDraft = text;
+        voiceDraft = text; insertDraft.hidden = !voiceDraft;
         if (!chatInput.value || chatInput.value === previous) chatInput.value = text;
         else document.getElementById("control-notice").textContent = "A voice draft is ready. Use ‘Insert voice draft’ to add it to your message.";
     }
@@ -165,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="welcome-box">
                 <svg class="welcome-icon"><use href="icons.svg#chat"/></svg>
                 <h3>Start with a hello.</h3>
-                <p>Type below or turn on the microphone. You can also try models without chatting.</p>
+                <p>Type below or turn on the microphone.</p>
             </div>
         `;
         if (showNotice) appendSystemAlert("Conversation history cleared.");
@@ -376,7 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function setControlsConnected(connected) {
-        ["mic-toggle", "input-mode", "companion-mode", "stop-btn", "profile-select", "speech-engine"].forEach(id => {
+        ["mic-toggle", "input-mode", "companion-mode", "stop-btn", "profile-select"].forEach(id => {
             document.getElementById(id).disabled = !connected;
         });
         if (!connected) {
@@ -388,14 +385,11 @@ document.addEventListener("DOMContentLoaded", () => {
         setControlsConnected(true);
         renderVision(settings.vision);
         micToggle.checked = settings.mic_enabled;
-        document.getElementById("speech-language").textContent = settings.speech_engine === "voicevox"
-            ? "Mochiko-san · Japanese voice · English subtitles"
-            : settings.speech_engine === "style_bert" ? "Koharune Ami · Expressive Japanese voice · English subtitles"
+        const voicevox = settings.speech_engine === "voicevox";
+        document.getElementById("speech-language").textContent = voicevox
+            ? "Voice: Mochiko-san (VOICEVOX) · speaks Japanese with English subtitles"
             : "English voice and subtitles";
-        document.getElementById("speech-credit").hidden = !['voicevox','style_bert'].includes(settings.speech_engine);
-        document.getElementById("ami-credit").hidden = settings.speech_engine !== "style_bert";
-        document.getElementById("speech-options").hidden = settings.speech_engine !== "style_bert";
-        renderSpeechStatus(settings.speech);
+        document.getElementById("speech-credit").hidden = !voicevox;
         document.getElementById("input-mode").value = settings.input_mode;
         document.getElementById("companion-mode").value = settings.mode;
         document.getElementById("voice-state").textContent = !settings.mic_enabled ? "Microphone muted" : settings.capture_paused ? "Microphone paused during reply — echo protection" : settings.voice_ready ? "Microphone listening" : (settings.voice_error || "Microphone is starting or unavailable");
@@ -442,19 +436,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const button = document.createElement("button");
         button.type="button";button.className="action-btn secondary-btn";button.textContent=label;button.addEventListener("click",handler);
         return button;
-    }
-
-    function renderSpeechStatus(speech) {
-        if(!speech)return;
-        if(['voicevox','style_bert'].includes(speech.selected))document.getElementById('speech-language').textContent=speech.selected==='voicevox'
-            ? 'Mochiko-san · Japanese voice · English subtitles'
-            : 'Koharune Ami · Expressive Japanese voice · English subtitles';
-        const select=document.getElementById('speech-engine');select.value=speech.selected;
-        select.disabled=!ws || ws.readyState!==WebSocket.OPEN;
-        const reason={slow:'Ami took too long · text is still available',unavailable:'Ami is unavailable · retry or choose another voice',selected:'VOICEVOX selected'};
-        document.getElementById('speech-status').textContent=speech.selected==='voicevox' ? reason.selected :
-            speech.warming ? 'Koharune Ami is loading · speech will wait' :
-            reason[speech.reason] || (speech.ready ? 'Koharune Ami ready · tone follows each sentence' : 'Koharune Ami is preparing · speech will wait');
     }
 
     function renderVision(vision) {
@@ -512,10 +493,6 @@ document.addEventListener("DOMContentLoaded", () => {
         sendControl({type:"set_mic",enabled});
     });
     document.getElementById("input-mode").addEventListener("change",e=>sendControl({type:"set_input_mode",mode:e.target.value}));
-    document.getElementById('speech-engine').addEventListener('change',e=>{
-        if(sendControl({type:'set_speech_engine',engine:e.target.value}))e.target.disabled=true;
-        else renderSpeechStatus(settings?.speech);
-    });
     document.getElementById("companion-mode").addEventListener("change",e=>sendControl({type:"set_mode",mode:e.target.value}));
     document.getElementById("stop-btn").addEventListener("click",()=>sendControl({type:"stop"}));
     document.getElementById("resume-btn").addEventListener("click",()=>sendControl({type:"resume_topic"}));
@@ -531,8 +508,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("cancel-enrollment").addEventListener("click",()=>sendControl({type:"cancel_enrollment"}));
     document.getElementById("resume-personal").addEventListener("click",()=>sendControl({type:"resume_personal"}));
-    document.getElementById("automatic-memory-controls").parentElement.addEventListener("toggle",e=>{
-        if(e.target.open && settings?.automatic_memory)sendControl({type:"memory_status"});
+    document.getElementById("tab-people-btn").addEventListener("click",()=>{
+        if(settings?.automatic_memory)sendControl({type:"memory_status"});
     });
     document.getElementById("profile-form").addEventListener("submit",e=>{
         e.preventDefault();
@@ -553,8 +530,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("preview-btn").addEventListener("click",()=>sendControl({type:"preview_emotion",emotion:document.getElementById("emotion-select").value}));
     const insertDraft=action("Insert voice draft",()=>{
         if(voiceDraft) { chatInput.value = (chatInput.value.trim() + " " + voiceDraft).trim();voiceDraft="";chatInput.focus(); }
+        insertDraft.hidden = true;
     });
-    document.querySelector(".companion-controls").prepend(insertDraft);
+    insertDraft.hidden = true;
+    document.getElementById("input-mode").after(insertDraft);
 
     window.chassie = {send: sendControl};
     // Start WebSocket Connection

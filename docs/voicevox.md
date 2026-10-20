@@ -16,7 +16,7 @@ The installer accepts the standard VOICEVOX runtime/model terms and keeps their 
 
 Only one VVM is downloaded and loaded (this official file also contains several other characters; Chassie selects only Mochiko-san). CPU inference uses two threads, preserving GPU memory for the avatar. The worker starts on the first sentence, stays warm for later replies, and exits on Stop during synthesis, timeout or backend shutdown. A restarted worker incurs loading latency again.
 
-`tts.engine: voicevox` selects VOICEVOX directly. The current `style_bert` configuration retains it as a manual voice option; see [Koharune Ami](koharune-ami.md). To use the original English Edge voice again, set it to `edge` and restart. The Hermes response format follows that selection automatically. Both voice choices use Japanese speech and English translations.
+`tts.engine: voicevox` is the only supported engine. Speech is Japanese and replies/subtitles are English.
 
 ## Voice style and pronunciation
 

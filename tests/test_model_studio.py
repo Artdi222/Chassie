@@ -23,7 +23,8 @@ async def test_model_four_pointer_chat_and_controls(app):
             await page.goto(url)
             for model_id in ['Model_4']:
                 await page.locator('#open-models').click()
-                await page.locator(f'[data-model-id="{model_id}"]').click()
+                # A single model hides the picker; Tian Muzi loads directly.
+                assert not await page.locator(f'[data-model-id="{model_id}"]').is_visible()
                 await page.wait_for_function('(id)=>window.modelStudio?.ready && window.modelStudio.modelId===id',arg=model_id,timeout=45000)
                 await page.locator('#close-models').click()
                 await page.wait_for_timeout(400)

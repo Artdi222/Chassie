@@ -8,7 +8,7 @@ Buka **Chassie** dari menu aplikasi. Launcher menyalakan backend lokal dan langs
 
 Web studio tersedia di `http://127.0.0.1:8000` selama aplikasi berjalan. Model tampil setengah badan, subtitle mengikuti kalimat yang sedang diucapkan, dan chat berada di kanan. Pilihan model dan penampilan tersinkron antara web dan desktop. Panel native memakai UI lokal yang sama; audio hanya diputar backend.
 
-Tiga paket `model/Model_1`, `Model_2`, dan `Model_4` terdaftar; Model_3 sudah dihapus dari koleksi. Pilih **Ganti model** untuk mencoba ekspresi, outfit, aksesori, properti, dan gerak mulut yang benar-benar tersedia. Model keempat mendapat delapan preset ekspresi turunan (happy, sad, thinking, curious, surprised, angry, shy, sleepy), tanpa mengubah aset aslinya. Saat otomatis, ekspresi mengikuti jawaban serta status mendengar/berpikir dan kembali netral ketika idle. Matikan **Otomatis** untuk mengunci ekspresi manual. Zoom/framing desktop disimpan per model, dan panel pengaturan menyediakan Reset.
+Satu-satunya model adalah Tian Muzi (`model/Model_4`). Pilih **Customize** untuk mencoba ekspresi dan gerak mulut. Model ini mendapat delapan preset ekspresi turunan (happy, sad, thinking, curious, surprised, angry, shy, sleepy), tanpa mengubah aset aslinya. Saat otomatis, ekspresi mengikuti jawaban serta status mendengar/berpikir dan kembali netral ketika idle. Matikan **Otomatis** untuk mengunci ekspresi manual. Zoom/framing desktop disimpan, dan panel pengaturan menyediakan Reset. Settings dibagi menjadi tab **Voice & chat**, **People & memory**, dan **System**.
 
 Untuk menjalankan melalui terminal atau memasang ulang shortcut pada mesin ini:
 
@@ -37,9 +37,9 @@ Pada CachyOS/Hyprland, launcher memakai XWayland dan aturan khusus avatar agar t
 - Pemilik memory yang sudah dikonfigurasi dipakai otomatis. Perkenalkan wajah/suara melalui Memory & people setelah orang tersebut menyetujui; template disimpan lokal. Kehadiran orang lain menjeda konteks pribadi tanpa perlu mengelola profil atau tamu.
 - Integrasi Femiris memakai provider memory native di Hermes. Header memory pribadi hanya dikirim ketika profil Artdi yang dikonfigurasi berada dalam scope personal. Mode tamu, profil tidak aktif, dan profil lain tidak mendapat akses ke vault Artdi melalui integrasi ini. Restart Chassie untuk menerapkan perubahan. Panduan dan verifikasi berada di proyek `/home/artdi/Projects/vector db/README.md`.
 - Pertanyaan dan observasi sementara dikirim dalam satu pesan user agar normalisasi DeepSeek di Hermes mempertahankan hasil recall otomatis. Observasi tetap diberi label sebagai data, tidak masuk history Chassie, dan tidak disimpan sebagai fakta pengguna oleh Femiris.
-- Kamera dan GUI layar diperbarui lokal setiap dua detik meskipun panel ditutup. Snapshot hanya dikirim saat diminta lewat teks atau suara, misalnya “lihat layar aku” atau “kamu bisa lihat aku?”. Permintaan berlaku untuk pesan itu saja dan hanya menyertakan sumber yang diminta. Status tampil di Settings → Automatic vision. Lihat [pengamatan otomatis dan pengenalan wajah](docs/automatic-vision.md).
+- Kamera dan GUI layar diperbarui lokal setiap dua detik meskipun panel ditutup. Snapshot hanya dikirim saat diminta lewat teks atau suara, misalnya “lihat layar aku” atau “kamu bisa lihat aku?”. Permintaan berlaku untuk pesan itu saja dan hanya menyertakan sumber yang diminta. Status tampil di Settings → System. Lihat [pengamatan otomatis dan pengenalan wajah](docs/automatic-vision.md).
 - Pemisahan memori ini mencakup state milik Chassie. Konteks, SOUL, memori, dan tools yang ditambahkan Hermes sendiri perlu konfigurasi terpisah sebelum menganggap percakapan tamu terisolasi sepenuhnya.
-- TTS utama memakai Koharune Ami; VOICEVOX Mochiko-san Normal tetap tersedia sebagai pilihan manual. Model STT multilingual `base` memakai CPU/int8, dua thread; dukungan dua bahasa belum merupakan hasil benchmark akurasi percakapan campuran.
+- TTS hanya memakai VOICEVOX Mochiko-san Normal. Model STT multilingual `base` memakai CPU/int8, dua thread; dukungan dua bahasa belum merupakan hasil benchmark akurasi percakapan campuran.
 
 Log `Streaming turn timings` memisahkan teks pertama, kalimat pertama, PCM pertama, audio masuk antrean, stream selesai, dan playback selesai. Waktu masuk antrean bukan bukti saat suara terdengar dari speaker. Lihat [rencana dan verifikasi streaming](docs/superpowers/plans/2026-09-08-streaming-replies.md).
 
@@ -61,7 +61,7 @@ Jangan menjalankan pembuatan `.venv` ulang bila sudah memakai environment yang d
 
 ## Japanese voice and English subtitles
 
-The primary voice is Koharune Ami (Style-Bert-VITS2), with per-sentence delivery styles. VOICEVOX Mochiko-san Normal is retained as a manually selectable voice. Input supports Indonesian or English; speech is Japanese and reply chat/subtitles are English. On a fresh checkout, run `.venv/bin/python scripts/install_voicevox.py` and `.venv/bin/python scripts/install_style_bert.py` once, then launch Chassie normally. See [Koharune Ami setup](docs/koharune-ami.md) and [VOICEVOX setup and voice credits](docs/voicevox.md).
+The only voice is VOICEVOX Mochiko-san Normal. Input supports Indonesian or English; speech is Japanese and reply chat/subtitles are English. On a fresh checkout, run `.venv/bin/python scripts/install_voicevox.py` once, then launch Chassie normally. See [VOICEVOX setup and voice credits](docs/voicevox.md).
 
 Interaksi mouse: kursor pada avatar atau sekitar 180 piksel logis dari bagian yang terlihat mengarahkan tatapan, tanpa harus menyentuh tubuh/rambut. Melewati batas kedekatan ini melepas target kursor, lalu tatapan bertransisi ke idle. Area kedekatan mengikuti bagian model, bukan seluruh panel transparan. Hover singkat di bagian kepala memicu headpat lembut (menunduk, memejamkan mata, tersenyum), lalu kembali ke ekspresi pilihan ketika kursor menjauh. Tepi kepala memiliki toleransi dan jeda keluar singkat agar gerakan kepala atau kursor kecil tidak membuat ekspresi berkedip. Drag tetap memindahkan avatar. Ini berjalan lokal di renderer desktop dan browser, tanpa kamera atau panggilan model AI.
 
@@ -78,6 +78,5 @@ Template SFace dan WeSpeaker berada di SQLite lokal `.chassie/memory.sqlite`; re
 
 Pengenalan adalah perkiraan, bukan autentikasi. Orang tambahan atau suara yang tidak cocok menghentikan konteks pribadi. Kehadiran wajah pemilik sendirian selama 5 detik dapat memulihkan jeda akibat kamera. Jika jeda akibat suara belum jelas, **I'm alone · resume my memories** memulihkan lewat tindakan pemilik di komputer ini. Tidak ada pergantian pemilik otomatis berdasarkan kemiripan wajah/suara. Kalibrasi akurasi orang sungguhan memerlukan perkenalan dan uji mikrofon/kamera di perangkat pengguna.
 
-**Models → Mouse & headpat** menyimpan jarak kedekatan (40–400 px), kecepatan mengikuti, jeda headpat, dan toggle masing-masing per model. Chat mempertahankan posisi saat membaca pesan lama; **New messages ↓** melompat ke jawaban terbaru. Setiap bubble menyediakan Copy, dan jawaban gagal menyediakan Try again untuk pertanyaan asli.
+**Customize → Mouse & headpat** menyimpan jarak kedekatan (40–400 px), kecepatan mengikuti, jeda headpat, dan toggle masing-masing. Chat mempertahankan posisi saat membaca pesan lama; **New messages ↓** melompat ke jawaban terbaru. Setiap bubble menyediakan Copy, dan jawaban gagal menyediakan Try again untuk pertanyaan asli.
 
-Setup, emotion mappings, manual voice selection, and credits: [Koharune Ami speech](docs/koharune-ami.md).
