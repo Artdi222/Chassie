@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Chassie
+Comment=Local Live2D companion and model studio
+Exec=/home/artdi/Projects/Chassie/.venv/bin/python /home/artdi/Projects/Chassie/launch.py
+Path=/home/artdi/Projects/Chassie
+Icon=/home/artdi/Projects/Chassie/ui/public/chassie-icon.png
+Terminal=false
+Categories=Utility;
+StartupWMClass=chassie-overlay

@@ -1,0 +1,16 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.test-artifacts/
+.chassie/
+vts_token.json
+
+venv/
+.venv/
+.chassie/
+__pycache__/
+.pytest_cache/
+.test-artifacts/
+vts_token.json

@@ -1,0 +1,120 @@
+hermes:
+  gateway_url: "http://localhost:8642"
+  endpoint: "/v1/chat/completions"
+  health_endpoint: "/health"
+  timeout: 30
+  stream_timeout: 180  # Whole streamed request, including bounded consumer backpressure
+  stream_read_timeout: 75  # Hermes keepalive is 30s; allow two intervals plus scheduling slack
+  model: "hermes-agent"
+  # Request-scoped routing; these IDs are configured in the current Hermes provider.
+  provider: "xKiro"
+  text_model: "deepseek/deepseek-v4-flash"
+  vision_model: "minimax/minimax-m3:free"
+  personal_memory_session_key: "chassie-owner-memory"  # Only sent for a selected personal profile
+  personal_memory_profile_id: "85fe4caec29b444db4f0d39d8c403f77"  # Existing local Artdi profile
+  reasoning_effort: "low"  # Fast companion replies; null inherits Hermes/CLI settings
+  api_key_env: "CHASSIE_HERMES_API_KEY"
+  api_key_file: ".chassie/hermes-api-key"  # Local secret; excluded from source control
+  # English/Edge prompt; VOICEVOX uses the paired Japanese/English protocol in bilingual.py.
+  system_prompt: |
+    You must express your feelings using emotion tags.
+
+    The valid emotions you can use are:
+    [happy], [sad], [surprised], [thinking], [teasing], [concerned], [excited], [neutral], [angry], [shy], [sleepy], [love], [defeated], [curious], [flustered], [shocked].
+    
+    CRITICAL RULES FOR NATURAL EXPRESSION:
+    1. You MUST place an emotion tag at the very start of your response.
+    2. Change emotions only when the meaning or tone changes; a single emotion is often enough.
+    3. Switch emotions when:
+       - Your tone shifts (excited → thinking → happy)
+       - You react to something (surprised, shocked, flustered)
+       - You pause to consider (thinking, curious)
+       - Your feelings change mid-thought (happy → shy, excited → concerned)
+    4. Keep responses concise and always speak in English, even when the user speaks Indonesian.
+    5. Be dynamic and reactive — real conversations have emotional flow, not static moods.
+    
+    Examples of natural multi-emotion responses:
+    "[excited] Oh wow, that sounds so cool! [thinking] Let me think about that for a second... [happy] Yes, let's do it!"
+    "[curious] Wait, what do you mean by that? [surprised] Oh! [happy] I get it now, that makes sense!"
+    "[shy] Um... [thinking] I'm not sure how to say this... [flustered] It's just that... [love] I really appreciate you."
+    "[happy] That's great! [concerned] But are you sure you're okay? [thinking] Maybe we should check first."
+stt:
+  model: "base"
+  device: "cpu"
+  language: null  # Auto-detect Indonesian or English
+  compute_type: "int8"
+  cpu_threads: 2
+  beam_size: 3
+  vad_aggressiveness: 2
+  max_speech_duration: 15
+  silence_duration: 1.5
+  min_speech_duration: 0.09
+
+tts:
+  engine: "style_bert"  # Koharune Ami; VOICEVOX available as a manual choice
+  style_bert_dir: ".chassie/style-bert/cpu"
+  style_bert_device: "cpu"
+  style_bert_threads: 6  # Measured ~1.8–2.0 s for a short sentence on this laptop
+  style_bert_timeout: 30.0  # Synthesis deadline; errors keep text, never switch voices
+  style_bert_load_timeout: 120
+  voicevox_dir: ".chassie/voicevox"
+  speed_scale: 1.0  # VOICEVOX speaking tempo (1.0 = normal)
+  cpu_threads: 2
+  timeout: 30
+  voice: "en-US-AnaNeural"
+  sample_rate: 24000
+  stream_chunk_ms: 50
+
+vts:
+  host: "localhost"
+  port: 8001
+  plugin_name: "AI VTuber Companion"
+  plugin_developer: "Chassie"
+  expression_reset_delay: 0.1
+
+face_tracker:
+  enabled: true
+  camera_index: 0
+  detection_confidence: 0.5
+  update_interval: 0.5
+  mirror_to_vts: false
+  expressions:
+    smile_threshold: 0.3
+    frown_threshold: 0.25
+    surprise_threshold: 0.35
+    tired_blink_rate: 0.75
+
+# Lightweight app name only, independent of visual capture (Hyprland).
+# No window titles, document names, tab contents, or screenshots are included.
+app_context:
+  enabled: true
+
+# Automatic local capture, including when browser/panels are closed.
+# Fresh snapshots are sent only when that message explicitly asks to see a source.
+vision:
+  camera_enabled: true
+  screen_enabled: true
+  interval_seconds: 2
+  model_dir: ".chassie/vision-models"
+
+audio:
+  sample_rate: 16000
+  output_sample_rate: 24000
+  silence_threshold: 500
+  output_device: null
+  input_device: null
+
+logging:
+  level: "INFO"
+  format: "[{time}] [{level}] [{component}] {message}"
+
+# Emotion/FX mappings live in avatar/ulvm2_0001.json (shared by VTS and overlay).
+
+conversation:
+  input_mode: "review"  # review or hands_free; independent of browser connections
+  # Automatic voice barge-in remains disabled until AEC is validated on real devices.
+ui:
+  port: 8000
+
+companion:
+  automatic_memory: true  # Use the configured owner and the Hermes Obsidian vault

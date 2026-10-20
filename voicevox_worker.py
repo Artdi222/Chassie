@@ -1,0 +1,50 @@
+"""Private VOICEVOX subprocess. Stdout is a bounded JSON-lines audio protocol."""
+from __future__ import annotations
+import base64
+import json
+import sys
+from pathlib import Path
+
+# Only Mochiko-san talk styles from official VVM 0.16.4 (15.vvm).
+MOCHIKO_STYLES = {20, 77, 78, 79, 80}
+
+
+def main():
+    from voicevox_core.blocking import Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile
+    root = Path(sys.argv[1])
+    runtime = root / 'onnxruntime/lib/libvoicevox_onnxruntime.so.1.17.3'
+    with Synthesizer(Onnxruntime.load_once(filename=str(runtime)),
+                     OpenJtalk(str(root / 'dict/open_jtalk_dic_utf_8-1.11')),
+                     acceleration_mode='CPU', cpu_num_threads=int(sys.argv[2])) as synth:
+        with VoiceModelFile.open(root / 'models/vvms/15.vvm') as model:
+            styles = {style.id for speaker in model.metas if speaker.name == 'もち子さん'
+                      for style in speaker.styles}
+            if not MOCHIKO_STYLES <= styles: raise RuntimeError('Mochiko-san voice styles are missing')
+            synth.load_voice_model(model)
+        print(json.dumps({'ready': True}), flush=True)
+        while line := sys.stdin.buffer.readline(8193):
+            if len(line) > 8192 or not line.endswith(b'\n'): raise ValueError('Request exceeds limit')
+            request = json.loads(line)
+            text, style = request['text'], request['style']
+            if not isinstance(text, str) or not 1 <= len(text) <= 350 or style not in MOCHIKO_STYLES:
+                raise ValueError('Invalid speech request')
+            query = synth.create_audio_query(text, style)
+            speed = request.get('speed', 1.0)
+            if type(speed) not in (int, float) or not 0.5 <= speed <= 2.0:
+                raise ValueError('Invalid speech speed')
+            query.speed_scale = float(speed)
+            moras = [m for phrase in query.accent_phrases
+                     for m in [*phrase.moras, *([phrase.pause_mora] if phrase.pause_mora else [])]]
+            duration = query.pre_phoneme_length + query.post_phoneme_length + sum(
+                (m['vowel_length'] + (m.get('consonant_length') or 0)) if isinstance(m, dict)
+                else m.vowel_length + (m.consonant_length or 0) for m in moras)
+            if duration / query.speed_scale > 60: raise ValueError('Speech exceeds duration limit')
+            query.output_sampling_rate = int(sys.argv[3])
+            query.output_stereo = False
+            wav = synth.synthesis(query, style)
+            if len(wav) > 8 * 1024 * 1024: raise ValueError('Audio exceeds limit')
+            print(json.dumps({'wav': base64.b64encode(wav).decode('ascii')}), flush=True)
+
+
+if __name__ == '__main__':
+    main()

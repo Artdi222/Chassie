@@ -1,0 +1,265 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-09T07:56:56.750012+00:00",
+  "title": "Design System: Chassie Companion Studio",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Plum Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.03654 297.91)",
+          "oklch(26.43% 0.03654 297.91)",
+          "oklch(37.86% 0.03654 297.91)",
+          "oklch(49.29% 0.03654 297.91)",
+          "oklch(60.71% 0.03654 297.91)",
+          "oklch(72.14% 0.03654 297.91)",
+          "oklch(83.57% 0.03654 297.91)",
+          "oklch(95.00% 0.03654 297.91)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Plum",
+        "tonalRamp": [
+          "oklch(15.00% 0.03852 300.28)",
+          "oklch(26.43% 0.03852 300.28)",
+          "oklch(37.86% 0.03852 300.28)",
+          "oklch(49.29% 0.03852 300.28)",
+          "oklch(60.71% 0.03852 300.28)",
+          "oklch(72.14% 0.03852 300.28)",
+          "oklch(83.57% 0.03852 300.28)",
+          "oklch(95.00% 0.03852 300.28)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Lavender Paper",
+        "tonalRamp": [
+          "oklch(15.00% 0.00821 301.36)",
+          "oklch(26.43% 0.00821 301.36)",
+          "oklch(37.86% 0.00821 301.36)",
+          "oklch(49.29% 0.00821 301.36)",
+          "oklch(60.71% 0.00821 301.36)",
+          "oklch(72.14% 0.00821 301.36)",
+          "oklch(83.57% 0.00821 301.36)",
+          "oklch(95.00% 0.00821 301.36)"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "Panel White",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Companion Purple",
+        "tonalRamp": [
+          "oklch(15.00% 0.14631 293.70)",
+          "oklch(26.43% 0.14631 293.70)",
+          "oklch(37.86% 0.14631 293.70)",
+          "oklch(49.29% 0.14631 293.70)",
+          "oklch(60.71% 0.14631 293.70)",
+          "oklch(72.14% 0.14631 293.70)",
+          "oklch(83.57% 0.14631 293.70)",
+          "oklch(95.00% 0.14631 293.70)"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Soft Lavender",
+        "tonalRamp": [
+          "oklch(15.00% 0.02362 301.94)",
+          "oklch(26.43% 0.02362 301.94)",
+          "oklch(37.86% 0.02362 301.94)",
+          "oklch(49.29% 0.02362 301.94)",
+          "oklch(60.71% 0.02362 301.94)",
+          "oklch(72.14% 0.02362 301.94)",
+          "oklch(83.57% 0.02362 301.94)",
+          "oklch(95.00% 0.02362 301.94)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Lavender Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.01829 303.40)",
+          "oklch(26.43% 0.01829 303.40)",
+          "oklch(37.86% 0.01829 303.40)",
+          "oklch(49.29% 0.01829 303.40)",
+          "oklch(60.71% 0.01829 303.40)",
+          "oklch(72.14% 0.01829 303.40)",
+          "oklch(83.57% 0.01829 303.40)",
+          "oklch(95.00% 0.01829 303.40)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Panel headline",
+        "purpose": "Repeated chat and floating-panel headings."
+      },
+      "title": {
+        "displayName": "Section title",
+        "purpose": "Settings and appearance section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Conversation body and compact status content."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels and supporting interface text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-panel",
+        "value": "0 16px 50px #35234820",
+        "purpose": "Floating dialogs and narrow-screen chat overlay."
+      },
+      {
+        "name": "circular-action",
+        "value": "0 5px 16px #2e21431c",
+        "purpose": "Browser circular avatar actions."
+      }
+    ],
+    "motion": [
+      {
+        "name": "avatar-menu-entry",
+        "value": "menu-in .2s ease-out",
+        "purpose": "Opacity .2 to 1 and vertical translate 8px to 0; disabled by prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "800px"
+      },
+      {
+        "name": "wide",
+        "value": "1600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Icon action",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "Compact browser action with the implemented hover, focus, and disabled states.",
+      "html": "<button class=\"ds-button-icon\" aria-label=\"Icon action\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" style=\"width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round\"><path d=\"M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z\"/><path d=\"M7 10h8m-8 4h5\"/></svg></button>",
+      "css": ".ds-button-icon{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;font-family:Outfit,'Segoe UI',sans-serif;width:38px;height:38px;border-radius:10px;background:transparent;color:var(--ink,#2f293d);}.ds-button-icon:hover{background:var(--accent-soft,#ebe5f6);}.ds-button-icon:focus-visible{outline:3px solid #8863ca;outline-offset:3px}.ds-button-icon:disabled{opacity:.45;cursor:not-allowed;}"
+    },
+    {
+      "name": "Primary send",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compact browser action with the implemented hover, focus, and disabled states.",
+      "html": "<button class=\"ds-button-primary\" aria-label=\"Primary send\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" style=\"width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round\"><path d=\"m3 3 18 9-18 9 4-9Zm4 9h14\"/></svg></button>",
+      "css": ".ds-button-primary{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;font-family:Outfit,'Segoe UI',sans-serif;width:38px;height:38px;border-radius:10px;background:var(--accent,#7055b5);color:white;}.ds-button-primary:hover{background:#5b419b;}.ds-button-primary:focus-visible{outline:3px solid #8863ca;outline-offset:3px}.ds-button-primary:disabled{opacity:.45;cursor:not-allowed;}"
+    },
+    {
+      "name": "Soft action",
+      "kind": "button",
+      "refersTo": "button-soft",
+      "description": "Compact browser action with the implemented hover, focus, and disabled states.",
+      "html": "<button class=\"ds-button-soft\" aria-label=\"Soft action\">Ganti model</button>",
+      "css": ".ds-button-soft{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;font-family:Outfit,'Segoe UI',sans-serif;gap:8px;padding:10px 15px;border-radius:10px;font-size:13px;font-weight:500;background:var(--white,#fff);color:var(--ink,#2f293d);}.ds-button-soft:hover{background:#e7dff4;}.ds-button-soft:focus-visible{outline:3px solid #8863ca;outline-offset:3px}.ds-button-soft:disabled{opacity:.45;cursor:not-allowed;}"
+    },
+    {
+      "name": "Text action",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Compact browser action with the implemented hover, focus, and disabled states.",
+      "html": "<button class=\"ds-button-text\" aria-label=\"Text action\">Setengah badan</button>",
+      "css": ".ds-button-text{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;font-family:Outfit,'Segoe UI',sans-serif;padding:10px;border-radius:8px;font-size:12px;background:transparent;color:var(--accent,#7055b5);}.ds-button-text:hover{background:var(--accent-soft,#ebe5f6);}.ds-button-text:focus-visible{outline:3px solid #8863ca;outline-offset:3px}.ds-button-text:disabled{opacity:.45;cursor:not-allowed;}"
+    },
+    {
+      "name": "Circular avatar action",
+      "kind": "button",
+      "refersTo": "button-round",
+      "description": "Compact browser action with the implemented hover, focus, and disabled states.",
+      "html": "<button class=\"ds-button-round\" aria-label=\"Circular avatar action\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" style=\"width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round\"><path d=\"M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z\"/><path d=\"M7 10h8m-8 4h5\"/></svg></button>",
+      "css": ".ds-button-round{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;font-family:Outfit,'Segoe UI',sans-serif;width:46px;height:46px;border-radius:50%;background:white;color:var(--accent,#7055b5);box-shadow:0 5px 16px #2e21431c;}.ds-button-round:hover{background:var(--accent,#7055b5);color:white;}.ds-button-round:focus-visible{outline:3px solid #8863ca;outline-offset:3px}.ds-button-round:disabled{opacity:.45;cursor:not-allowed;}"
+    },
+    {
+      "name": "Settings field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "White bordered field used by settings forms.",
+      "html": "<input class=\"ds-field\" aria-label=\"Nama profil\" placeholder=\"Nama profil\">",
+      "css": ".ds-field{font-family:Outfit,'Segoe UI',sans-serif;border:1px solid var(--line,#e3deeb);padding:10px 12px;border-radius:9px;background:white;color:var(--ink,#2f293d);caret-color:var(--accent,#7055b5);}.ds-field::placeholder{color:#797181;}.ds-field:focus-visible{outline:3px solid #8863ca;outline-offset:3px}"
+    },
+    {
+      "name": "Appearance choices",
+      "kind": "chip",
+      "refersTo": "choice",
+      "description": "Preset controls expose their selected state.",
+      "html": "<div class=\"ds-choices\"><button aria-pressed=\"false\">Default</button><button aria-pressed=\"true\">Smile</button></div>",
+      "css": ".ds-choices{display:flex;flex-wrap:wrap;gap:7px;}.ds-choices button{font-family:Outfit,'Segoe UI',sans-serif;font-size:12px;color:var(--ink,#2f293d);background:transparent;border:1px solid var(--line,#e3deeb);padding:8px 12px;border-radius:8px;cursor:pointer;}.ds-choices button[aria-pressed=true]{background:var(--accent,#7055b5);border-color:var(--accent,#7055b5);color:white;}.ds-choices button:hover{border-color:var(--accent,#7055b5);}.ds-choices button:focus-visible{outline:3px solid #8863ca;outline-offset:3px}"
+    },
+    {
+      "name": "Model option",
+      "kind": "card",
+      "refersTo": "model-option",
+      "description": "Selectable model tile with compact supporting information.",
+      "html": "<button class=\"ds-model-option\" aria-pressed=\"true\"><strong>Model 1</strong><span>Preset tersedia</span></button>",
+      "css": ".ds-model-option{font-family:Outfit,'Segoe UI',sans-serif;padding:16px;text-align:left;border:1px solid var(--line,#e3deeb);border-radius:12px;display:flex;flex-direction:column;gap:5px;background:white;color:var(--ink,#2f293d);cursor:pointer;}.ds-model-option strong{font-size:16px;font-weight:500;}.ds-model-option span{font-size:11px;color:var(--muted,#6b637b);}.ds-model-option[aria-pressed=true]{background:var(--accent-soft,#ebe5f6);border-color:#a18ac7;}.ds-model-option:focus-visible{outline:3px solid #8863ca;outline-offset:3px}"
+    },
+    {
+      "name": "Stage framing toolbar",
+      "kind": "nav",
+      "refersTo": "button-icon",
+      "description": "Grouped framing navigation using existing icon and text actions.",
+      "html": "<nav class=\"ds-framing\" aria-label=\"Model framing\"><button aria-label=\"Perkecil model\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 12h14\"/></svg></button><button class=\"ds-reset\">Setengah badan</button><button aria-label=\"Perbesar model\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg></button></nav>",
+      "css": ".ds-framing{display:flex;align-items:center;gap:8px;background:#f1eef6;padding:12px;}.ds-framing button{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;font-family:Outfit,'Segoe UI',sans-serif;width:38px;height:38px;border-radius:10px;background:transparent;color:var(--ink,#2f293d);}.ds-framing .ds-reset{width:auto;font-size:12px;padding:10px;border-radius:8px;color:var(--accent,#7055b5);}.ds-framing svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}.ds-framing button:hover{background:var(--accent-soft,#ebe5f6);}.ds-framing button:focus-visible{outline:3px solid #8863ca;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Lavender Companion Studio",
+    "overview": "A quiet pale lavender application shell gives the actual Live2D character visual priority. Dark ink, purple actions, white conversation surfaces, and compact outline icons carry the interface across browser and desktop panels.\n\nThe name below describes the approved lavender companion direction; it is documentation language, not an additional user-approved brand concept. This records the implemented system in ui/style.css, ui/index.html, ui/studio.js, and desktop/studio.py.",
+    "keyCharacteristics": [
+      "Pale lavender foundations with purple interaction states.",
+      "Outfit typography with compact controls and restrained headings.",
+      "White rounded panels and circular avatar actions.",
+      "Actual model assets, spoken subtitles, and shared web panel styling."
+    ],
+    "rules": [
+      {
+        "name": "The Accent Signals Action Rule",
+        "body": "Use purple for actionable controls and selected appearance choices; use muted ink for supporting information.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shared Panel Rule",
+        "body": "Reuse browser panel content inside desktop windows; embedded content fills its host without an extra outer radius or modal shadow.",
+        "section": "layout"
+      },
+      {
+        "name": "The Floating Depth Rule",
+        "body": "Use diffuse shadows for floating panels and avatar actions; separate ordinary settings content with tone and fine borders.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve the actual model as the visual focus and use its supplied assets.",
+      "Do use the existing purple selected states and visible keyboard focus treatment.",
+      "Do keep chat and settings content consistent between browser and embedded desktop panels.",
+      "Do distinguish a model click from a drag, and preserve the reduced-motion override."
+    ],
+    "donts": [
+      "Don't invent expression or outfit choices when the selected model has no matching assets.",
+      "Don't add opaque application chrome behind the transparent desktop avatar."
+    ]
+  }
+}

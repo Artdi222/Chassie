@@ -1,0 +1,562 @@
+// Web Chat UI Client for Chassie
+document.addEventListener("DOMContentLoaded", () => {
+    let ws = null;
+    const gatewayUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`;
+    let settings = null;
+    let voiceDraft = "";
+    let inventory = {};
+    const streamBubbles = new Map();
+    const emotionNames = ["happy", "sad", "surprised", "thinking", "teasing", "concerned", "excited", "neutral", "angry", "shy", "sleepy", "love", "defeated", "curious", "flustered", "shocked"];
+    const emotionTags = new RegExp(`\\[(?:${emotionNames.join("|")})\\]\\s*`, "gi");
+
+    // DOM Elements
+    const messagesContainer = document.getElementById("messages-container");
+    const latestButton=document.getElementById('jump-latest');
+    let followLatest=true;
+    function scrollForNewContent() {
+        if(followLatest)messagesContainer.scrollTop=messagesContainer.scrollHeight;
+        else latestButton.hidden=false;
+    }
+    messagesContainer.addEventListener('scroll',()=>{
+        followLatest=messagesContainer.scrollHeight-messagesContainer.clientHeight-messagesContainer.scrollTop<48;
+        if(followLatest)latestButton.hidden=true;
+    });
+    latestButton.onclick=()=>{followLatest=true;latestButton.hidden=true;scrollForNewContent();};
+    const chatForm = document.getElementById("chat-form");
+    const chatInput = document.getElementById("chat-input");
+    const statusGlow = document.getElementById("status-glow");
+    const statusText = document.getElementById("status-text");
+    const vtsStatusBadge = document.getElementById("vts-status");
+    const faceExpressionBadge = document.getElementById("face-expression");
+    const clearBtn = document.getElementById("clear-btn");
+    const micToggle = document.getElementById("mic-toggle");
+    const currentActivity = document.getElementById("current-activity");
+
+    // Initialize connection
+    function connect() {
+        console.log(`Connecting to Chassie WebSocket at ${gatewayUrl}...`);
+        ws = new WebSocket(gatewayUrl);
+
+        ws.onopen = () => {
+            console.log("Connected to Chassie WebSocket.");
+            sendControl({type: "avatar_inventory"});
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                handleMessage(message);
+            } catch (e) {
+                console.error("Error parsing WebSocket message:", e);
+            }
+        };
+
+        ws.onclose = () => {
+            window.dispatchEvent(new CustomEvent("chassie-connection", {detail:{connected:false}}));
+            console.warn("Chassie WebSocket disconnected. Retrying in 2 seconds...");
+            updateStatus("disconnected");
+            setControlsConnected(false);
+            document.getElementById('vision-state').textContent = 'Disconnected. Camera and screen status are unknown.';
+            document.getElementById('face-identity').textContent = '';
+            vtsStatusBadge.textContent = "Disconnected";
+            vtsStatusBadge.className = "badge disconnected";
+            setTimeout(connect, 2000);
+        };
+
+        ws.onerror = (err) => {
+            console.error("WebSocket error:", err);
+            ws.close();
+        };
+    }
+
+    // Handle incoming backend event messages
+    function handleMessage(data) {
+        window.dispatchEvent(new CustomEvent("chassie-message", {detail: data}));
+        switch (data.type) {
+            case "model_catalog": case "model_state": case "subtitle": break;
+            case "settings":
+                settings = data;
+                renderSettings();
+                break;
+            case "vision_status":
+                renderVision(data);
+                break;
+            case "notice":
+                document.getElementById("control-notice").textContent = data.text;
+                if (data.scope === "chat") appendSystemAlert(data.text,data.retry_text);
+                break;
+            case "voice_draft_cleared":
+                if (chatInput.value === voiceDraft) chatInput.value = "";
+                voiceDraft = "";
+                break;
+            case "memories":
+                renderMemories(data.items);
+                break;
+            case "memory_status":
+                document.getElementById("vault-state").textContent = data.available
+                    ? `Obsidian · ${data.path} · ${data.chunks || 0} memories${data.pending_cloud_sources ? " · Sync queued" : ""}`
+                    : (data.error || "Vault unavailable. Memories have not been saved here.");
+                break;
+            case "speaker_status":
+                document.getElementById("speaker-state").textContent = data.name ? `Voice sounds like ${data.name}. Recognition is an estimate.` : "Voice not recognized.";
+                break;
+            case "person_enrolled":
+                document.getElementById("person-form").reset();
+                break;
+            case "speech_status":
+                renderSpeechStatus(data);
+                break;
+            case "avatar_inventory":
+                inventory = data.capabilities.emotions || {};
+                renderExpressions();
+                break;
+            case "avatar_state":
+                break;
+            case "status":
+                updateStatus(data.status);
+                break;
+            case "vts_status":
+                updateVtsStatus(data.status);
+                break;
+            case "face_context":
+                updateFaceExpression(data.expression);
+                break;
+            case "chat":
+                appendChatBubble(data.role, data.text);
+                break;
+            case "chat_stream":
+                updateStreamBubble(data);
+                break;
+            case "history_snapshot":
+                const priorScroll=messagesContainer.scrollTop,wasFollowing=followLatest;
+                clearChatDisplay(false);
+                for (const item of data.items) {
+                    if (item.stream_id) updateStreamBubble({id: item.stream_id, text: item.text, done: false});
+                    else appendChatBubble(item.role, item.text);
+                }
+                followLatest=wasFollowing;
+                if(!wasFollowing)messagesContainer.scrollTop=priorScroll;
+                break;
+            case "stt_transcription":
+                handleSTTTranscription(data.text);
+                break;
+            case "history_cleared":
+                clearChatDisplay();
+                break;
+            default:
+                console.warn("Unknown message type received:", data);
+        }
+    }
+
+    // Place voice transcription into input box for review
+    function handleSTTTranscription(text) {
+        if (!text) return;
+        const previous = voiceDraft;
+        voiceDraft = text;
+        if (!chatInput.value || chatInput.value === previous) chatInput.value = text;
+        else document.getElementById("control-notice").textContent = "A voice draft is ready. Use ‘Insert voice draft’ to add it to your message.";
+    }
+
+    // Clear chat feed from screen
+    function clearChatDisplay(showNotice = true) {
+        if(showNotice){followLatest=true;latestButton.hidden=true;}
+        streamBubbles.clear();
+        messagesContainer.innerHTML = `
+            <div class="welcome-box">
+                <svg class="welcome-icon"><use href="icons.svg#chat"/></svg>
+                <h3>Start with a hello.</h3>
+                <p>Type below or turn on the microphone. You can also try models without chatting.</p>
+            </div>
+        `;
+        if (showNotice) appendSystemAlert("Conversation history cleared.");
+    }
+
+    // Update pipeline status layout
+    function updateStatus(status) {
+        // Reset classes
+        statusGlow.className = "glow-ring " + status;
+        
+        let text = "Idle";
+        let activity = "Ready to chat";
+
+        if (status === "listening") {
+            text = "Listening";
+            activity = "Listening to your voice...";
+        } else if (status === "thinking") {
+            text = "Thinking";
+            activity = "Thinking of a response...";
+        } else if (status === "speaking") {
+            text = "Speaking";
+            activity = "Speaking...";
+        } else if (status === "disconnected") {
+            text = "Offline";
+            activity = "Reconnecting to Chassie backend...";
+            statusGlow.className = "glow-ring idle";
+        }
+
+        statusText.textContent = text;
+        currentActivity.textContent = activity;
+    }
+
+    // Update VTS Connection Indicator
+    function updateVtsStatus(status) {
+        if (status === "connected") {
+            vtsStatusBadge.textContent = "Connected";
+            vtsStatusBadge.className = "badge connected";
+        } else {
+            vtsStatusBadge.textContent = "Disconnected";
+            vtsStatusBadge.className = "badge disconnected";
+        }
+    }
+
+    // Update Face tracker expression context
+    function updateFaceExpression(expression) {
+        if (expression) {
+            faceExpressionBadge.textContent = expression;
+        } else {
+            faceExpressionBadge.textContent = "Neutral";
+        }
+    }
+
+    // Append user/assistant chat bubble
+    function displayText(text, streaming = false) {
+        let clean = text.replace(emotionTags, "");
+        if (streaming) {
+            const partial = clean.match(/\[([a-z]*)$/i);
+            if (partial && emotionNames.some(name => name.startsWith(partial[1].toLowerCase()))) {
+                clean = clean.slice(0, partial.index);
+            }
+        }
+        return clean.trim();
+    }
+
+    function updateStreamBubble(data) {
+        const text = displayText(data.text, !data.done);
+        let bubble = streamBubbles.get(data.id);
+        if (!bubble && text) {
+            bubble = appendChatBubble("assistant", text);
+            streamBubbles.set(data.id, bubble);
+        }
+        if (!bubble) return;
+        bubble.querySelector(".bubble-content").textContent = text;
+        bubble.querySelector(".bubble-meta").textContent = data.interrupted ? "Chassie • Interrupted" : data.done ? "Chassie" : "Chassie • Replying…";
+        bubble.dataset.streamId = data.id;
+        scrollForNewContent();
+    }
+
+    function appendChatBubble(role, text) {
+        // Hide welcome box if present
+        const welcomeBox = document.querySelector(".welcome-box");
+        if (welcomeBox) {
+            welcomeBox.style.display = "none";
+        }
+
+        // Clean up formatting (strip any brackets used in raw LLM text for display)
+        const cleanText = role === "assistant" ? displayText(text) : text.trim();
+        if (!cleanText) return;
+
+        const bubble = document.createElement("div");
+        bubble.className = `message-bubble ${role}`;
+
+        const content = document.createElement("div");
+        content.className = "bubble-content";
+        content.textContent = cleanText;
+
+        const meta = document.createElement("div");
+        meta.className = "bubble-meta";
+        
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        meta.textContent = role === "user" ? `You • ${timeStr}` : `Chassie • ${timeStr}`;
+
+        bubble.appendChild(content);
+        bubble.appendChild(meta);
+        const copy=document.createElement('button');copy.className='copy-message';copy.type='button';
+        copy.textContent='Copy';copy.setAttribute('aria-label','Copy message');
+        copy.onclick=async()=>{
+            try {await navigator.clipboard.writeText(content.textContent);copy.textContent='Copied';}
+            catch {copy.textContent='Copy unavailable';}
+            setTimeout(()=>copy.textContent='Copy',1800);
+        };
+        bubble.append(copy);
+        messagesContainer.appendChild(bubble);
+
+        // Auto scroll to bottom
+        scrollForNewContent();
+        return bubble;
+    }
+
+    // Append system alert box
+    function appendSystemAlert(text,retryText) {
+        const alertBox = document.createElement("div");
+        alertBox.className = "welcome-box";
+        alertBox.setAttribute("role", "alert");
+        alertBox.style.margin = "12px auto";
+        alertBox.style.padding = "16px";
+        alertBox.style.borderRadius = "16px";
+        alertBox.style.maxWidth = "360px";
+        const notice = document.createElement("p");
+        notice.textContent = text;
+        alertBox.append(notice);
+        if(typeof retryText==='string' && retryText.trim()) {
+            const retry=action('Try again',()=>{
+                if(sendControl({type:'user_input',text:retryText})) {
+                    retry.disabled=true;retry.textContent='Retrying…';followLatest=true;scrollForNewContent();
+                }
+            });
+            alertBox.append(retry);
+        }
+        messagesContainer.appendChild(alertBox);
+        scrollForNewContent();
+    }
+
+    /* Legacy sidebar logic (replaced by studio panels)
+    // Responsive Sidebar Hamburger Logic
+    const menuToggle = document.getElementById("menu-toggle");
+    const sidebarClose = document.getElementById("sidebar-close");
+    const sidebar = document.querySelector(".sidebar");
+    const chatArea = document.querySelector(".chat-area");
+
+    if (menuToggle && sidebarClose && sidebar) {
+        console.log("Hamburger sidebar system initialized.");
+        
+        menuToggle.addEventListener("click", (e) => {
+            console.log("Hamburger icon clicked. Opening sidebar.");
+            e.stopPropagation();
+            sidebar.classList.add("active");
+        });
+
+        sidebarClose.addEventListener("click", (e) => {
+            console.log("Sidebar close button clicked. Closing sidebar.");
+            e.stopPropagation();
+            sidebar.classList.remove("active");
+        });
+
+        // Close sidebar when clicking main chat area
+        chatArea.addEventListener("click", (e) => {
+            if (sidebar.classList.contains("active")) {
+                console.log("Clicked main chat area while sidebar was open. Closing sidebar.");
+                sidebar.classList.remove("active");
+            }
+        });
+    }
+
+    */
+    // Submit Text Input Form
+    chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+        // Send to backend
+        followLatest=true;latestButton.hidden=true;
+        ws.send(JSON.stringify({
+            type: "user_input",
+            text: text
+        }));
+
+        chatInput.value = "";
+    });
+
+    // Clear History Button Action
+    clearBtn.addEventListener("click", () => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({
+            type: "clear_history"
+        }));
+    });
+
+    function sendControl(data) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            document.getElementById("control-notice").textContent = "Disconnected. Your changes have not been sent.";
+            return false;
+        }
+        ws.send(JSON.stringify(data));
+        return true;
+    }
+
+    function setControlsConnected(connected) {
+        ["mic-toggle", "input-mode", "companion-mode", "stop-btn", "profile-select", "speech-engine"].forEach(id => {
+            document.getElementById(id).disabled = !connected;
+        });
+        if (!connected) {
+            ["preview-btn", "resume-btn", "load-memories", "delete-profile"].forEach(id => document.getElementById(id).disabled = true);
+        }
+    }
+
+    function renderSettings() {
+        setControlsConnected(true);
+        renderVision(settings.vision);
+        micToggle.checked = settings.mic_enabled;
+        document.getElementById("speech-language").textContent = settings.speech_engine === "voicevox"
+            ? "Mochiko-san · Japanese voice · English subtitles"
+            : settings.speech_engine === "style_bert" ? "Koharune Ami · Expressive Japanese voice · English subtitles"
+            : "English voice and subtitles";
+        document.getElementById("speech-credit").hidden = !['voicevox','style_bert'].includes(settings.speech_engine);
+        document.getElementById("ami-credit").hidden = settings.speech_engine !== "style_bert";
+        document.getElementById("speech-options").hidden = settings.speech_engine !== "style_bert";
+        renderSpeechStatus(settings.speech);
+        document.getElementById("input-mode").value = settings.input_mode;
+        document.getElementById("companion-mode").value = settings.mode;
+        document.getElementById("voice-state").textContent = !settings.mic_enabled ? "Microphone muted" : settings.capture_paused ? "Microphone paused during reply — echo protection" : settings.voice_ready ? "Microphone listening" : (settings.voice_error || "Microphone is starting or unavailable");
+        document.getElementById("resume-btn").disabled = !settings.pending_topic;
+        const automatic = !!settings.automatic_memory;
+        document.getElementById("automatic-memory-controls").hidden = !automatic;
+        document.getElementById("legacy-people-controls").hidden = automatic;
+        document.getElementById("personal-memory-state").textContent = settings.scope === "personal" ? "Your memories are active." : "Personal memory is paused while someone else may be present.";
+        document.getElementById("resume-personal").hidden = settings.scope !== "shared";
+        document.getElementById("person-voice").disabled = !settings.speaker_ready;
+        document.getElementById("person-enrollment").textContent = settings.enrollment_pending ? "Listening for the consenting person's voice. Speak alone for 3–12 seconds within 90 seconds." : "";
+        document.getElementById("cancel-enrollment").hidden = !settings.enrollment_pending;
+        document.querySelector('#person-form button[type="submit"]').disabled = !!settings.enrollment_pending;
+        const people = document.getElementById("people-list");people.replaceChildren();
+        (settings.people || []).forEach(p => {
+            const row=document.createElement("div");row.className="memory-item";
+            const name=document.createElement("p");name.textContent=`${p.name} · ${[p.face && "Face remembered",p.voice && "Voice remembered"].filter(Boolean).join(" · ")}`;
+            row.append(name,action("Forget face & voice",()=>{
+                if(window.confirm(`Forget ${p.name}'s saved face and voice? Text memories are kept.`))sendControl({type:"forget_person",person_id:p.id});
+            }));people.append(row);
+        });
+        if (automatic && !people.children.length) people.textContent="No introductions yet.";
+        const select = document.getElementById("profile-select");
+        select.replaceChildren(new Option("No profile selected", ""));
+        settings.profiles.forEach(p => select.add(new Option(p.name, p.id)));
+        select.value = settings.owner_id || "";
+        document.getElementById("delete-profile").disabled = !settings.owner_id;
+        document.getElementById("load-memories").disabled = settings.scope !== "personal";
+        document.getElementById("memory-form").hidden = settings.scope !== "personal";
+        document.getElementById("session-scope").textContent = settings.scope === "shared" ? "Shared session — personal memories hidden" : settings.scope === "personal" ? "Personal session — selected profile memories may be used" : "No personal profile in use";
+        if (settings.scope !== "personal") renderMemories([]);
+        const guests = document.getElementById("guest-list");
+        guests.replaceChildren();
+        settings.guests.forEach(g => {
+            const row = document.createElement("div"); row.className = "guest-item";
+            const name = document.createElement("p"); name.textContent = `${g.name} — ${g.invited ? "invited" : "present, not invited"}`; row.append(name);
+            if (!g.invited) row.append(action("Invite to conversation", () => sendControl({type:"invite_guest",guest_id:g.id})));
+            row.append(action("Mark as gone", () => sendControl({type:"remove_guest",guest_id:g.id})));
+            guests.append(row);
+        });
+    }
+
+    function action(label,handler) {
+        const button = document.createElement("button");
+        button.type="button";button.className="action-btn secondary-btn";button.textContent=label;button.addEventListener("click",handler);
+        return button;
+    }
+
+    function renderSpeechStatus(speech) {
+        if(!speech)return;
+        if(['voicevox','style_bert'].includes(speech.selected))document.getElementById('speech-language').textContent=speech.selected==='voicevox'
+            ? 'Mochiko-san · Japanese voice · English subtitles'
+            : 'Koharune Ami · Expressive Japanese voice · English subtitles';
+        const select=document.getElementById('speech-engine');select.value=speech.selected;
+        select.disabled=!ws || ws.readyState!==WebSocket.OPEN;
+        const reason={slow:'Ami took too long · text is still available',unavailable:'Ami is unavailable · retry or choose another voice',selected:'VOICEVOX selected'};
+        document.getElementById('speech-status').textContent=speech.selected==='voicevox' ? reason.selected :
+            speech.warming ? 'Koharune Ami is loading · speech will wait' :
+            reason[speech.reason] || (speech.ready ? 'Koharune Ami ready · tone follows each sentence' : 'Koharune Ami is preparing · speech will wait');
+    }
+
+    function renderVision(vision) {
+        const state = document.getElementById('vision-state');
+        const identity = document.getElementById('face-identity');
+        if (!vision) {
+            state.textContent = 'Automatic vision is disabled in this session.';
+            identity.textContent = '';
+            return;
+        }
+        state.textContent = ['camera', 'screen'].map(source => {
+            const value = vision[source];
+            const label = source === 'camera' ? 'Camera' : 'Screen';
+            return !value.enabled ? `${label} off` : value.available ? `${label} active` : value.error || `${label} starting…`;
+        }).join(' · ');
+        const faces = vision.identity;
+        identity.textContent = faces.error || (faces.matches.length
+            ? `Face match: ${faces.matches.map(face => face.name).join(', ')}. Recognition is an estimate.`
+            : faces.face_count ? `${faces.face_count} face(s) visible; no saved match.` : 'No face recognized.');
+    }
+
+    function renderMemories(items) {
+        const list = document.getElementById("memory-list");list.replaceChildren();
+        items.forEach(m => {
+            const row=document.createElement("div");row.className="memory-item";
+            const text=document.createElement("p");text.textContent=m.content;
+            const source=document.createElement("p");source.className="control-help";source.textContent=m.source;
+            if(m.editable === false){source.textContent += " · Edit this note in Obsidian";row.append(text,source);list.append(row);return;}
+            const edit=document.createElement("textarea");edit.value=m.content;edit.maxLength=2000;edit.hidden=true;edit.setAttribute("aria-label","Edit saved memory");
+            const save=action("Save correction",()=>{ if(edit.value.trim()) sendControl({type:"edit_memory",memory_id:m.id,content:edit.value}); });save.hidden=true;
+            row.append(text,source,action("Edit",()=>{edit.hidden=false;save.hidden=false;edit.focus();}),edit,save,action("Delete",()=>{sendControl({type:"delete_memory",memory_id:m.id});}));
+            list.append(row);
+        });
+    }
+
+    function renderExpressions() {
+        const select=document.getElementById("emotion-select");const previous=select.value;select.replaceChildren();
+        Object.entries(inventory).forEach(([name,info])=>{
+            const option=new Option(name + (info.available ? "" : " — unavailable"),name);option.disabled=!info.available;select.add(option);
+        });
+        if (!select.options.length) select.add(new Option("Connect an avatar renderer first", ""));
+        if (inventory[previous]?.available) select.value=previous;
+        expressionChanged();
+    }
+    function expressionChanged() {
+        const value=document.getElementById("emotion-select").value;
+        const info=inventory[value];
+        document.getElementById("preview-btn").disabled=!info?.available;
+        const targets=(info?.backends || []).map(name=>name === "overlay" ? "desktop overlay" : "VTube Studio");
+        document.getElementById("expression-note").textContent=(info?.note || "Preview on a connected avatar renderer.") + (targets.length ? " Preview target: " + targets.join(" and ") + "." : " Connect VTube Studio or the desktop overlay to preview.");
+    }
+
+    micToggle.addEventListener("change",()=>{
+        const enabled=micToggle.checked;micToggle.disabled=true;
+        sendControl({type:"set_mic",enabled});
+    });
+    document.getElementById("input-mode").addEventListener("change",e=>sendControl({type:"set_input_mode",mode:e.target.value}));
+    document.getElementById('speech-engine').addEventListener('change',e=>{
+        if(sendControl({type:'set_speech_engine',engine:e.target.value}))e.target.disabled=true;
+        else renderSpeechStatus(settings?.speech);
+    });
+    document.getElementById("companion-mode").addEventListener("change",e=>sendControl({type:"set_mode",mode:e.target.value}));
+    document.getElementById("stop-btn").addEventListener("click",()=>sendControl({type:"stop"}));
+    document.getElementById("resume-btn").addEventListener("click",()=>sendControl({type:"resume_topic"}));
+    document.getElementById("profile-select").addEventListener("change",e=>sendControl({type:"select_profile",profile_id:e.target.value || null}));
+    document.getElementById("person-form").addEventListener("submit",e=>{
+        e.preventDefault();
+        sendControl({type:"enroll_person",name:document.getElementById("person-name").value,
+            face:document.getElementById("person-face").checked,voice:document.getElementById("person-voice").checked,
+            consent:document.getElementById("person-consent").checked});
+    });
+    for(const id of ['person-name','person-face','person-voice'])document.getElementById(id).addEventListener('input',()=>{
+        document.getElementById('person-consent').checked=false;
+    });
+    document.getElementById("cancel-enrollment").addEventListener("click",()=>sendControl({type:"cancel_enrollment"}));
+    document.getElementById("resume-personal").addEventListener("click",()=>sendControl({type:"resume_personal"}));
+    document.getElementById("automatic-memory-controls").parentElement.addEventListener("toggle",e=>{
+        if(e.target.open && settings?.automatic_memory)sendControl({type:"memory_status"});
+    });
+    document.getElementById("profile-form").addEventListener("submit",e=>{
+        e.preventDefault();
+        if(sendControl({type:"create_profile",name:document.getElementById("profile-name").value,consent:document.getElementById("profile-consent").checked}))e.target.reset();
+    });
+    document.getElementById("delete-profile").addEventListener("click",()=>{
+        if(settings?.owner_id && window.confirm("Delete this profile and all its saved memories?"))sendControl({type:"delete_profile",profile_id:settings.owner_id});
+    });
+    document.getElementById("guest-form").addEventListener("submit",e=>{
+        e.preventDefault();if(sendControl({type:"guest_present",name:document.getElementById("guest-name").value}))e.target.reset();
+    });
+    document.getElementById("memory-form").addEventListener("submit",e=>{
+        e.preventDefault();if(sendControl({type:"add_memory",content:document.getElementById("memory-content").value,consent:document.getElementById("memory-consent").checked}))e.target.reset();
+    });
+    document.getElementById("load-memories").addEventListener("click",()=>sendControl({type:"list_memories"}));
+    document.getElementById("expression-panel").addEventListener("toggle",()=>sendControl({type:"avatar_inventory"}));
+    document.getElementById("emotion-select").addEventListener("change",expressionChanged);
+    document.getElementById("preview-btn").addEventListener("click",()=>sendControl({type:"preview_emotion",emotion:document.getElementById("emotion-select").value}));
+    const insertDraft=action("Insert voice draft",()=>{
+        if(voiceDraft) { chatInput.value = (chatInput.value.trim() + " " + voiceDraft).trim();voiceDraft="";chatInput.focus(); }
+    });
+    document.querySelector(".companion-controls").prepend(insertDraft);
+
+    window.chassie = {send: sendControl};
+    // Start WebSocket Connection
+    connect();
+});

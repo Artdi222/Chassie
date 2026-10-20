@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "model_id": "47b17dda67804d26866c61101ad55720",
+  "model_file": "ulvm2_0001.model3.json",
+  "emotions": {
+    "happy": {
+      "expression": "smile.exp3.json",
+      "fx": "fx_3_note.exp3.json",
+      "preview_required": true,
+      "note": "Preview smile and blinking."
+    },
+    "sad": {
+      "expression": "cry.exp3.json",
+      "fx": "fx_2_pale2.exp3.json",
+      "preview_required": true,
+      "note": "Check intensity for mild sadness."
+    },
+    "surprised": {
+      "expression": "surprised.exp3.json",
+      "fx": "fx_6_surprised.exp3.json",
+      "preview_required": true,
+      "note": "Replace unresolved whoa hotkey alias."
+    },
+    "thinking": {
+      "expression": null,
+      "fx": "fx_7_question.exp3.json",
+      "preview_required": true,
+      "note": "FX only; no invented facial expression."
+    },
+    "teasing": {
+      "expression": "cat_mouth.exp3.json",
+      "fx": null,
+      "preview_required": true,
+      "note": "Check mouth-shape conflict with lip sync."
+    },
+    "concerned": {
+      "expression": null,
+      "fx": "fx_4_sweat.exp3.json",
+      "preview_required": true,
+      "note": "Fixed sweat effect."
+    },
+    "excited": {
+      "expression": "smile.exp3.json",
+      "fx": "fx_11_star.exp3.json",
+      "preview_required": true,
+      "note": "Distinguish from happy through FX."
+    },
+    "neutral": {
+      "expression": null,
+      "fx": null,
+      "preview_required": false,
+      "note": "Clear managed emotion and FX only; preserve outfits."
+    },
+    "angry": {
+      "expression": "angry.exp3.json",
+      "fx": "fx_13_angry.exp3.json",
+      "preview_required": true,
+      "note": "Candidate: visually compare angry, angry2 and XD before approval."
+    },
+    "shy": {
+      "expression": "blush.exp3.json",
+      "fx": null,
+      "preview_required": true,
+      "note": "Explicit asset replaces shyness alias."
+    },
+    "sleepy": {
+      "expression": "sleep.exp3.json",
+      "fx": "fx_12_zzz.exp3.json",
+      "preview_required": true,
+      "note": "Check eyes and breathing."
+    },
+    "love": {
+      "expression": "smile.exp3.json",
+      "fx": "fx_1_heart.exp3.json",
+      "preview_required": true,
+      "note": "Check transitions from happy and excited."
+    },
+    "defeated": {
+      "expression": "kukkoro.exp3.json",
+      "fx": "fx_2_pale2.exp3.json",
+      "preview_required": true,
+      "note": "Many parameters change; preview required."
+    },
+    "curious": {
+      "expression": "jitome.exp3.json",
+      "fx": "fx_7_question.exp3.json",
+      "preview_required": true,
+      "note": "Candidate: jitome may look skeptical rather than curious."
+    },
+    "flustered": {
+      "expression": "oo.exp3.json",
+      "fx": "fx_4_sweat.exp3.json",
+      "preview_required": true,
+      "note": "Check eye-shape transition."
+    },
+    "shocked": {
+      "expression": "surprised.exp3.json",
+      "fx": "fx_8_exclamation.exp3.json",
+      "preview_required": true,
+      "note": "Distinguish from surprised through FX."
+    }
+  }
+}

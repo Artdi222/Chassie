@@ -1,0 +1,5 @@
+# Optional desktop renderer only. Keep out of the assistant's core requirements.
+PySide6>=6.8,<6.12
+PyOpenGL>=3.1.7,<4
+# Linux: install the matching official v0.7.0.4 manylinux wheel; see docs/overlay.md.
+live2d-py==0.7.0.4; sys_platform == 'win32'

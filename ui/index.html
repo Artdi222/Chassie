@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Chassie — Companion Studio</title><link rel="icon" type="image/png" href="public/chassie-icon.png"><link rel="stylesheet" href="style.css?v=9"></head>
+<body>
+<div class="studio-shell">
+<header class="app-bar"><a class="wordmark" href="/" aria-label="Chassie home"><svg class="icon"><use href="icons.svg#spark"/></svg>Chassie<span>companion studio</span></a><div class="app-actions"><span class="local-badge">On this computer</span><button id="menu-toggle" class="icon-button" title="Open settings" aria-label="Open settings"><svg class="icon"><use href="icons.svg#settings"/></svg></button></div></header>
+<main class="workspace">
+<section class="avatar-stage" aria-label="Live2D model preview">
+<div class="stage-top"><div><h1 id="model-title">Choose your companion.</h1><p id="model-description">Four characters. Find your favorite.</p></div><button id="open-models" class="soft-button"><svg class="icon"><use href="icons.svg#models"/></svg>Change model</button></div>
+<div class="canvas-wrap" id="canvas-wrap"><canvas id="avatar-canvas" aria-label="Interactive Live2D avatar"></canvas><div id="model-loading" role="status">Preparing model…</div><button id="retry-model" class="soft-button" hidden>Try again</button></div>
+<div class="subtitle-wrap"><p id="subtitle" role="status" aria-live="polite"></p><p id="stage-hint">Click the model for controls · Drag to reposition</p></div>
+<div id="avatar-menu" class="avatar-menu" hidden><button data-panel="chat" class="round-button" aria-label="Open chat" title="Chat"><svg class="icon"><use href="icons.svg#chat"/></svg></button><button data-panel="models" class="round-button" aria-label="Models and expressions" title="Models & expressions"><svg class="icon"><use href="icons.svg#smile"/></svg></button><button data-panel="wardrobe" class="round-button" aria-label="Outfits and props" title="Outfits & props"><svg class="icon"><use href="icons.svg#shirt"/></svg></button><button data-panel="settings" class="round-button" aria-label="Settings" title="Settings"><svg class="icon"><use href="icons.svg#settings"/></svg></button></div>
+<div class="stage-toolbar"><div class="frame-controls"><button id="zoom-out" class="icon-button" aria-label="Zoom out"><svg class="icon"><use href="icons.svg#minus"/></svg></button><button id="reset-frame" class="text-button">Waist-up</button><button id="zoom-in" class="icon-button" aria-label="Zoom in"><svg class="icon"><use href="icons.svg#plus"/></svg></button></div><div class="voice-controls"><button id="studio-mic" class="soft-button" disabled><svg class="icon"><use href="icons.svg#mic"/></svg><span>Microphone off</span></button><button id="studio-stop" class="icon-button" aria-label="Stop reply" title="Stop reply"><svg class="icon"><use href="icons.svg#stop"/></svg></button></div></div>
+</section>
+<section class="chat-area" aria-label="Conversation"><header class="chat-header"><div><h2>Conversation</h2><p id="current-activity">Ready to chat</p></div><button id="toggle-chat" class="icon-button" aria-label="Close chat"><svg class="icon"><use href="icons.svg#close"/></svg></button></header><div class="messages-window" id="messages-container"><div class="welcome-box"><svg class="welcome-icon"><use href="icons.svg#chat"/></svg><h3>Start with a hello.</h3><p>Type below or turn on the microphone. You can also try models without chatting.</p></div></div><footer class="chat-footer"><button id="jump-latest" class="latest-button" type="button" hidden>New messages ↓</button><form id="chat-form" class="input-container"><input type="text" aria-label="Message to Chassie" maxlength="8000" id="chat-input" placeholder="Write a message…" autocomplete="off"><button type="submit" id="send-btn" class="icon-button primary" aria-label="Send message"><svg class="icon"><use href="icons.svg#send"/></svg></button></form><p class="input-caption">English voice enabled</p></footer></section>
+<button id="reopen-chat" class="round-button" hidden aria-label="Open conversation"><svg class="icon"><use href="icons.svg#chat"/></svg></button>
+</main>
+</div>
+<div id="panel-backdrop" hidden></div>
+<aside class="sidebar floating-panel" aria-label="Settings">
+            <div class="brand">
+                <div class="logo-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                <div class="brand-text">
+                    <h2>Settings</h2>
+                    <span>Conversation, voice &amp; memory</span>
+                </div>
+                <button id="sidebar-close" class="sidebar-close-btn" title="Close Sidebar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Status Indicator -->
+            <div class="status-card">
+                <h2>System Status</h2>
+                <div class="status-indicator">
+                    <div id="status-glow" class="glow-ring idle"></div>
+                    <span id="status-text">Idle</span>
+                </div>
+            </div>
+
+            <!-- Connection Status -->
+            <div class="connection-list">
+                <div class="connection-item">
+                    <span class="label"><i class="fa-solid fa-desktop"></i> VTube Studio</span>
+                    <span id="vts-status" class="badge disconnected">Disconnected</span>
+                </div>
+                <div class="connection-item">
+                    <span class="label"><i class="fa-solid fa-face-smile"></i> Camera presence</span>
+                    <span id="face-expression" class="badge expression">Neutral</span>
+                </div>
+            </div>
+
+            <!-- Settings/Actions -->
+            <div class="actions-section">
+                <h2>Quick Actions</h2>
+                <button id="clear-btn" class="action-btn secondary-btn" title="Clear conversation history; saved memories remain">
+                    <i class="fa-solid fa-trash-can"></i> Clear History
+                </button>
+                <div class="mic-toggle-wrapper">
+                    <label for="mic-toggle">Microphone</label>
+                    <label class="switch">
+                        <input type="checkbox" id="mic-toggle" disabled>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="companion-controls">
+                <h3>Automatic vision</h3>
+                <p id="vision-state" class="control-help" role="status">Checking camera and screen…</p>
+                <p id="face-identity" class="control-help" role="status"></p>
+                <p class="control-help">Camera and screen refresh locally. Snapshots are sent only when you ask, such as “look at my screen” or “can you see me?”. Each request applies to that message only.</p>
+                <p class="control-help">To remember your face, say or type “remember my face as Artdi”. To remove it: “forget the face of Artdi”.</p>
+                <p id="speech-language" class="control-help">Loading voice settings…</p>
+                <div id="speech-options" hidden><label for="speech-engine">Voice</label><select id="speech-engine"><option value="style_bert">Koharune Ami · expressive</option><option value="voicevox">Mochiko-san · VOICEVOX</option></select><p class="control-help">Choose your voice. Chassie only changes voices when you select one.</p><p id="speech-status" class="control-help" role="status"></p></div>
+                <p id="ami-credit" class="control-help" hidden>Style-Bert-VITS2: 小春音アミ · Voice source: <a href="https://amitaro.net/" target="_blank" rel="noopener noreferrer">あみたろの声素材工房</a></p>
+                <p id="speech-credit" class="control-help" hidden>VOICEVOX:もち子(cv 明日葉よもぎ) · <a href="https://voicevox.hiroshiba.jp/product/mochikosan/" target="_blank" rel="noopener noreferrer">Mochiko-san</a></p>
+                <p class="control-help">Input: Indonesian or English. Microphone language is detected automatically.</p>
+                <p id="voice-state" class="control-help" role="status">Connecting to microphone controls…</p>
+                <label for="input-mode">Voice delivery</label>
+                <select id="input-mode" disabled><option value="review">Review before sending</option><option value="hands_free">Send automatically</option></select>
+                <p class="control-help">Microphone pauses during spoken replies to prevent echo. Use Stop to interrupt.</p>
+                <div class="control-row"><button id="stop-btn" class="action-btn secondary-btn" disabled>Stop reply</button><button id="resume-btn" class="action-btn secondary-btn" disabled>Continue topic</button></div>
+                <label for="companion-mode">Companion mode</label>
+                <select id="companion-mode" disabled><option value="focus">Focus — concise replies</option><option value="casual">Casual — relaxed replies</option></select>
+                <details>
+                    <summary>Memory &amp; people</summary>
+                    <div id="automatic-memory-controls" hidden>
+                        <p class="control-help">Chassie recalls relevant memories automatically and saves clear facts and preferences in your Obsidian vault.</p>
+                        <p id="vault-state" class="control-help" role="status">Checking your vault…</p>
+                        <p id="personal-memory-state" class="control-help" role="status"></p>
+                        <button id="resume-personal" class="action-btn secondary-btn" hidden>I'm alone · resume my memories</button>
+                        <h3>People I recognize</h3>
+                        <p class="control-help">One introduction with permission, then automatic recognition. Face and voice templates stay on this computer; no photos or recordings are saved in the vault.</p>
+                        <div id="people-list"></div>
+                        <details><summary>Introduce someone</summary>
+                        <form id="person-form"><label for="person-name">Name</label><input id="person-name" maxlength="100" required>
+                        <label class="consent-label"><input id="person-face" type="checkbox" checked> Remember face · look at the camera alone</label>
+                        <label class="consent-label"><input id="person-voice" type="checkbox"> Remember voice · speak for 3–12 seconds</label>
+                        <label class="consent-label"><input id="person-consent" type="checkbox" required> This person agrees to Chassie remembering the selected face and/or voice.</label>
+                        <button class="action-btn secondary-btn" type="submit">Remember with permission</button></form></details>
+                        <p id="person-enrollment" class="control-help" role="status"></p>
+                        <button id="cancel-enrollment" class="action-btn secondary-btn" hidden>Cancel voice introduction</button>
+                        <p id="speaker-state" class="control-help" role="status"></p>
+                    </div>
+                    <div id="legacy-people-controls">
+                    <p class="control-help">Saved faces provide recognition hints. Select personal memory profiles manually; a face match does not unlock memories.</p>
+                    <label for="profile-select">Local profile</label><select id="profile-select" disabled><option value="">No profile selected</option></select>
+                    <form id="profile-form"><label for="profile-name">New profile name</label><input id="profile-name" maxlength="100" required><label class="consent-label"><input id="profile-consent" type="checkbox" required> I agree to save this named profile locally.</label><button class="action-btn secondary-btn" type="submit">Create profile</button></form>
+                    <button id="delete-profile" class="action-btn secondary-btn" disabled>Delete selected profile &amp; memories</button>
+                    <p id="session-scope" class="control-help" role="status"></p>
+                    <form id="guest-form"><label for="guest-name">Someone else is here</label><input id="guest-name" maxlength="100" placeholder="Guest name" required><button class="action-btn secondary-btn" type="submit">Mark guest present</button></form>
+                    <p class="control-help">Presence hides personal memories immediately. Only mark someone gone when they have left.</p>
+                    <div id="guest-list"></div>
+                    </div>
+                    <button id="load-memories" class="action-btn secondary-btn" disabled>Show saved memories</button>
+                    <div id="memory-list"></div>
+                    <form id="memory-form"><label for="memory-content">Something to remember</label><textarea id="memory-content" rows="3" maxlength="2000" required></textarea><label class="consent-label"><input id="memory-consent" type="checkbox" required> Save this information in my memory and use it in personal conversations.</label><button class="action-btn secondary-btn" type="submit">Save memory</button></form>
+                </details>
+                <details id="expression-panel"><summary>Expression preview</summary><label for="emotion-select">Emotion</label><select id="emotion-select"><option value="">Connect VTube Studio first</option></select><p id="expression-note" class="control-help"></p><button id="preview-btn" class="action-btn secondary-btn" disabled>Preview expression</button></details>
+                <p id="control-notice" class="control-help" role="status" aria-live="polite"></p>
+            </div>
+            <div class="footer-info">
+                <p>Chassie v1.0</p>
+            </div>
+        </aside>
+<aside id="model-panel" class="floating-panel model-panel" aria-label="Models and appearance" hidden><header class="panel-header"><div><h2>Find your character</h2><p>Models, expressions, and appearance</p></div><button id="close-models" class="icon-button" aria-label="Close model picker"><svg class="icon"><use href="icons.svg#close"/></svg></button></header><div id="model-list" class="model-list"></div><div class="model-detail"><div class="section-line"><h3>Expressions</h3><label class="inline-check"><input id="auto-expression" type="checkbox" checked>Automatic</label></div><p class="control-help">Turn off Automatic to lock your chosen expression.</p><div id="expression-list" class="choice-list"></div><details class="interaction-settings"><summary>Mouse &amp; headpat</summary><p class="control-help">Saved separately for each character.</p>
+<label class="inline-check"><input id="interaction-gaze_enabled" type="checkbox" checked> Follow my mouse</label>
+<label for="interaction-gaze_radius">Nearby range <output id="interaction-gaze_radius-value">180 px</output></label><input id="interaction-gaze_radius" type="range" min="40" max="400" step="10" value="180">
+<label for="interaction-follow_speed">Following speed <output id="interaction-follow_speed-value">1×</output></label><input id="interaction-follow_speed" type="range" min="0.5" max="2" step="0.1" value="1">
+<label class="inline-check"><input id="interaction-headpat_enabled" type="checkbox" checked> React to headpats</label>
+<label for="interaction-headpat_delay">Hold before headpat <output id="interaction-headpat_delay-value">180 ms</output></label><input id="interaction-headpat_delay" type="range" min="0.15" max="1" step="0.01" value="0.18">
+<button id="reset-interaction" class="text-button">Reset interaction</button></details><div id="wardrobe-section"><h3>Outfits &amp; accessories</h3><div id="outfit-list" class="choice-list"></div><h3>Props &amp; poses</h3><div id="prop-list" class="choice-list"></div><h3>Effects</h3><div id="effect-list" class="choice-list"></div></div><label class="mouth-control" for="mouth-preview">Test mouth movement<input type="range" id="mouth-preview" min="0" max="1" step="0.05" value="0"></label><button id="reset-appearance" class="text-button">Reset appearance</button><p id="model-notice" class="control-help" role="status"></p></div></aside>
+<script src="vendor/live2dcubismcore.min.js"></script><script src="vendor/pixi-6.5.10.min.js"></script><script src="vendor/pixi-live2d-0.4.0.min.js"></script><script src="app.js?v=9"></script><script src="pointer.js?v=6"></script><script src="studio.js?v=5"></script>
+</body></html>
