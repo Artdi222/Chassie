@@ -206,7 +206,7 @@ YOLO belum wajib untuk kebutuhan awal. Pilih komponen berdasarkan tugas, bukan s
 | Kebutuhan | Baseline untuk dievaluasi | Batas |
 | --- | --- | --- |
 | Landmark/kedipan/kepala | MediaPipe yang sudah ada | Bukan identitas; multiwajah perlu asosiasi track dan smoothing per peserta. |
-| Pengenalan wajah lokal | YuNet + SFace melalui OpenCV | Kandidat benchmark, perlu kalibrasi pada perangkat/ruangan target. |
+| Pengenalan wajah lokal | YuNet + ArcFace (w600k_r50) melalui OpenCV DNN | Kandidat benchmark, perlu kalibrasi pada perangkat/ruangan target. |
 | Pencocokan suara | Speaker embedding/verification, misalnya SpeechBrain | Ucapan singkat, noise, dan overlap mengurangi keyakinan. |
 | Rentang pembicara | pyannote sebagai baseline diarization | Pemrosesan rekaman tidak membuktikan latency streaming. |
 | Hubungan wajah–suara | Audio-visual active speaker detection seperti TalkNet | Perlu timestamp dan sinkronisasi; mulut terbuka saja tidak cukup. |

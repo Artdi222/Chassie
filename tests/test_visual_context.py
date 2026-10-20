@@ -16,7 +16,7 @@ from test_orchestrator import app, playback_fixture
 
 
 def embedding(index=0):
-    values = [0.0] * 128
+    values = [0.0] * 512
     values[index] = 1.0
     return values
 
@@ -27,7 +27,7 @@ def test_templates_require_consent_persist_and_cascade_with_profile(tmp_path):
         profile = store.create_profile('Owner', consent=True)
         with pytest.raises(ValueError, match='consent'):
             store.save_face(profile.id, embedding(), consent=False)
-        for invalid in ([1.0], [float('nan')] * 128, [0.0] * 128):
+        for invalid in ([1.0], [float("nan")] * 512, [0.0] * 512):
             with pytest.raises(ValueError):
                 store.save_face(profile.id, invalid, consent=True)
         store.save_face(profile.id, embedding(), consent=True)
@@ -42,7 +42,7 @@ def test_templates_require_consent_persist_and_cascade_with_profile(tmp_path):
 def test_ambiguous_and_invalid_face_matches_are_unknown():
     templates = [{'profile_id': str(i), 'name': str(i), 'embedding': embedding()} for i in range(2)]
     assert match_template(embedding(), templates) is None
-    assert match_template([float('nan')] * 128, templates) is None
+    assert match_template([float("nan")] * 512, templates) is None
 
 
 def test_only_explicit_whole_message_face_commands_enroll():
@@ -51,6 +51,45 @@ def test_only_explicit_whole_message_face_commands_enroll():
     assert face_command('lupakan wajah Artdi') == ('forget', 'Artdi')
     assert face_command('what does "remember my face as Artdi" mean?') is None
     assert face_command('my name is Artdi') is None
+
+
+def test_natural_face_command_phrasings_enroll_but_quotes_do_not():
+    for text in ('Ingat wajah aku sebagai Artdi', 'tolong ingat wajahku sebagai Artdi ya',
+                 'Chassie, remember my face as Artdi', 'Remember my face, I am Artdi',
+                 'ingat wajahku ya, namaku Artdi', 'simpan muka aku sebagai Artdi!'):
+        assert face_command(text) == ('remember', 'Artdi'), text
+    assert face_command('Remember my face as Artdi, please.') == ('remember', 'Artdi')
+    assert face_command('remember my face as Mary Jane') == ('remember', 'Mary Jane')
+    assert face_command('hapus wajah Artdi') == ('forget', 'Artdi')
+    for text in ('kamu ingat wajahku sebagai Artdi gak sih kemarin', 'remember my face as 123'):
+        assert face_command(text) is None, text
+
+
+def test_arcface_embeds_a_live_face_consistently():
+    cv2 = pytest.importorskip('cv2')
+    identity = FaceIdentity()
+    if not identity.ready:
+        pytest.skip('ArcFace model not installed')
+    capture = cv2.VideoCapture(0)
+    features = []
+    try:
+        for _ in range(30):
+            ok, frame = capture.read()
+            if not ok:
+                break
+            _, candidate = identity.observe(frame, [])
+            if candidate:
+                features.append(np.asarray(candidate))
+            if len(features) == 3:
+                break
+    finally:
+        capture.release()
+    if len(features) < 3:
+        pytest.skip('No single face visible to the camera')
+    assert all(f.shape == (512,) for f in features)
+    assert min(float(a @ b) for a in features for b in features) > .6
+    templates = [{'profile_id': 'me', 'name': 'Me', 'embedding': features[0].tolist()}]
+    assert match_template(features[1].tolist(), templates)['profile_id'] == 'me'
 
 
 def test_capture_expiration_failure_and_stop_clear_snapshots(tmp_path):

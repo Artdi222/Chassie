@@ -14,7 +14,7 @@ async def test_simplified_memory_consent_and_chat_scroll_copy_retry(app):
     app._speaker=VoiceIdentity(app._memory)
     status={'camera':{'enabled':True,'available':True,'error':None},'screen':{'enabled':False,'available':False,'error':None},
             'identity':{'face_count':1,'matches':[],'error':None,'ready':True}}
-    app._vision=Mock(status=Mock(return_value=status),enrollment=Mock(return_value=[.1]*128))
+    app._vision=Mock(status=Mock(return_value=status),enrollment=Mock(return_value=[.1]*512))
     app._vault=Mock(status=Mock(return_value={'available':True,'path':'/synthetic/Memory','chunks':2,'pending_cloud_sources':0}),
                     list=Mock(return_value=[{'id':'note','content':'A handwritten workspace note','source':'workspace.md','editable':False}]))
     runner=web.AppRunner(app._web_app);await runner.setup();site=web.TCPSite(runner,'127.0.0.1',0);await site.start()

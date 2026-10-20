@@ -10,6 +10,8 @@ import sqlite3
 import threading
 from uuid import uuid4
 
+from face_identity import TEMPLATE_MODEL, TEMPLATE_SIZE
+
 
 def bounded_text(value, name, maximum):
     if not isinstance(value, str) or not value.strip() or len(value) > maximum or '\x00' in value:
@@ -41,7 +43,7 @@ class MemoryStore:
     restricted to its owner. Windows inherits the directory ACL: chmod does not
     establish an equivalent private ACL. This is not encryption or secure
     erasure of filesystem backups. No audio/video or inferred text memories are
-    stored. Explicit face enrollment saves an SFace template in a separate table.
+    stored. Explicit face enrollment saves an ArcFace template in a separate table.
     ``revision`` invalidates in-flight context
     whenever stored data changes.
     """
@@ -196,20 +198,20 @@ class MemoryStore:
     def save_face(self, profile_id, embedding, *, consent):
         if consent is not True:
             raise ValueError('Explicit consent is required to remember a face')
-        if (not isinstance(embedding, list) or len(embedding) != 128
+        if (not isinstance(embedding, list) or len(embedding) != TEMPLATE_SIZE
                 or any(type(v) not in (float, int) or not math.isfinite(v) for v in embedding)
                 or sum(v*v for v in embedding) < 1e-12):
             raise ValueError('Invalid face template')
         with self._lock, self._db:
             self._require_profile(profile_id)
             self._db.execute('INSERT OR REPLACE INTO face_templates VALUES (?,?,?,?)',
-                             (profile_id, json.dumps(embedding), 'sface-2021dec', datetime.now(timezone.utc).isoformat()))
+                             (profile_id, json.dumps(embedding), TEMPLATE_MODEL, datetime.now(timezone.utc).isoformat()))
             self._changed()
 
     def list_faces(self):
         with self._lock:
             return [{'profile_id': row['profile_id'], 'name': row['name'], 'embedding': json.loads(row['embedding'])}
-                    for row in self._db.execute('SELECT f.*, p.name FROM face_templates f JOIN profiles p ON p.id=f.profile_id WHERE model=?', ('sface-2021dec',))]
+                    for row in self._db.execute('SELECT f.*, p.name FROM face_templates f JOIN profiles p ON p.id=f.profile_id WHERE model=?', (TEMPLATE_MODEL,))]
 
     def delete_face(self, profile_id):
         with self._lock, self._db:

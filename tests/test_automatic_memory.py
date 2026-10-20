@@ -70,7 +70,7 @@ def test_voice_consent_quality_matching_and_cancellation(tmp_path):
 async def test_introduction_requires_consent_and_never_selects_new_owner(app):
     app._broadcast_to_ui=AsyncMock();app._automatic_memory=True
     owner=app._memory.create_profile('Owner',consent=True);app._session_context.set_owner(owner.id)
-    app._vision=Mock(enrollment=Mock(return_value=[.1]*128))
+    app._vision=Mock(enrollment=Mock(return_value=[.1]*512))
     with pytest.raises(ValueError):await app.handle_control({'type':'enroll_person','name':'Friend','face':True,'consent':False})
     assert len(app._memory.list_profiles())==1
     await app.handle_control({'type':'enroll_person','name':'Friend','face':True,'consent':True})
