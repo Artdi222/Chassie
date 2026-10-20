@@ -1,4 +1,4 @@
-"""Selectable expressive, VOICEVOX or Edge speech, decoded to bounded mono PCM."""
+"""VOICEVOX speech, decoded to bounded mono PCM."""
 from __future__ import annotations
 import asyncio
 import io
@@ -28,59 +28,32 @@ def sentence_chunks(text, max_chars=350):
 class TTSEngine:
     def __init__(self,config):
         cfg=config['tts']
-        engine=cfg.get('engine','edge')
-        if engine not in ('edge','voicevox','style_bert'): raise ValueError('Unknown TTS engine')
-        self.engine=engine
-        self._expressive=None
-        self._voicevox=None
-        if engine=='voicevox':
-            from voicevox_tts import VoicevoxTTS
-            self._voicevox=VoicevoxTTS(config)
-        elif engine=='style_bert':
-            from style_bert_tts import ExpressiveTTS
-            self._expressive=ExpressiveTTS(config)
-        self._voice=cfg.get('voice','en-US-AnaNeural')
+        if cfg.get('engine','voicevox')!='voicevox': raise ValueError('Unknown TTS engine; only VOICEVOX is supported')
+        self.engine='voicevox'
+        from voicevox_tts import VoicevoxTTS
+        self._voicevox=VoicevoxTTS(config)
         self._sample_rate=cfg['sample_rate']
-        self._timeout=cfg.get('timeout',20)
         self._max_samples=int(cfg.get('max_audio_seconds',60)*self._sample_rate)
         if self._max_samples<=0: raise ValueError('max_audio_seconds must be positive')
         self._ready=False
 
     def load_model(self):
-        if self._expressive:self._expressive.check_installation()
-        elif self._voicevox: self._voicevox.check_installation()
-        else: import edge_tts  # noqa: F401
+        self._voicevox.check_installation()
         import av  # noqa: F401
         self._ready=True
 
-    def start(self):
-        if self._expressive:self._expressive.start()
+    def start(self): pass
 
-    def begin_turn(self):
-        if self._expressive:self._expressive.begin_turn()
-
-    async def select(self,engine):
-        if not self._expressive:raise ValueError('Selectable local voices require the Koharune Ami runtime')
-        await self._expressive.select(engine)
+    def begin_turn(self): pass
 
     def status(self):
-        return self._expressive.status() if self._expressive else {'selected':self.engine,'active':self.engine,'ready':self._ready,'reason':None}
+        return {'selected':self.engine,'active':self.engine,'ready':self._ready,'reason':None}
 
     async def synthesize_stream(self,text,*,emotion='neutral'):
         if not self._ready: raise RuntimeError('TTS not initialized')
         if not text or not text.strip(): return
-        async def collect():
-            import edge_tts
-            encoded=bytearray()
-            async for message in edge_tts.Communicate(text,self._voice).stream():
-                if message['type']=='audio':
-                    encoded.extend(message['data'])
-                    if len(encoded)>8*1024*1024: raise RuntimeError('TTS audio exceeds memory limit')
-            if not encoded: raise RuntimeError('TTS returned no audio')
-            return bytes(encoded)
         try:
-            data=(await self._expressive.synthesize(text,emotion) if self._expressive else
-                  await self._voicevox.synthesize(text,emotion) if self._voicevox else await asyncio.wait_for(collect(),timeout=self._timeout))
+            data=await self._voicevox.synthesize(text,emotion)
             audio=await asyncio.to_thread(self._decode,data)
         except asyncio.CancelledError: raise
         except Exception as exc: raise RuntimeError('Speech synthesis failed; the text is still available.') from exc
@@ -104,8 +77,7 @@ class TTSEngine:
         return np.concatenate(blocks).astype(np.float32) if blocks else np.zeros(0,dtype=np.float32)
 
     async def close(self):
-        if self._expressive:await self._expressive.close()
-        if self._voicevox: await self._voicevox.close()
+        await self._voicevox.close()
         self._ready=False
 
     def is_ready(self): return self._ready

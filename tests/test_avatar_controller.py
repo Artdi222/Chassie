@@ -44,13 +44,9 @@ def run(coro):
     return asyncio.run(coro)
 
 
-def test_manifest_complete_and_local_assets_valid():
+def test_vts_manifest_maps_every_emotion():
     manifest = load_manifest()
     assert set(manifest.emotions) == VALID_EMOTIONS
-    report = audit_assets(manifest, Path("model/Model_1"))
-    assert not report["errors"]
-    assert report["emotion_count"] == 16
-    assert any("costume_v0100" in warning for warning in report["warnings"])
     assert manifest.emotions["angry"].preview_required
 
 

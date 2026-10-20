@@ -128,24 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
     $('reset-interaction').onclick=()=>control({interaction:{gaze_enabled:true,gaze_radius:180,follow_speed:1,headpat_enabled:true,headpat_delay:.18}});
     $('mouth-preview').oninput = e => control({mouth_preview: Number(e.target.value)});
     $('reset-appearance').onclick = () => control({expression:null,outfit:null,prop:null,accessories:[],effects:[],auto:true,mouth_preview:0});
-    const originalEmotions = {
-        happy:['smile.exp3.json','fx_3_note.exp3.json'], sad:['cry.exp3.json','fx_2_pale2.exp3.json'],
-        surprised:['surprised.exp3.json','fx_6_surprised.exp3.json'], thinking:['fx_7_question.exp3.json'],
-        teasing:['cat_mouth.exp3.json'], concerned:['fx_4_sweat.exp3.json'], excited:['smile.exp3.json','fx_11_star.exp3.json'],
-        angry:['angry.exp3.json','fx_13_angry.exp3.json'], shy:['blush.exp3.json'], sleepy:['sleep.exp3.json','fx_12_zzz.exp3.json'],
-        love:['smile.exp3.json','fx_1_heart.exp3.json'], defeated:['kukkoro.exp3.json','fx_2_pale2.exp3.json'],
-        curious:['jitome.exp3.json','fx_7_question.exp3.json'],flustered:['oo.exp3.json','fx_4_sweat.exp3.json'],shocked:['surprised.exp3.json','fx_8_exclamation.exp3.json']
-    };
     function applyParameters() {
         const m=entry(), s=studio.selection;
         if (!avatar || !s || !m || studio.modelId !== m.id) return;
         let ids=[s.outfit,s.prop,...s.accessories,...s.effects];
         if (!s.auto) ids.push(s.expression);
-        else if (m.id === 'Model_1') ids.push(...m.expressions.filter(x => (originalEmotions[avatarEvent.emotion] || []).includes(x.id.split('/').at(-1))).map(x => x.id));
-        else if (m.id === 'Model_2') {
-            const names={happy:'10 星星眼',excited:'10 星星眼',sad:'6 泪',shy:'7 害羞',angry:'8 生气',love:'9 爱心眼'};
-            ids.push(...m.expressions.filter(x => x.original === names[avatarEvent.emotion]).map(x => x.id));
-        }
         else if(m.id==='Model_4') {
             const aliases={excited:'happy',love:'shy',teasing:'happy',concerned:'sad',defeated:'sad',flustered:'shy',shocked:'surprised'};
             const mood={thinking:'thinking',listening:'curious',idle:'neutral',disconnected:'neutral'}[avatarEvent.status] || avatarEvent.emotion;

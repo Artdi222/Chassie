@@ -62,11 +62,10 @@ def checked_exec(self):
             subprocess.run(['grim','-g',f'{rect.x()},{rect.y()} {rect.width()}x{rect.height()}',str(path)],check=True)
             captured=QImage(str(path))
             bubbles=list(controls.bubbles.values())
-            # Upper gaps and the outer corner are clear of the moving model.
-            first,second=bubbles[:2]
-            samples=[((first.geometry().center().x()+second.geometry().center().x())//2,
-                      (first.geometry().center().y()+second.geometry().center().y())//2),
-                     (first.x()+2,first.y()+2)]
+            # The outer bubble corner stays clear of Tian Muzi's wider silhouette.
+            center=avatar.geometry().center()
+            corners=[(b.x()+dx,b.y()+dy) for b in bubbles for dx in (2,b.width()-3) for dy in (2,b.height()-3)]
+            samples=[max(corners,key=lambda c:(c[0]-center.x())**2+(c[1]-center.y())**2)]
             for x,y in samples:
                 color=captured.pixelColor(x-rect.x(),y-rect.y())
                 assert all(abs(a-b)<8 for a,b in zip(color.getRgb()[:3],(54,86,108))),('Opaque button or gap',color.name(),x,y)
@@ -76,7 +75,7 @@ def checked_exec(self):
 
     def start():
         try:
-            if not controls.connected or not avatar.renderer_ready or avatar.selection.get('model_id')!='Model_1':
+            if not controls.connected or not avatar.renderer_ready or avatar.selection.get('model_id')!='Model_4':
                 QTimer.singleShot(300,start);return
             print('AVATAR CLICK',flush=True)
             spy=QSignalSpy(avatar.clicked)

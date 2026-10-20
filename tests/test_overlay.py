@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 from desktop.state import OverlayState, Rect, bottom_right, fit_to_screens, validate_endpoint
-from desktop.model import prepare_model
 
 
 def test_bottom_right_uses_available_work_area_and_negative_monitors():
@@ -40,61 +39,6 @@ def test_only_local_ws_endpoint():
             validate_endpoint(endpoint)
 
 
-def test_model_preparation_adds_real_expressions_and_bindings_without_asset_edits(tmp_path):
-    original = Path('model/Model_1/ulvm2_0001.model3.json').read_bytes()
-    prepared = prepare_model(Path('model'), tmp_path)
-    model = json.loads(prepared.read_text())
-    refs = model['FileReferences']
-    assert (prepared.parent / refs['Moc']).is_file()
-    assert len(refs['Textures']) == 5
-    assert all((prepared.parent / f).is_file() for f in refs['Textures'])
-    expressions = {e['Name']: e['File'] for e in refs['Expressions']}
-    assert 'smile.exp3.json' in expressions
-    assert all((prepared.parent / file).is_file() for file in expressions.values())
-    groups = {g['Name']: g['Ids'] for g in model['Groups']}
-    assert groups['LipSync'] == ['ParamMouthOpenY']
-    assert groups['EyeBlink'] == ['ParamEyeLOpen', 'ParamEyeROpen']
-    assert Path('model/Model_1/ulvm2_0001.model3.json').read_bytes() == original
-
-
-def test_preparation_rejects_missing_model(tmp_path):
-    with pytest.raises(ValueError, match='model'):
-        prepare_model(tmp_path / 'missing', tmp_path / 'cache')
-
-
-def test_sdk_driver_uses_expression_deltas_and_preserves_unowned_outfit():
-    from desktop.model import ModelDriver
-
-    class Model:
-        def __init__(self):
-            self.active = {'costume_v0000.exp3.json'}
-            self.calls = []
-        def AddExpression(self, name):
-            self.active.add(name)
-            self.calls.append(('add', name))
-        def RemoveExpression(self, name):
-            self.active.remove(name)
-            self.calls.append(('remove', name))
-        def SetParameterValue(self, param, value):
-            self.calls.append(('param', param, value))
-        def Update(self):
-            self.calls.append(('update',))
-        def Draw(self):
-            self.calls.append(('draw',))
-
-    model = Model()
-    driver = ModelDriver(model)
-    assert driver.set_emotion('happy')
-    before = len(model.calls)
-    assert driver.set_emotion('happy')
-    assert len(model.calls) == before
-    driver.set_emotion('neutral')
-    assert model.active == {'costume_v0000.exp3.json'}
-    driver.frame(0.7)
-    assert model.calls[-3:] == [('param', 'ParamMouthOpenY', 0.7), ('update',), ('draw',)]
-    assert not driver.set_emotion('invented')
-
-
 def test_settings_ack_and_disconnection_clear_microphone_assumption():
     state = OverlayState()
     state.receive({'type': 'settings', 'mic_enabled': True}, now=0)
@@ -103,11 +47,6 @@ def test_settings_ack_and_disconnection_clear_microphone_assumption():
     assert state.mic_enabled is True
     state.disconnected()
     assert state.mic_enabled is None
-
-
-def test_generated_manifest_cannot_write_into_original_assets():
-    with pytest.raises(ValueError, match='outside'):
-        prepare_model(Path('model'), Path('model/cache'))
 
 
 def test_waist_up_framing_is_default_and_adjustments_are_bounded():

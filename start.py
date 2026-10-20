@@ -85,7 +85,6 @@ def check_dependencies():
         ("webrtcvad", "webrtcvad"),
         ("aiohttp", "aiohttp"),
         ("websockets", "websockets"),
-        ("edge_tts", "edge-tts"),
     ]
 
     missing = []

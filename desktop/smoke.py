@@ -15,7 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description='Render the real model, capture its own framebuffer and exit')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--emotion', default='happy')
-    parser.add_argument('--model-id', choices=['Model_1','Model_2','Model_4'])
+    parser.add_argument('--model-id', choices=['Model_4'], default='Model_4')
     parser.add_argument('--exercise-controls', action='store_true')
     parser.add_argument('--endpoint', default='ws://127.0.0.1:9/ws', help='Optional local test server for controls')
     parser.add_argument('--expect-emotion', help='Fail unless the final rendered state matches this emotion')
@@ -28,7 +28,6 @@ def main():
     from PySide6.QtGui import QImage
     from PySide6.QtWidgets import QApplication
     import live2d.v3 as live2d
-    from desktop.model import prepare_model
     from desktop.qt_app import AvatarWindow, Controls, screens
     from desktop.state import OverlayState, bottom_right, validate_endpoint
     from desktop.compositor import APPLICATION_ID, configure_hyprland
@@ -39,14 +38,10 @@ def main():
     app.setApplicationName(APPLICATION_ID)
     if app.platformName() == 'xcb':
         configure_hyprland()
-    entry=None
-    if args.model_id:
-        from avatar.catalog import ModelCatalog
-        from desktop.model import prepare_entry
-        entry=ModelCatalog().get(args.model_id)
-        prepared=prepare_entry(entry,root/'.chassie/overlay')
-    else:
-        prepared = prepare_model(root / 'model', root / '.chassie' / 'overlay')
+    from avatar.catalog import ModelCatalog
+    from desktop.model import prepare_entry
+    entry=ModelCatalog().get(args.model_id)
+    prepared=prepare_entry(entry,root/'.chassie/overlay')
     live2d.init()
     live2d.enableLog(False)
     state = OverlayState(emotion=args.emotion, mouth=0.25, updated_at=time.monotonic())

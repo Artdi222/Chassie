@@ -88,7 +88,7 @@ class Framing:
 
     @classmethod
     def for_model(cls, model_id):
-        return cls() if model_id == "Model_1" else cls(2.4, -1.65)
+        return cls(2.4, -1.65)
 
     def adjust(self, zoom: float = 0, vertical: float = 0):
         return Framing(max(1.0, min(4.0, self.zoom + zoom)),

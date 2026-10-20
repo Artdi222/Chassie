@@ -52,7 +52,7 @@ class Orchestrator:
     def __init__(self,config,text_mode=False,*,components=None):
         c=components or {}
         self._config=config
-        self._bilingual=config.get('tts',{}).get('engine') in ('voicevox','style_bert'); self._text_mode=text_mode; self._running=False
+        self._bilingual=config.get('tts',{}).get('engine')=='voicevox'; self._text_mode=text_mode; self._running=False
         self._stt_queue=queue.Queue(maxsize=32)
         self._stt=c.get('stt') or STTEngine(config,self._stt_queue)
         self._hermes=c.get('hermes') or HermesBridge(config)
@@ -541,7 +541,7 @@ class Orchestrator:
                 'profiles':[asdict(p) for p in self._memory.list_profiles()],
                 'voice_ready':self._stt.is_listening(),'voice_error':self._stt.error,
                 'voice_started':self._voice_started,'voice_starting':self._voice_starting,
-                'speech_engine':self._config.get('tts',{}).get('engine','edge'),
+                'speech_engine':self._config.get('tts',{}).get('engine','voicevox'),
                 'speech':self._tts.status() if isinstance(self._tts,TTSEngine) else None,
                 'speech_language':'Japanese' if self._bilingual else 'English',
                 'translation_language':'English',
@@ -585,11 +585,6 @@ class Orchestrator:
             elif kind=='set_input_mode':
                 if data.get('mode') not in ('review','hands_free'): raise ValueError('Invalid input mode')
                 self._input_mode=data['mode'];self._stt.invalidate();self._purge_inputs(voice_only=True)
-            elif kind=='set_speech_engine':
-                if not isinstance(self._tts,TTSEngine):raise ValueError('Speech controls unavailable')
-                if data.get('engine') not in ('style_bert','voicevox'):raise ValueError('Unknown speech engine')
-                await self._cancel_turn()
-                await self._tts.select(data['engine'])
             elif kind in ('stop','clear_history'):
                 await self._cancel_turn(clear=kind=='clear_history')
                 if kind=='clear_history': await self._broadcast_to_ui({'type':'history_cleared'})
@@ -757,15 +752,13 @@ class Orchestrator:
             if data['ready']:
                 model_id=data.get('model_id')
                 selected=self._model_selection.state['model_id']
-                legacy=model_id==self._avatar_manifest.model_id and selected=='Model_1'
-                if model_id!=selected and not legacy:
+                if model_id!=selected:
                     raise ValueError('Overlay model does not match the selected model')
                 files=data.get('expressions')
                 if not isinstance(files,list) or len(files)>256 or any(not isinstance(f,str) for f in files):
                     raise ValueError('Overlay must report its loaded expression filenames')
-                # Legacy emotion previews apply only to the original character.
-                normalized={Path(f).name for f in files} if selected=='Model_1' else set()
-                self._overlay_sockets[ws]=frozenset(normalized)&self._avatar_manifest.managed_files
+                # Catalog models react through generated parameters, not VTS expression files.
+                self._overlay_sockets[ws]=frozenset()
         finally:
             await self._broadcast_avatar_inventory()
 

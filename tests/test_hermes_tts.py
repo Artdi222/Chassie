@@ -2,6 +2,7 @@ import asyncio
 import io
 import wave
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import numpy as np
 import pytest
@@ -11,7 +12,7 @@ from tts_engine import TTSEngine, sentence_chunks
 
 CONFIG={'hermes':{'gateway_url':'http://localhost:8642','endpoint':'/v1/chat/completions',
  'health_endpoint':'/health','timeout':1,'model':'test','system_prompt':'Use English.'},
- 'tts':{'voice':'en-US-AnaNeural','sample_rate':24000}}
+ 'tts':{'sample_rate':24000}}
 
 @pytest.mark.asyncio
 async def test_local_gateway_key_file_and_environment_override(tmp_path,monkeypatch):
@@ -102,23 +103,17 @@ async def test_tts_decodes_from_memory_resamples_and_reports_empty(monkeypatch):
     with wave.open(buf,'wb') as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(samples.tobytes())
     data=buf.getvalue()
-    class FakeCommunicate:
-        async def stream(self):
-            yield {'type':'audio','data':data[:40]}
-            yield {'type':'audio','data':data[40:]}
-    import edge_tts
-    monkeypatch.setattr(edge_tts,'Communicate',lambda *a,**kw:FakeCommunicate())
-    t=TTSEngine(CONFIG);t.load_model()
+    def ready(engine,audio):
+        engine._voicevox.check_installation=lambda:None
+        engine._voicevox.synthesize=AsyncMock(return_value=audio)
+        engine.load_model();return engine
+    t=ready(TTSEngine(CONFIG),data)
     chunks=[c async for c in t.synthesize_stream('test')]
     assert chunks[0].dtype==np.float32 and chunks[0].ndim==1
     assert 2300<=len(chunks[0])<=2500
-    limited=TTSEngine({**CONFIG,'tts':{**CONFIG['tts'],'max_audio_seconds':0.05}})
-    limited.load_model()
+    limited=ready(TTSEngine({**CONFIG,'tts':{**CONFIG['tts'],'max_audio_seconds':0.05}}),data)
     with pytest.raises(RuntimeError,match='Speech synthesis failed'):
         _=[c async for c in limited.synthesize_stream('oversized decoded audio')]
-    class Empty:
-        async def stream(self):
-            yield {'type':'metadata'}
-    monkeypatch.setattr(edge_tts,'Communicate',lambda *a,**kw:Empty())
+    t._voicevox.synthesize=AsyncMock(return_value=b'')
     with pytest.raises(RuntimeError):
         _=[c async for c in t.synthesize_stream('test')]

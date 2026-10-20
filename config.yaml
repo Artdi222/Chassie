@@ -15,7 +15,7 @@ hermes:
   reasoning_effort: "low"  # Fast companion replies; null inherits Hermes/CLI settings
   api_key_env: "CHASSIE_HERMES_API_KEY"
   api_key_file: ".chassie/hermes-api-key"  # Local secret; excluded from source control
-  # English/Edge prompt; VOICEVOX uses the paired Japanese/English protocol in bilingual.py.
+  # English-only fallback prompt; VOICEVOX uses the paired Japanese/English protocol in bilingual.py.
   system_prompt: |
     You must express your feelings using emotion tags.
 
@@ -51,17 +51,11 @@ stt:
   min_speech_duration: 0.09
 
 tts:
-  engine: "style_bert"  # Koharune Ami; VOICEVOX available as a manual choice
-  style_bert_dir: ".chassie/style-bert/cpu"
-  style_bert_device: "cpu"
-  style_bert_threads: 6  # Measured ~1.8–2.0 s for a short sentence on this laptop
-  style_bert_timeout: 30.0  # Synthesis deadline; errors keep text, never switch voices
-  style_bert_load_timeout: 120
+  engine: "voicevox"  # Only supported engine
   voicevox_dir: ".chassie/voicevox"
   speed_scale: 1.0  # VOICEVOX speaking tempo (1.0 = normal)
   cpu_threads: 2
   timeout: 30
-  voice: "en-US-AnaNeural"
   sample_rate: 24000
   stream_chunk_ms: 50
 

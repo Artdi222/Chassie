@@ -270,7 +270,6 @@ class StudioControls(QObject):
             self.model_frames=data.get('model_frames',{})
             saved=self.model_frames.get(self.window.entry.id)
             if saved:self.window.framing=Framing.from_settings(saved)
-            elif 'model_frames' not in data and self.window.entry.id=='Model_1':self.window.framing=Framing.from_settings(data)
             rect=fit_to_screens(Rect(*(data[k] for k in ('x','y','width','height'))),screens())
         except (OSError,ValueError,KeyError,TypeError):pass
         self.window.setGeometry(rect.x,rect.y,rect.width,rect.height)

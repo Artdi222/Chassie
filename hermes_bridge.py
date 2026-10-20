@@ -90,7 +90,7 @@ class HermesBridge:
             key_path=Path(cfg['api_key_file']).expanduser()
             if not key_path.is_absolute(): key_path=Path(__file__).parent/key_path
             if key_path.exists(): self._api_key=key_path.read_text(encoding='utf-8').strip()
-        self._bilingual=config.get('tts',{}).get('engine') in ('voicevox','style_bert')
+        self._bilingual=config.get('tts',{}).get('engine')=='voicevox'
         self._system_prompt=BILINGUAL_PROMPT if self._bilingual else cfg.get('system_prompt','')
         self._session=None
         self._messages=[]

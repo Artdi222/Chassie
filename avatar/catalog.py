@@ -9,7 +9,7 @@ from .interaction import interaction_settings
 from .reactions import generated_reactions, expression_id
 
 ROOT = Path(__file__).resolve().parents[1] / 'model'
-NAMES = {'Model_1': 'Chassie', 'Model_2': 'Snow Bear', 'Model_4': 'Tuzi Mian'}
+NAMES = {'Model_4': 'Tian Muzi'}
 LABELS = {
     '1 帽': ('Hat', 'accessory'), '2 手机': ('Phone', 'prop'),
     '3 麦克': ('Microphone', 'prop'), '4 手柄': ('Controller', 'prop'),
@@ -116,7 +116,7 @@ class ModelCatalog:
         for path in sorted(self.root.rglob('*.model3.json')):
             relative = path.relative_to(self.root)
             if any(p.startswith('.') for p in relative.parts): continue
-            model_id = relative.parts[0] if len(relative.parts) > 1 else 'Model_1'
+            model_id = relative.parts[0] if len(relative.parts) > 1 else relative.stem.removesuffix('.model3')
             if model_id in self.models:
                 self.errors.append(f'{model_id}: more than one model manifest; select one package per folder')
                 continue
@@ -205,13 +205,5 @@ def active_files(entry, selection, emotion='neutral'):
     names = [selection.get('outfit'), selection.get('prop'), *selection.get('accessories', []), *selection.get('effects', [])]
     if not selection.get('auto', True):
         names.append(selection.get('expression'))
-    elif entry.id == 'Model_1':
-        from .manifest import load_manifest
-        mapping = load_manifest().emotions.get(emotion)
-        if mapping:
-            names.extend(x['id'] for x in entry.expressions if Path(x['id']).name in mapping.files)
-    elif entry.id == 'Model_2':
-        mapping = {'happy':'10 星星眼', 'excited':'10 星星眼', 'sad':'6 泪', 'shy':'7 害羞', 'angry':'8 生气', 'love':'9 爱心眼'}
-        names.extend(x['id'] for x in entry.expressions if x['original'] == mapping.get(emotion))
     elif entry.id=='Model_4':names.append(expression_id(emotion))
     return [x for x in names if x]

@@ -11,7 +11,7 @@ from PySide6.QtWebSockets import QWebSocket
 from PySide6.QtWidgets import (QApplication, QCheckBox, QLabel, QMenu, QMessageBox,
                                QPushButton, QStyle, QSystemTrayIcon, QVBoxLayout, QWidget)
 
-from desktop.model import ModelDriver, prepare_model, prepare_entry, CatalogModelDriver
+from desktop.model import prepare_entry, CatalogModelDriver
 # Load Qt's C++ runtime before the Live2D wheel. Importing _v3cpp first
 # interposes its std::filesystem symbols into Qt WebEngine and aborts when
 # the first panel creates a Chromium profile (std::bad_alloc, not RAM exhaustion).
@@ -71,7 +71,7 @@ class AvatarWindow(QOpenGLWidget):
                 raise RuntimeError('Cubism did not load any model parameters')
             self.model.SetAutoBlinkEnable(True)
             self.model.SetAutoBreathEnable(True)
-            self.driver = CatalogModelDriver(self.model,self.entry) if self.entry else ModelDriver(self.model)
+            self.driver = CatalogModelDriver(self.model,self.entry)
             if self.entry:
                 self.pointer_interaction=PointerInteraction(self.model,self.entry.head_parts,self.model_path.parent)
             self.loaded_expressions = tuple(self.model.GetExpressionIds())
@@ -97,7 +97,6 @@ class AvatarWindow(QOpenGLWidget):
                 if self.entry.id=='Model_4':
                     emotion={'thinking':'thinking','listening':'curious','idle':'neutral','disconnected':'neutral'}.get(self.state.status,emotion)
                 self.driver.apply(self.selection,emotion)
-            else: self.driver.set_emotion(self.state.emotion)
             self.model.SetScale(self.framing.zoom)
             self.model.SetOffset(0.0, self.framing.vertical)
             if self.pointer_interaction:
@@ -256,9 +255,8 @@ class Controls(QWidget):
         self.announce_renderer()
 
     def announce_renderer(self, *_):
-        from avatar import load_manifest
         self.send({'type': 'overlay_ready', 'ready': self.window.renderer_ready,
-                   'model_id': load_manifest().model_id,
+                   'model_id': self.window.entry.id if self.window.entry else None,
                    'expressions': list(self.window.loaded_expressions)})
 
     def on_disconnected(self):
