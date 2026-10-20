@@ -35,6 +35,7 @@ def test_buffer_is_bounded_and_empty_response_fails():
 
 from test_orchestrator import app, playback_fixture
 import asyncio
+from unittest.mock import Mock
 from hermes_bridge import HermesBridge
 from test_hermes_tts import CONFIG
 
@@ -145,3 +146,54 @@ def test_hermes_prompt_follows_translation_language():
     bridge.translation_language = 'id'
     assert 'Indonesian translation' in bridge._messages[0]['content']
     with pytest.raises(ValueError): bridge.translation_language = 'fr'
+
+
+def _vision(**enrollment):
+    status={'camera':{'enabled':True,'available':True,'error':None},'screen':{'enabled':False,'available':False,'error':None},
+            'identity':{'face_count':1,'matches':[],'error':None,'ready':True}}
+    return Mock(enrollment=Mock(**enrollment),status=Mock(return_value=status),
+                request_context=Mock(return_value=([],status)),camera_enabled=True)
+
+
+def _action_stream(*lines):
+    async def stream(*a, **kw):
+        for line in lines: yield json.dumps(line, ensure_ascii=False) + '\n'
+    return stream
+
+
+@pytest.mark.asyncio
+async def test_model_face_action_runs_before_speech(app):
+    playback=playback_fixture(app);app._bilingual=True;playback.first_release.set()
+    spoken=[]
+    async def synthesize(text,*,emotion):
+        import numpy as np
+        spoken.append(text);yield np.ones(480)
+    app._tts.synthesize_stream=synthesize
+    app._vision=_vision(return_value=[.1]*512)
+    app._hermes.stream_message=_action_stream({'action':'remember_face','name':'Artdi'},PAIR)
+    await app._run_turn({'text':'bisa simpan muka gue? namaku Artdi','source':'text'})
+    assert [p.name for p in app._memory.list_profiles() if app._memory.list_faces()]==['Artdi']
+    assert spoken==['こんにちは。']
+    assert any('Face remembered locally as Artdi' in c.args[0].get('text','') for c in app._broadcast_to_ui.call_args_list)
+
+
+@pytest.mark.asyncio
+async def test_failed_model_action_stops_reply_with_real_reason(app):
+    playback=playback_fixture(app);app._bilingual=True;playback.first_release.set()
+    app._tts.synthesize_stream=Mock(side_effect=AssertionError('must not speak'))
+    app._vision=_vision(side_effect=ValueError('Face not saved. Face the camera alone in good light, then repeat your request.'))
+    app._hermes.stream_message=_action_stream({'action':'remember_face','name':'Artdi'},PAIR)
+    await app._run_turn({'text':'save my face please, I am Artdi','source':'text'})
+    assert app._memory.list_faces()==[]
+    assert app._stream_view['interrupted']
+    assert any('Face the camera alone' in c.args[0].get('text','') for c in app._broadcast_to_ui.call_args_list)
+
+
+@pytest.mark.asyncio
+async def test_model_face_action_without_face_request_is_ignored(app):
+    playback=playback_fixture(app);app._bilingual=True;playback.first_release.set()
+    app._vision=_vision(return_value=[.1]*512)
+    app._hermes.stream_message=_action_stream({'action':'remember_face','name':'Stranger'},PAIR)
+    await app._run_turn({'text':'what is the weather like?','source':'text'})
+    assert app._memory.list_faces()==[]
+    app._vision.enrollment.assert_not_called()

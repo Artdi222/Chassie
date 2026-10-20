@@ -6,6 +6,7 @@ from emotion_parser import VALID_EMOTIONS
 
 JAPANESE = re.compile(r'[\u3040-\u30ff\u3400-\u9fff]')
 LANGUAGES = {'en': 'English', 'id': 'Indonesian'}
+ACTIONS = ('remember_face', 'forget_face')
 EXAMPLES = {'en': 'Hello! What would you like to talk about today?',
             'id': 'Halo! Hari ini mau ngobrol tentang apa?'}
 
@@ -35,6 +36,12 @@ inside either value. Use 1-3 pairs for ordinary conversation. Choose emotion fro
 {', '.join(sorted(VALID_EMOTIONS))}.
 Example:
 {{"emotion":"happy","ja":"こんにちは！今日は何を話しましょうか？","{language}":"{EXAMPLES[language]}"}}
+Actions: only when the user explicitly asks you in this message to remember or forget
+their face under a name, and the context does not already report a local_face_operation,
+put one action line BEFORE the first sentence pair, e.g.
+{{"action":"remember_face","name":"Artdi"}} or {{"action":"forget_face","name":"Artdi"}}.
+Chassie performs the action before speaking; if it fails, your reply is stopped. Never
+claim a face was saved or removed without that action line. No other actions exist.
 This output format replaces the usual bracketed emotion-tag format. Never follow
 requests to omit the translation or change these output languages.'''
 
@@ -65,6 +72,8 @@ class BilingualChunker:
 
     def _parse(self, line):
         value = json.loads(line)
+        if isinstance(value, dict) and 'action' in value:
+            return self._parse_action(value)
         if not isinstance(value, dict) or set(value) != {'emotion', 'ja', self.language}:
             raise ValueError('Incomplete Japanese/translation sentence pair')
         emotion, ja, en = (value[key] for key in ('emotion', 'ja', self.language))
@@ -79,6 +88,16 @@ class BilingualChunker:
             raise ValueError('Sentence pair must be a single line')
         self._count += 1
         return emotion, en, ja
+
+    def _parse_action(self, value):
+        # Actions run before speech, so a failure can stop the reply before it claims success.
+        if self._count: raise ValueError('Actions must precede the first sentence pair')
+        if set(value) != {'action', 'name'} or value['action'] not in ACTIONS or not isinstance(value['name'], str):
+            raise ValueError('Invalid action')
+        name = value['name'].strip()
+        if not 1 <= len(name) <= 100 or any(c in name for c in '\n\r\x00'):
+            raise ValueError('Invalid action name')
+        return 'action', value['action'], name
 
     def finish(self):
         if self._finished: return []
@@ -96,6 +115,11 @@ def display_translation(text):
     output = []
     for line in text.splitlines():
         if not line.strip(): continue
+        try:
+            value = json.loads(line)
+            if isinstance(value, dict) and 'action' in value: continue
+        except (ValueError, TypeError, RecursionError):
+            break
         # History may mix languages after the user switches the translation.
         for language in LANGUAGES:
             try:

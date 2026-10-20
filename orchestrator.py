@@ -1,6 +1,7 @@
 """Async conversation control with cancellable turns and explicit local session scope."""
 from __future__ import annotations
 
+import re
 import asyncio
 from dataclasses import asdict
 import json
@@ -239,10 +240,14 @@ class Orchestrator:
                 received_length+=len(delta)
                 if received_length>30000: raise RuntimeError('Response too long')
                 for sentence in chunker.feed(delta):
+                    if sentence[0]=='action':
+                        await self._run_model_action(text,*sentence[1:]);continue
                     self._turn_metrics.setdefault('first_sentence_seconds',time.monotonic()-started)
                     await sentences.put(sentence)
             self._turn_metrics['hermes_complete_seconds']=time.monotonic()-started
             for sentence in chunker.finish():
+                if sentence[0]=='action':
+                    await self._run_model_action(text,*sentence[1:]);continue
                 self._turn_metrics.setdefault('first_sentence_seconds',time.monotonic()-started)
                 await sentences.put(sentence)
             await sentences.put(None)
@@ -414,6 +419,18 @@ class Orchestrator:
             item=self._ui_input_queue.get_nowait()
             if voice_only and item.get('source')!='voice': keep.append(item)
         for item in keep: self._ui_input_queue.put_nowait(item)
+
+    async def _run_model_action(self,user_text,action,name):
+        """Run a model-requested action before any speech; a failure stops the reply."""
+        if self._face_command_result is not None:
+            return  # The local command parser already handled this message.
+        # Privacy guard: never enroll or delete a face unless the user's own message is about faces.
+        if not re.search(r'\b(?:wajah\w*|muka\w*|faces?)\b',user_text,re.IGNORECASE):
+            logger.warning('Ignored model action %s without a face request',action)
+            return
+        try:self._face_command_result=self._apply_face_command('remember' if action=='remember_face' else 'forget',name)
+        except ValueError as exc:raise RuntimeError(str(exc)) from exc  # Keep the real reason visible.
+        await self._broadcast_to_ui({'type':'notice','scope':'chat','text':self._face_command_result})
 
     def _apply_face_command(self,action,name):
         profiles=[p for p in self._memory.list_profiles() if p.name.casefold()==name.casefold()]
