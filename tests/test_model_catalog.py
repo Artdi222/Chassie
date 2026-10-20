@@ -14,7 +14,7 @@ def test_available_models_exclude_removed_model_and_model_four_assets_are_valid(
     assert not catalog.errors
     assert set(catalog.models)=={'Model_4'}
     assert catalog.get('Model_4').public()['name']=='Tian Muzi'
-    assert len(catalog.get('Model_4').expressions)==8
+    assert len(catalog.get('Model_4').expressions)==15
     with pytest.raises(ValueError):catalog.get('Model_3')
     for entry in [catalog.get('Model_4')]:
         original=entry.path.read_bytes()

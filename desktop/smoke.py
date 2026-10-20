@@ -44,7 +44,8 @@ def main():
     prepared=prepare_entry(entry,root/'.chassie/overlay')
     live2d.init()
     live2d.enableLog(False)
-    state = OverlayState(emotion=args.emotion, mouth=0.25, updated_at=time.monotonic())
+    # Speaking keeps the requested emotion; idle/disconnected show Tian Muzi neutral.
+    state = OverlayState(emotion=args.emotion, mouth=0.25, updated_at=time.monotonic(), status='speaking')
     window = AvatarWindow(prepared, state, 30)
     if entry:
         window.entry=entry
