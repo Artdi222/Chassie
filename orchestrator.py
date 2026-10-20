@@ -24,7 +24,7 @@ from stt_engine import STTEngine
 from tts_engine import TTSEngine
 from speech_chunker import SpeechChunker
 from speech_pacing import SpeechPacing
-from bilingual import BilingualChunker
+from bilingual import BilingualChunker, LANGUAGES
 from vts_connector import VTSConnector
 from avatar import load_manifest
 from avatar.manifest import DEFAULT_MANIFEST
@@ -98,6 +98,12 @@ class Orchestrator:
         self._capture_paused=False
         self._input_mode=config.get('conversation',{}).get('input_mode','review')
         if self._input_mode not in ('review','hands_free'): raise ValueError('Invalid input mode')
+        self._speech_settings_path=selection_path.with_name('speech-settings.json')
+        self._translation_language=config.get('tts',{}).get('translation_language','en')
+        try:self._translation_language=json.loads(self._speech_settings_path.read_text())['translation_language']
+        except (OSError,ValueError,KeyError,TypeError):pass
+        if self._translation_language not in LANGUAGES:self._translation_language='en'
+        self._hermes.translation_language=self._translation_language
         self._avatar_state={'emotion':'neutral','mouth':0.0}
         self._avatar=_AvatarOutput(self)
         self._control_lock=asyncio.Lock()
@@ -222,7 +228,7 @@ class Orchestrator:
             raise
 
     async def _produce_speech(self,text,generation,sentences,started):
-        chunker=BilingualChunker() if self._bilingual else SpeechChunker()
+        chunker=BilingualChunker(self._translation_language) if self._bilingual else SpeechChunker()
         received_length=0
         stream=self._hermes.stream_message(text,context=self._context_text(),mode=self._session_context.mode,
                                           **({'images':self._turn_images} if self._turn_images else {}))
@@ -242,7 +248,7 @@ class Orchestrator:
             await sentences.put(None)
         except (ValueError, RecursionError) as exc:
             if not self._bilingual: raise
-            raise RuntimeError('The reply did not contain valid Japanese speech and English translations. Please retry.') from exc
+            raise RuntimeError(f'The reply did not contain valid Japanese speech and {LANGUAGES[self._translation_language]} translations. Please retry.') from exc
         finally:
             await stream.aclose()
 
@@ -533,7 +539,7 @@ class Orchestrator:
                 'speech_engine':self._config.get('tts',{}).get('engine','voicevox'),
                 'speech':self._tts.status() if isinstance(self._tts,TTSEngine) else None,
                 'speech_language':'Japanese' if self._bilingual else 'English',
-                'translation_language':'English',
+                'translation_language':self._translation_language,
                 'automatic_barge_in':False,'pending_topic':bool(self._pending_topic),
                 'vision':self._vision.status() if self._vision else None,
                 'face_observation':self._face_tracker.get_observation() if self._face_tracker else None}
@@ -574,6 +580,14 @@ class Orchestrator:
             elif kind=='set_input_mode':
                 if data.get('mode') not in ('review','hands_free'): raise ValueError('Invalid input mode')
                 self._input_mode=data['mode'];self._stt.invalidate();self._purge_inputs(voice_only=True)
+            elif kind=='set_translation_language':
+                language=data.get('language')
+                if language not in LANGUAGES:raise ValueError('Choose English or Indonesian')
+                await self._cancel_turn()
+                self._translation_language=language;self._hermes.translation_language=language
+                self._speech_settings_path.parent.mkdir(parents=True,exist_ok=True)
+                pending=self._speech_settings_path.with_suffix('.tmp')
+                pending.write_text(json.dumps({'translation_language':language}));pending.replace(self._speech_settings_path)
             elif kind in ('stop','clear_history'):
                 await self._cancel_turn(clear=kind=='clear_history')
                 if kind=='clear_history': await self._broadcast_to_ui({'type':'history_cleared'})

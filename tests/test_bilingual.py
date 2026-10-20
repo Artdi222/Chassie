@@ -116,3 +116,32 @@ async def test_each_sentence_updates_voice_emotion_with_avatar(app):
     app._hermes.stream_message=next_reply
     await app._run_turn({'text':'another reply','source':'text'})
     assert speech==[('残念ですね。','sad')]
+
+
+def test_indonesian_translation_protocol_and_mixed_history():
+    from bilingual import bilingual_prompt
+    assert '"id":"Halo!' in bilingual_prompt('id') and 'Indonesian translation' in bilingual_prompt('id')
+    with pytest.raises(ValueError): bilingual_prompt('fr')
+    pair = '{"emotion":"happy","ja":"こんにちは！","id":"Halo!"}\n'
+    assert BilingualChunker('id').feed(pair) == [('happy', 'Halo!', 'こんにちは！')]
+    with pytest.raises(ValueError): BilingualChunker('en').feed(pair)
+    history = '{"emotion":"happy","ja":"はい","en":"Yes"}\n' + pair
+    assert display_translation(history) == '[happy] Yes [happy] Halo!'
+
+
+@pytest.mark.asyncio
+async def test_translation_language_switch_persists_and_reaches_hermes(app, tmp_path):
+    from orchestrator import Orchestrator
+    await app.handle_control({'type': 'set_translation_language', 'language': 'id'})
+    assert app._settings()['translation_language'] == 'id'
+    assert app._hermes.translation_language == 'id'
+    with pytest.raises(ValueError): await app.handle_control({'type': 'set_translation_language', 'language': 'fr'})
+    assert json.loads(app._speech_settings_path.read_text()) == {'translation_language': 'id'}
+
+
+def test_hermes_prompt_follows_translation_language():
+    bridge = HermesBridge({**CONFIG, 'tts': {**CONFIG['tts'], 'engine': 'voicevox'}})
+    bridge.clear_history()
+    bridge.translation_language = 'id'
+    assert 'Indonesian translation' in bridge._messages[0]['content']
+    with pytest.raises(ValueError): bridge.translation_language = 'fr'

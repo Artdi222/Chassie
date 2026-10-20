@@ -373,7 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function setControlsConnected(connected) {
-        ["mic-toggle", "input-mode", "companion-mode", "stop-btn", "profile-select"].forEach(id => {
+        ["mic-toggle", "input-mode", "companion-mode", "translation-language", "stop-btn", "profile-select"].forEach(id => {
             document.getElementById(id).disabled = !connected;
         });
         if (!connected) {
@@ -386,9 +386,13 @@ document.addEventListener("DOMContentLoaded", () => {
         renderVision(settings.vision);
         micToggle.checked = settings.mic_enabled;
         const voicevox = settings.speech_engine === "voicevox";
+        const subtitles = settings.translation_language === "id" ? "Indonesian" : "English";
+        document.getElementById("translation-language").value = settings.translation_language || "en";
+        document.getElementById("translation-language").hidden = document.querySelector('label[for="translation-language"]').hidden = !voicevox;
         document.getElementById("speech-language").textContent = voicevox
-            ? "Voice: Mochiko-san (VOICEVOX) · speaks Japanese with English subtitles"
+            ? `Voice: Mochiko-san (VOICEVOX) · speaks Japanese with ${subtitles} subtitles`
             : "English voice and subtitles";
+        document.getElementById("input-caption").textContent = voicevox ? `Japanese voice · ${subtitles} subtitles` : "English voice and subtitles";
         document.getElementById("speech-credit").hidden = !voicevox;
         document.getElementById("input-mode").value = settings.input_mode;
         document.getElementById("companion-mode").value = settings.mode;
@@ -494,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("input-mode").addEventListener("change",e=>sendControl({type:"set_input_mode",mode:e.target.value}));
     document.getElementById("companion-mode").addEventListener("change",e=>sendControl({type:"set_mode",mode:e.target.value}));
+    document.getElementById("translation-language").addEventListener("change",e=>sendControl({type:"set_translation_language",language:e.target.value}));
     document.getElementById("stop-btn").addEventListener("click",()=>sendControl({type:"stop"}));
     document.getElementById("resume-btn").addEventListener("click",()=>sendControl({type:"resume_topic"}));
     document.getElementById("profile-select").addEventListener("change",e=>sendControl({type:"select_profile",profile_id:e.target.value || null}));

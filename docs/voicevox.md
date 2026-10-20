@@ -16,7 +16,7 @@ The installer accepts the standard VOICEVOX runtime/model terms and keeps their 
 
 Only one VVM is downloaded and loaded (this official file also contains several other characters; Chassie selects only Mochiko-san). CPU inference uses two threads, preserving GPU memory for the avatar. The worker starts on the first sentence, stays warm for later replies, and exits on Stop during synthesis, timeout or backend shutdown. A restarted worker incurs loading latency again.
 
-`tts.engine: voicevox` is the only supported engine. Speech is Japanese and replies/subtitles are English.
+`tts.engine: voicevox` is the only supported engine. Speech is Japanese; replies/subtitles are English or Indonesian, selectable in Settings.
 
 ## Voice style and pronunciation
 
@@ -26,7 +26,7 @@ The bilingual prompt asks Hermes to write foreign names, app names, initialisms 
 
 ## Response and interruption behavior
 
-Hermes emits one JSON object per sentence pair: `emotion`, `ja`, `en`. Complete validated pairs stream into a bounded queue. Japanese reaches TTS; English reaches chat and the currently playing subtitle. Raw JSON never appears in displayed history. Invalid/missing translations fail visibly in English instead of being spoken. Short pairs are required (Japanese ≤350 characters, English ≤700); the usual reply is 1–3 pairs.
+Hermes emits one JSON object per sentence pair: `emotion`, `ja`, and the translation key `en` or `id`. Complete validated pairs stream into a bounded queue. Japanese reaches TTS; English reaches chat and the currently playing subtitle. Raw JSON never appears in displayed history. Invalid/missing translations fail visibly in English instead of being spoken. Short pairs are required (Japanese ≤350 characters, English ≤700); the usual reply is 1–3 pairs.
 
 Stop cancels both the model stream and owned synthesis process. Only fully played English translations remain in interrupted conversation context. Reconnecting web/desktop clients receive the English history. Audio playback still has one owner on the backend. Sentence completion flushes the reported device latency with silence before stopping the stream, protecting sentence endings on ALSA/PipeWire hosts that return early from stop. Completed sentences are not aborted when the next sentence begins.
 

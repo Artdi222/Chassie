@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 import aiohttp
-from bilingual import BILINGUAL_PROMPT, display_translation
+from bilingual import LANGUAGES, bilingual_prompt, display_translation
 
 logger=logging.getLogger('hermes')
 
@@ -91,7 +91,8 @@ class HermesBridge:
             if not key_path.is_absolute(): key_path=Path(__file__).parent/key_path
             if key_path.exists(): self._api_key=key_path.read_text(encoding='utf-8').strip()
         self._bilingual=config.get('tts',{}).get('engine')=='voicevox'
-        self._system_prompt=BILINGUAL_PROMPT if self._bilingual else cfg.get('system_prompt','')
+        self._english_prompt=cfg.get('system_prompt','')
+        self.translation_language=config.get('tts',{}).get('translation_language','en')
         self._session=None
         self._messages=[]
         self._revision=0
@@ -142,7 +143,7 @@ class HermesBridge:
         revision=self._revision
         messages=[dict(m) for m in self._messages]
         style='Keep the reply concise and task-focused.' if mode=='focus' else 'Use a relaxed conversational tone; do not invent personal facts.'
-        messages.append({'role':'system','content':style+(' '+BILINGUAL_PROMPT if self._bilingual else ' Always answer in English.')})
+        messages.append({'role':'system','content':style+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')})
         user={'role':'user','content':text}
         messages.append({'role':'user','content':self._turn_content(text,context)})
         try:
@@ -182,7 +183,7 @@ class HermesBridge:
         revision=self._revision
         messages=[dict(m) for m in self._messages]
         style='Keep the reply concise and task-focused.' if mode=='focus' else 'Use a relaxed conversational tone; do not invent personal facts.'
-        messages.append({'role':'system','content':style+(' '+BILINGUAL_PROMPT if self._bilingual else ' Always answer in English.')})
+        messages.append({'role':'system','content':style+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')})
         user={'role':'user','content':text}
         if images:
             parts=[{'type':'text','text':self._turn_content(text,context)}]
@@ -291,7 +292,7 @@ class HermesBridge:
             raise RuntimeError('Hermes stream was invalid or interrupted. Please retry.') from None
 
     def _trim(self):
-        prefix=1 if self._system_prompt else 0
+        prefix=1 if self._current_system_prompt() else 0
         excess=len(self._messages)-prefix-self._max_turns*2
         if excess>0:
             del self._messages[prefix:prefix+excess]
@@ -307,6 +308,21 @@ class HermesBridge:
         self._pending=None
         self._revision+=1
 
+    @property
+    def translation_language(self):
+        return self._translation_language
+
+    @translation_language.setter
+    def translation_language(self,language):
+        if language not in LANGUAGES: raise ValueError('Unsupported translation language')
+        self._translation_language=language
+        messages=getattr(self,'_messages',None)
+        if self._bilingual and messages and messages[0]['role']=='system':
+            messages[0]={'role':'system','content':self._current_system_prompt()}
+
+    def _current_system_prompt(self):
+        return bilingual_prompt(self.translation_language) if self._bilingual else self._english_prompt
+
     def get_history(self):
         return [{**m,'content':display_translation(m['content'])}
                 if self._bilingual and m['role']=='assistant' else dict(m)
@@ -315,7 +331,7 @@ class HermesBridge:
     def clear_history(self):
         self._revision+=1
         self._pending=None
-        self._messages=[{'role':'system','content':self._system_prompt}] if self._system_prompt else []
+        self._messages=[{'role':'system','content':self._current_system_prompt()}] if self._current_system_prompt() else []
 
     async def health_check(self):
         try:

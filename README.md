@@ -59,9 +59,9 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 
 Jangan menjalankan pembuatan `.venv` ulang bila sudah memakai environment yang disiapkan. Dependensi overlay bersifat opsional. Tes perangkat memakai fake stream; tes browser membuka server loopback sementara. [Evaluasi](evaluasi.md) memuat kasus lanjutan; [ledger implementasi](docs/superpowers/plans/2026-09-08-chassie-development.md) memisahkan hasil teruji dan pekerjaan tersisa.
 
-## Japanese voice and English subtitles
+## Japanese voice with English or Indonesian subtitles
 
-The only voice is VOICEVOX Mochiko-san Normal. Input supports Indonesian or English; speech is Japanese and reply chat/subtitles are English. On a fresh checkout, run `.venv/bin/python scripts/install_voicevox.py` once, then launch Chassie normally. See [VOICEVOX setup and voice credits](docs/voicevox.md).
+The only voice is VOICEVOX Mochiko-san Normal. Input supports Indonesian or English; speech is Japanese and reply chat/subtitles are English or Indonesian (Settings → Voice & chat → Subtitle & chat language; saved in `.chassie/speech-settings.json`, default `tts.translation_language: en`). On a fresh checkout, run `.venv/bin/python scripts/install_voicevox.py` once, then launch Chassie normally. See [VOICEVOX setup and voice credits](docs/voicevox.md).
 
 Interaksi mouse: kursor pada avatar atau sekitar 180 piksel logis dari bagian yang terlihat mengarahkan tatapan, tanpa harus menyentuh tubuh/rambut. Melewati batas kedekatan ini melepas target kursor, lalu tatapan bertransisi ke idle. Area kedekatan mengikuti bagian model, bukan seluruh panel transparan. Hover singkat di bagian kepala memicu headpat lembut (menunduk, memejamkan mata, tersenyum), lalu kembali ke ekspresi pilihan ketika kursor menjauh. Tepi kepala memiliki toleransi dan jeda keluar singkat agar gerakan kepala atau kursor kecil tidak membuat ekspresi berkedip. Drag tetap memindahkan avatar. Ini berjalan lokal di renderer desktop dan browser, tanpa kamera atau panggilan model AI.
 
