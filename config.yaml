@@ -6,10 +6,8 @@ hermes:
   stream_timeout: 180  # Whole streamed request, including bounded consumer backpressure
   stream_read_timeout: 75  # Hermes keepalive is 30s; allow two intervals plus scheduling slack
   model: "hermes-agent"
-  # Request-scoped routing; these IDs are configured in the current Hermes provider.
-  provider: "xKiro"
-  text_model: "deepseek/deepseek-v4-flash"
-  vision_model: "minimax/minimax-m3:free"
+  # No provider/text_model/vision_model override: Hermes's own default model
+  # (model.default in ~/.hermes/config.yaml) answers text and image turns.
   personal_memory_session_key: "chassie-owner-memory"  # Only sent for a selected personal profile
   personal_memory_profile_id: "85fe4caec29b444db4f0d39d8c403f77"  # Existing local Artdi profile
   reasoning_effort: "low"  # Fast companion replies; null inherits Hermes/CLI settings
