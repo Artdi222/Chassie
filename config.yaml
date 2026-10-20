@@ -37,10 +37,11 @@ hermes:
     "[shy] Um... [thinking] I'm not sure how to say this... [flustered] It's just that... [love] I really appreciate you."
     "[happy] That's great! [concerned] But are you sure you're okay? [thinking] Maybe we should check first."
 stt:
-  model: "base"
-  device: "cpu"
+  model: "small"  # GPU: ~0.9 s per 5 s of audio, ~430 MB VRAM; large-v3-turbo exceeds this laptop's RAM
+  device: "cuda"  # Falls back to cpu_model on CPU if CUDA/cuBLAS/cuDNN are unavailable
+  cpu_model: "base"
   language: null  # Auto-detect Indonesian or English
-  compute_type: "int8"
+  compute_type: "int8_float16"
   cpu_threads: 2
   beam_size: 3
   vad_aggressiveness: 2

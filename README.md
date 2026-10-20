@@ -39,7 +39,7 @@ Pada CachyOS/Hyprland, launcher memakai XWayland dan aturan khusus avatar agar t
 - Pertanyaan dan observasi sementara dikirim dalam satu pesan user agar normalisasi DeepSeek di Hermes mempertahankan hasil recall otomatis. Observasi tetap diberi label sebagai data, tidak masuk history Chassie, dan tidak disimpan sebagai fakta pengguna oleh Femiris.
 - Kamera dan GUI layar diperbarui lokal setiap dua detik meskipun panel ditutup. Snapshot hanya dikirim saat diminta lewat teks atau suara, misalnya “lihat layar aku” atau “kamu bisa lihat aku?”. Permintaan berlaku untuk pesan itu saja dan hanya menyertakan sumber yang diminta. Status tampil di Settings → System. Lihat [pengamatan otomatis dan pengenalan wajah](docs/automatic-vision.md).
 - Pemisahan memori ini mencakup state milik Chassie. Konteks, SOUL, memori, dan tools yang ditambahkan Hermes sendiri perlu konfigurasi terpisah sebelum menganggap percakapan tamu terisolasi sepenuhnya.
-- TTS hanya memakai VOICEVOX Mochiko-san Normal. Model STT multilingual `base` memakai CPU/int8, dua thread; dukungan dua bahasa belum merupakan hasil benchmark akurasi percakapan campuran.
+- TTS hanya memakai VOICEVOX Mochiko-san Normal. Model STT multilingual `small` berjalan di GPU (CUDA, int8_float16, ~430 MB VRAM) dan otomatis kembali ke `base` di CPU bila CUDA tidak tersedia; dukungan dua bahasa belum merupakan hasil benchmark akurasi percakapan campuran.
 
 Log `Streaming turn timings` memisahkan teks pertama, kalimat pertama, PCM pertama, audio masuk antrean, stream selesai, dan playback selesai. Waktu masuk antrean bukan bukti saat suara terdengar dari speaker. Lihat [rencana dan verifikasi streaming](docs/superpowers/plans/2026-09-08-streaming-replies.md).
 

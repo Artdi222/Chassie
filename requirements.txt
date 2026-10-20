@@ -13,3 +13,6 @@ webrtcvad-wheels>=2.0.10
 av>=12.0
 Pillow>=10.0
 sherpa-onnx==1.13.8
+# GPU speech recognition (optional; CPU fallback without them)
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*

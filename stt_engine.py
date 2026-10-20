@@ -4,11 +4,25 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 import logging
+from pathlib import Path
 import queue
 import threading
 import time
 
 import numpy as np
+
+_CUDA_LIBRARIES=('cublas/lib/libcublasLt.so.12','cublas/lib/libcublas.so.12','cudnn/lib/libcudnn.so.9')
+
+
+def preload_cuda_libraries():
+    """Expose pip-installed cuBLAS/cuDNN to CTranslate2 without changing LD_LIBRARY_PATH."""
+    import ctypes
+    import importlib.util
+    spec=importlib.util.find_spec('nvidia')
+    if spec is None or not spec.submodule_search_locations: return
+    root=Path(next(iter(spec.submodule_search_locations)))
+    for library in _CUDA_LIBRARIES:
+        if (root/library).is_file(): ctypes.CDLL(str(root/library),mode=ctypes.RTLD_GLOBAL)
 
 logger=logging.getLogger('stt')
 
@@ -101,10 +115,7 @@ class STTEngine:
             if factory is None:
                 from faster_whisper import WhisperModel
                 factory=WhisperModel
-            device=self._cfg.get('device','cpu')
-            model=factory(self._cfg.get('model','base'),device=device,
-                compute_type=self._cfg.get('compute_type','int8' if device=='cpu' else 'float16'),
-                cpu_threads=self._cfg.get('cpu_threads',2))
+            model=self._load_model(factory)
             with self._lock:
                 # Cancelling asyncio.to_thread does not cancel a native model
                 # constructor. A shutdown during loading must remain terminal
@@ -118,6 +129,24 @@ class STTEngine:
                     self._threads.append(t); t.start()
         finally:
             with self._lock: self._starting=False
+
+    def _load_model(self,factory):
+        device=self._cfg.get('device','cpu')
+        threads=self._cfg.get('cpu_threads',2)
+        if device=='cuda':
+            try:
+                preload_cuda_libraries()
+                model=factory(self._cfg.get('model','base'),device='cuda',
+                              compute_type=self._cfg.get('compute_type','int8_float16'),cpu_threads=threads)
+                # Missing cuBLAS/cuDNN only fails on the first encode, not on construction.
+                list(model.transcribe(np.zeros(16000,dtype=np.float32),beam_size=1)[0])
+                self.device='cuda'
+                return model
+            except Exception as exc:
+                logger.warning('GPU speech recognition unavailable (%s); using CPU',type(exc).__name__)
+        self.device='cpu'
+        return factory(self._cfg.get('cpu_model',self._cfg.get('model','base')) if device=='cuda' else self._cfg.get('model','base'),
+                       device='cpu',compute_type='int8' if device=='cuda' else self._cfg.get('compute_type','int8'),cpu_threads=threads)
 
     def invalidate(self):
         with self._lock:

@@ -317,3 +317,25 @@ async def test_host_stop_that_drops_tail_cannot_cut_off_sentence():
         assert np.count_nonzero(audible==.5)==2400
         assert np.max(np.where(audible==.25))<np.min(np.where(audible==.5))
     finally: player.stop()
+
+
+def test_gpu_speech_model_falls_back_to_cpu_when_cuda_fails_on_first_encode(monkeypatch):
+    import stt_engine
+    monkeypatch.setattr(stt_engine, 'preload_cuda_libraries', lambda: None)
+    calls = []
+    class Model:
+        def __init__(self, name, device, compute_type, cpu_threads):
+            calls.append((name, device, compute_type))
+            self.device = device
+        def transcribe(self, audio, **kw):
+            if self.device == 'cuda': raise RuntimeError('Library libcublas.so.12 is not found')
+            return iter(()), None
+    config = {**CONFIG, 'stt': {**CONFIG['stt'], 'device': 'cuda', 'model': 'small', 'cpu_model': 'base'}}
+    engine = STTEngine(config, queue.Queue(), model_factory=Model)
+    model = engine._load_model(Model)
+    assert calls == [('small', 'cuda', 'int8_float16'), ('base', 'cpu', 'int8')]
+    assert model.device == 'cpu' and engine.device == 'cpu'
+    calls.clear()
+    Model.transcribe = lambda self, audio, **kw: (iter(()), None)
+    assert engine._load_model(Model).device == 'cuda' and engine.device == 'cuda'
+    assert calls == [('small', 'cuda', 'int8_float16')]
