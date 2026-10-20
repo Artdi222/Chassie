@@ -392,6 +392,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("speech-language").textContent = voicevox
             ? `Voice: Mochiko-san (VOICEVOX) · speaks Japanese with ${subtitles} subtitles`
             : "English voice and subtitles";
+        document.getElementById("echo-help").textContent = settings.automatic_barge_in
+            ? "Echo cancellation is on: you can interrupt Chassie just by speaking."
+            : "The microphone pauses while Chassie talks to avoid echo.";
         document.getElementById("input-caption").textContent = voicevox ? `Japanese voice · ${subtitles} subtitles` : "English voice and subtitles";
         document.getElementById("speech-credit").hidden = !voicevox;
         document.getElementById("input-mode").value = settings.input_mode;

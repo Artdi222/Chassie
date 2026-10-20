@@ -315,3 +315,44 @@ def test_shared_context_budget_remains_valid_without_personal_memory(app):
     assert len(encoded)<=10000 and payload['scope']=='shared'
     assert payload['memories']==[] and 'private marker' not in encoded
     assert payload['shared_notes'][-1].startswith('3')
+
+
+@pytest.mark.asyncio
+async def test_barge_in_stops_reply_but_keeps_the_interrupting_utterance(app):
+    import time as _time
+    from types import SimpleNamespace
+    app._barge_in=True;app._mic_enabled=True;app._current_status='speaking'
+    app._cancel_turn=AsyncMock()
+    event=lambda:SimpleNamespace(kind='speech_start',epoch=app._stt.epoch)
+    app._speaking_since=_time.monotonic()  # inside the echo grace period
+    await app._handle_speech_event(event())
+    app._cancel_turn.assert_not_awaited()
+    app._speaking_since=_time.monotonic()-1
+    await app._handle_speech_event(event())
+    app._cancel_turn.assert_awaited_once_with(keep_voice=True)
+    app._barge_in=False;app._cancel_turn.reset_mock()
+    await app._handle_speech_event(event())
+    app._cancel_turn.assert_not_awaited()
+
+
+def test_echo_cancel_routes_only_chassie_and_falls_back(monkeypatch):
+    import echo_cancel
+    calls=[]
+    def pactl(*args,timeout=5):
+        calls.append(args)
+        return '42\n' if args[0]=='load-module' else ''
+    monkeypatch.setattr(echo_cancel,'_pactl',pactl)
+    monkeypatch.setattr(echo_cancel.shutil,'which',lambda name:'/usr/bin/pactl')
+    monkeypatch.setattr(echo_cancel.atexit,'register',lambda f:None)
+    monkeypatch.setenv('PULSE_SINK','unset');monkeypatch.setenv('PULSE_SOURCE','unset')  # restored after the test
+    config={'conversation':{'barge_in':True},'audio':{'input_device':None,'output_device':None}}
+    assert echo_cancel.enable(config)
+    assert config['audio']['input_device']=='pulse' and config['audio']['output_device']=='pulse'
+    assert echo_cancel.os.environ['PULSE_SINK']==echo_cancel.SINK
+    assert any(a[0]=='load-module' and 'aec_method=webrtc' in a for a in calls)
+    explicit={'conversation':{'barge_in':True},'audio':{'input_device':3}}
+    assert not echo_cancel.enable(explicit) and explicit['conversation']['barge_in'] is False
+    def broken(*args,timeout=5): raise echo_cancel.subprocess.CalledProcessError(1,'pactl')
+    monkeypatch.setattr(echo_cancel,'_pactl',broken)
+    failed={'conversation':{'barge_in':True},'audio':{}}
+    assert not echo_cancel.enable(failed) and failed['conversation']['barge_in'] is False

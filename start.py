@@ -208,6 +208,10 @@ async def main():
     # Run startup checks
     await run_startup_checks(config)
 
+    # Full-duplex voice when PipeWire echo cancellation is available
+    import echo_cancel
+    echo_cancel.enable(config)
+
     # Create orchestrator
     orchestrator = Orchestrator(config, text_mode=text_mode)
 
@@ -222,6 +226,8 @@ async def main():
     loop = asyncio.get_event_loop()
     try:
         loop.add_signal_handler(signal.SIGINT, signal_handler)
+        # The launcher stops the backend with SIGTERM; shut down cleanly so atexit unloads echo cancellation.
+        loop.add_signal_handler(signal.SIGTERM, signal_handler)
     except NotImplementedError:
         # Windows doesn't support add_signal_handler
         signal.signal(signal.SIGINT, lambda s, f: signal_handler())

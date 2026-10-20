@@ -105,7 +105,7 @@ logging:
 
 conversation:
   input_mode: "review"  # review or hands_free; independent of browser connections
-  # Automatic voice barge-in remains disabled until AEC is validated on real devices.
+  barge_in: true  # Speak to interrupt Chassie; needs PipeWire echo cancellation, else mic pauses during replies
 ui:
   port: 8000
 

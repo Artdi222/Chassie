@@ -97,6 +97,9 @@ class Orchestrator:
         self._mic_enabled=not text_mode
         self._voice_started=False;self._voice_starting=False;self._voice_start_task=None
         self._capture_paused=False
+        # Full duplex only when echo_cancel.enable() routed audio through PipeWire AEC.
+        self._barge_in=config.get('conversation',{}).get('barge_in') is True
+        self._speaking_since=0.0
         self._input_mode=config.get('conversation',{}).get('input_mode','review')
         if self._input_mode not in ('review','hands_free'): raise ValueError('Invalid input mode')
         self._speech_settings_path=selection_path.with_name('speech-settings.json')
@@ -285,10 +288,12 @@ class Orchestrator:
                 chunks=pacing.smooth(chunks)
                 if first:
                     self._turn_metrics['first_pcm_seconds']=time.monotonic()-started
-                    # Echo protection is still half-duplex, not automatic barge-in/AEC.
-                    self._capture_paused=True
-                    await self._sync_capture()
-                    self._purge_inputs(voice_only=True)
+                    self._speaking_since=time.monotonic()
+                    if not self._barge_in:
+                        # Without echo cancellation the microphone would hear Chassie, so stay half-duplex.
+                        self._capture_paused=True
+                        await self._sync_capture()
+                        self._purge_inputs(voice_only=True)
                     await self._broadcast_settings()
                     await self._set_status('speaking')
                     self._audio_analyzer.reset()
@@ -447,7 +452,7 @@ class Orchestrator:
         self._memory.save_face(profile.id,embedding,consent=True)
         return f'Face remembered locally as {profile.name}. Only a face template was saved, not a camera photo.'
 
-    async def _cancel_turn(self,*,clear=False):
+    async def _cancel_turn(self,*,clear=False,keep_voice=False):
         self._generation+=1
         self._subtitle=None
         await self._broadcast_to_ui({'type':'subtitle','text':'','generation':self._generation})
@@ -465,9 +470,10 @@ class Orchestrator:
             self._stream_view=None
         elif self._stream_view and self._stream_view['interrupted']:
             await self._broadcast_stream()
-        self._purge_inputs()
-        self._stt.invalidate()
-        await self._broadcast_to_ui({'type':'voice_draft_cleared'})
+        if not keep_voice:
+            self._purge_inputs()
+            self._stt.invalidate()
+            await self._broadcast_to_ui({'type':'voice_draft_cleared'})
         self._avatar_state={'emotion':'neutral','mouth':0.0}
         await self._vts.reset_expressions()
         await self._vts.set_mouth_open(0)
@@ -499,6 +505,12 @@ class Orchestrator:
 
     async def _handle_speech_event(self,event):
         if event.epoch!=self._stt.epoch or not self._mic_enabled or self._capture_paused: return
+        if (event.kind=='speech_start' and self._barge_in and self._current_status=='speaking'
+                and time.monotonic()-self._speaking_since>=.6):
+            # The grace period ignores residual echo while the canceller adapts to a new reply.
+            logger.info('Barge-in: user started speaking; stopping the reply')
+            await self._cancel_turn(keep_voice=True)
+            return
         if event.kind=='speech_start':
             if self._current_status in ('idle','listening'):
                 self._listening_until=time.monotonic()+18
@@ -557,7 +569,7 @@ class Orchestrator:
                 'speech':self._tts.status() if isinstance(self._tts,TTSEngine) else None,
                 'speech_language':'Japanese' if self._bilingual else 'English',
                 'translation_language':self._translation_language,
-                'automatic_barge_in':False,'pending_topic':bool(self._pending_topic),
+                'automatic_barge_in':self._barge_in,'pending_topic':bool(self._pending_topic),
                 'vision':self._vision.status() if self._vision else None,
                 'face_observation':self._face_tracker.get_observation() if self._face_tracker else None}
 
@@ -813,7 +825,7 @@ class Orchestrator:
         await self._broadcast_avatar()
 
     async def _handle_index(self,request): return web.FileResponse(Path(__file__).parent/'ui/index.html')
-    async def _handle_status(self,request): return web.json_response({'application':'chassie','protocol':2,'status':self._current_status,'voice_ready':self._stt.is_listening(),'automatic_barge_in':False})
+    async def _handle_status(self,request): return web.json_response({'application':'chassie','protocol':2,'status':self._current_status,'voice_ready':self._stt.is_listening(),'automatic_barge_in':self._barge_in})
 
     async def _handle_models(self,request):
         return web.json_response(self._catalog.public())
