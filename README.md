@@ -1,6 +1,6 @@
 # Chassie
 
-Companion lokal dengan input Indonesia/Inggris, teks jawaban Inggris dan suara Jepang, kontrol percakapan browser, dan avatar Live2D. Runtime overlay sekarang menampilkan setengah badan dengan background transparan. Gunakan Python 3.12; lingkungan `.venv` sudah disiapkan pada mesin ini.
+Companion lokal dengan input Indonesia/Inggris, teks jawaban Inggris atau Indonesia, dan suara Jepang, kontrol percakapan browser, dan avatar Live2D. Runtime overlay sekarang menampilkan setengah badan dengan background transparan. Gunakan Python 3.12; lingkungan `.venv` sudah disiapkan pada mesin ini.
 
 ## Jalankan
 
@@ -24,7 +24,7 @@ Web saja, tanpa overlay:
 .venv/bin/python start.py --text
 ```
 
-UI dan tes model dapat dipakai tanpa Hermes; balasan percakapan memerlukan API Hermes aktif. Suara Jepang Ami/VOICEVOX dan teks terjemahan Inggris berjalan bersama. Lihat [setup Hermes](docs/hermes-setup.md).
+UI dan tes model dapat dipakai tanpa Hermes; balasan percakapan memerlukan API Hermes aktif. Suara Jepang VOICEVOX dan teks terjemahan (Inggris atau Indonesia) berjalan bersama. Lihat [setup Hermes](docs/hermes-setup.md).
 
 Pada CachyOS/Hyprland, launcher memakai XWayland dan aturan khusus avatar agar transparan, selalu di atas, dan dipin lintas workspace. Panel kontrol tetap window biasa. Lihat [dukungan overlay](docs/overlay.md). Jika backend versi lama masih berjalan di terminal, hentikan dengan Ctrl+C sebelum membuka launcher baru.
 
