@@ -14,7 +14,7 @@ From the project directory:
 
 The installer accepts the standard VOICEVOX runtime/model terms and keeps their files under `.chassie/voicevox`. Downloads are pinned to Core 0.17.0, VOICEVOX ONNX Runtime 1.17.3, VVM 0.16.4 (`15.vvm`), and Open JTalk dictionary 1.11. The Python SDK is installed into the interpreter used to run the script. Runtime 1.17.3 was verified with this SDK; its recommended runtime filename is newer, so Chassie selects the installed compatible library explicitly.
 
-Only one VVM is downloaded and loaded (this official file also contains several other characters; Chassie selects only Mochiko-san). CPU inference uses two threads, preserving GPU memory for the avatar. The worker starts on the first sentence, stays warm for later replies, and exits on Stop during synthesis, timeout or backend shutdown. A restarted worker incurs loading latency again.
+Only one VVM is downloaded and loaded (this official file also contains several other characters; Chassie selects only Mochiko-san). CPU inference uses six threads (`tts.cpu_threads`; on a Ryzen 5 7535HS a sentence takes ~0.7–1.3 s versus 1.6–3.1 s with two). The worker is started and warmed in the background when Chassie starts and again at the start of each reply, because Stop, barge-in, timeout or shutdown end it; ONNX Runtime needs a few short passes to reach full speed. A long first sentence is split at an inner 、 or 。 when the head is at least ~40% of it, so the head plays about a second sooner while the tail is synthesized; the subtitle still shows the whole translation.
 
 `tts.engine: voicevox` is the only supported engine. Speech is Japanese; replies/subtitles are English or Indonesian, selectable in Settings.
 

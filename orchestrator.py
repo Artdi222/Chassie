@@ -22,7 +22,7 @@ from stt_engine import STTEngine
 from tts_engine import TTSEngine
 from speech_chunker import SpeechChunker
 from speech_pacing import SpeechPacing
-from bilingual import BilingualChunker, LANGUAGES
+from bilingual import BilingualChunker, LANGUAGES, split_first_clause
 from vts_connector import VTSConnector
 from avatar import load_manifest
 from avatar.manifest import DEFAULT_MANIFEST
@@ -234,6 +234,17 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin):
 
     async def _produce_speech(self,text,generation,sentences,started):
         chunker=BilingualChunker(self._translation_language) if self._bilingual else SpeechChunker()
+        first_pair=True
+        async def put(sentence):
+            nonlocal first_pair
+            self._turn_metrics.setdefault('first_sentence_seconds',time.monotonic()-started)
+            parts=split_first_clause(sentence[2]) if self._bilingual and first_pair else [None]
+            first_pair=False
+            if len(parts)==1: await sentences.put(sentence);return
+            # Only the reply's first sentence waits on synthesis; later ones are prefetched during playback.
+            emotion,translation=sentence[:2]
+            await sentences.put((emotion,translation,parts[0],'head'))
+            await sentences.put((emotion,translation,parts[1],'tail'))
         received_length=0
         stream=self._hermes.stream_message(text,context=self._context_text(),mode=self._session_context.mode,
                                           **({'images':self._turn_images} if self._turn_images else {}))
@@ -246,14 +257,12 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin):
                 for sentence in chunker.feed(delta):
                     if sentence[0]=='action':
                         await self._run_model_action(text,*sentence[1:]);continue
-                    self._turn_metrics.setdefault('first_sentence_seconds',time.monotonic()-started)
-                    await sentences.put(sentence)
+                    await put(sentence)
             self._turn_metrics['hermes_complete_seconds']=time.monotonic()-started
             for sentence in chunker.finish():
                 if sentence[0]=='action':
                     await self._run_model_action(text,*sentence[1:]);continue
-                self._turn_metrics.setdefault('first_sentence_seconds',time.monotonic()-started)
-                await sentences.put(sentence)
+                await put(sentence)
             await sentences.put(None)
         except (ValueError, RecursionError) as exc:
             if not self._bilingual: raise
@@ -266,7 +275,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin):
         if item is None: return None
         emotion,sentence=item[:2]
         speech=item[2] if self._bilingual else sentence
-        return emotion,sentence,await self._synthesize_sentence(speech,emotion)
+        part=item[3] if len(item)>3 else None
+        return emotion,sentence,await self._synthesize_sentence(speech,emotion),part,speech
 
     async def _play_speech(self,sentences,generation,started):
         prefetch=None
@@ -280,7 +290,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin):
                 if item is None:
                     if first: raise RuntimeError('Hermes returned no speakable text.')
                     break
-                emotion,sentence,chunks=item
+                emotion,sentence,chunks,part,speech=item
                 if generation!=self._generation: return
                 delay=pacing.delay(chunks,now=time.monotonic())
                 if delay:
@@ -301,15 +311,16 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin):
                     first=False
                 job=await self._begin_playback()
                 if generation!=self._generation: return
-                self._subtitle={'type':'subtitle','text':sentence,'generation':generation}
-                await self._broadcast_to_ui(self._subtitle)
+                if part!='tail':
+                    self._subtitle={'type':'subtitle','text':sentence,'generation':generation}
+                    await self._broadcast_to_ui(self._subtitle)
                 prefetch=asyncio.create_task(self._next_speech(sentences))
                 for chunk_index,pcm in enumerate(chunks):
                     if generation!=self._generation: return
                     if not await self._audio_player.enqueue(pcm,emotion=emotion,generation=job):
                         raise RuntimeError('Audio playback was interrupted.')
                     self._turn_metrics.setdefault('first_audio_queued_seconds',time.monotonic()-started)
-                    if chunk_index==0:
+                    if chunk_index==0 and part!='tail':
                         # Show the sentence as its audio starts. Keep _spoken
                         # separate: only drained sentences count as fully spoken.
                         self._stream_view['text']+=(' ' if self._stream_view['text'] else '')+f'[{emotion}] {sentence}'
@@ -317,6 +328,10 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin):
                 self._audio_player.mark_end(job)
                 await self._audio_player.wait_until_done(job)
                 if generation!=self._generation: return
+                if part=='head':
+                    # Keep the subtitle; the tail continues this sentence after a comma-length pause.
+                    pacing.completed(speech,chunks,now=time.monotonic())
+                    continue
                 pacing.completed(sentence,chunks,now=time.monotonic())
                 self._spoken+=' '+sentence
                 await self._avatar.set_mouth_open(0)

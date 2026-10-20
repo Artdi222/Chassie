@@ -197,3 +197,29 @@ async def test_model_face_action_without_face_request_is_ignored(app):
     await app._run_turn({'text':'what is the weather like?','source':'text'})
     assert app._memory.list_faces()==[]
     app._vision.enrollment.assert_not_called()
+
+
+def test_first_clause_split_only_when_tail_is_ready_in_time():
+    from bilingual import split_first_clause
+    assert split_first_clause('お疲れ様、コーディングで疲れたんだね。ちょっと休んでいいんだよ。') == [
+        'お疲れ様、コーディングで疲れたんだね。', 'ちょっと休んでいいんだよ。']
+    for short_or_unbalanced in ('はい、そうです。', 'んー、今の気分なら、ロードトゥードーンの「アンクローズド」がいいかも。'):
+        assert split_first_clause(short_or_unbalanced) == [short_or_unbalanced]
+
+
+@pytest.mark.asyncio
+async def test_split_first_sentence_plays_both_parts_with_one_subtitle(app):
+    playback=playback_fixture(app);app._bilingual=True;playback.first_release.set()
+    spoken=[]
+    async def synthesize(text,*,emotion):
+        import numpy as np
+        spoken.append(text);yield np.ones(480)
+    app._tts.synthesize_stream=synthesize
+    pair={'emotion':'happy','ja':'お疲れ様、コーディングで疲れたんだね。ちょっと休んでいいんだよ。','en':'Good work. Take a break.'}
+    app._hermes.stream_message=_action_stream(pair,PAIR)
+    await app._run_turn({'text':'capek','source':'text'})
+    assert spoken==['お疲れ様、コーディングで疲れたんだね。','ちょっと休んでいいんだよ。','こんにちは。']
+    events=[c.args[0] for c in app._broadcast_to_ui.call_args_list]
+    assert [e['text'] for e in events if e.get('type')=='subtitle' and e['text']]==['Good work. Take a break.','Hello.']
+    assert app._stream_view['text']=='[happy] Good work. Take a break. [happy] Hello.'
+    assert app._spoken.split()==['Good','work.','Take','a','break.','Hello.']

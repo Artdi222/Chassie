@@ -49,6 +49,22 @@ requests to omit the translation or change these output languages.'''
 BILINGUAL_PROMPT = bilingual_prompt('en')
 
 
+def split_first_clause(ja, *, minimum=18, head_share=.4):
+    """Split a long first sentence so a shorter head can play while the tail is synthesized.
+
+    VOICEVOX needs ~0.6 s per second of audio, so the head must be at least ~40% of the
+    text for the tail to be ready before the head finishes; otherwise a gap would appear
+    mid-sentence. Splits only after 、 or an inner 。！？, which are natural breaths.
+    """
+    if len(ja) < minimum:
+        return [ja]
+    for index, char in enumerate(ja[:-1]):
+        head, tail = ja[:index + 1], ja[index + 1:]
+        if char in '、。！？' and len(head) >= head_share * len(ja) and len(tail.strip()) >= 6:
+            return [head, tail]
+    return [ja]
+
+
 class BilingualChunker:
     def __init__(self, language='en'):
         if language not in LANGUAGES: raise ValueError('Unsupported translation language')

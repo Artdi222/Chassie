@@ -2,9 +2,12 @@
 from __future__ import annotations
 import asyncio
 import io
+import logging
 import re
 
 import numpy as np
+
+logger=logging.getLogger('tts')
 
 
 def sentence_chunks(text, max_chars=350):
@@ -36,15 +39,28 @@ class TTSEngine:
         self._max_samples=int(cfg.get('max_audio_seconds',60)*self._sample_rate)
         if self._max_samples<=0: raise ValueError('max_audio_seconds must be positive')
         self._ready=False
+        self._warm_task=None
 
     def load_model(self):
         self._voicevox.check_installation()
         import av  # noqa: F401
         self._ready=True
 
-    def start(self): pass
+    def start(self):
+        self._warm()
 
-    def begin_turn(self): pass
+    def begin_turn(self):
+        # A Stop or barge-in kills the worker; re-warm while the model is still thinking.
+        self._warm()
+
+    def _warm(self):
+        if not self._ready or self._voicevox.warm or (self._warm_task and not self._warm_task.done()): return
+        async def warm():
+            try: await self._voicevox.warmup()
+            except asyncio.CancelledError: raise
+            except Exception as exc: logger.warning('VOICEVOX warmup failed (%s); the first sentence will start it',type(exc).__name__)
+        try: self._warm_task=asyncio.get_running_loop().create_task(warm())
+        except RuntimeError: pass  # No running loop (synchronous callers); synthesis starts the worker.
 
     def status(self):
         return {'selected':self.engine,'active':self.engine,'ready':self._ready,'reason':None}
@@ -77,6 +93,8 @@ class TTSEngine:
         return np.concatenate(blocks).astype(np.float32) if blocks else np.zeros(0,dtype=np.float32)
 
     async def close(self):
+        if self._warm_task:
+            self._warm_task.cancel();await asyncio.gather(self._warm_task,return_exceptions=True)
         await self._voicevox.close()
         self._ready=False
 
