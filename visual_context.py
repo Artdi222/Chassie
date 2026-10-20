@@ -14,6 +14,8 @@ import subprocess
 import threading
 import time
 
+import numpy as np
+
 from face_identity import FaceIdentity, MODEL_DIR
 
 
@@ -75,7 +77,9 @@ class VisualContext:
         self._stop = threading.Event()
         self._threads = []
         self._frames = {}
-        self._candidate = None
+        # Recent single-face embeddings; enrollment averages the consistent ones.
+        self._candidate = []
+        self.enrollment_window = max(self.interval * 3, 6.0)
         self._identity = {'face_count': 0, 'matches': [], 'ready': False, 'error': None}
         self._identity_revision = -1
         self._errors = {'camera': None, 'screen': None}
@@ -100,7 +104,7 @@ class VisualContext:
             self._frames.pop(source, None)
             self._errors[source] = message
             if source == 'camera':
-                self._candidate = None
+                self._candidate = []
                 self._identity = {'face_count': 0, 'matches': [], 'ready': False, 'error': message}
 
     def _screen_loop(self):
@@ -159,7 +163,8 @@ class VisualContext:
                                           'presence_ready': recognizer is not None and not (recognition_error == 'Face recognition unavailable for this frame.'),
                                           'error': recognition_error}
                         self._identity_revision = revision
-                        self._candidate = (candidate, now) if candidate else None
+                        # Any frame without exactly one face restarts sampling, so two people never blend.
+                        self._candidate = ([c for c in self._candidate if now - c[1] <= self.enrollment_window][-4:] + [(candidate, now)]) if candidate else []
                         self._record('camera', image, now)
             except Exception as exc:
                 self._fail('camera', f'Camera unavailable ({type(exc).__name__}). Check camera connection and access.')
@@ -199,9 +204,14 @@ class VisualContext:
 
     def enrollment(self):
         with self._lock:
-            if not self._candidate or self.clock() - self._candidate[1] > self.freshness:
+            now = self.clock()
+            if not self._candidate or now - self._candidate[-1][1] > self.freshness:
                 raise ValueError('Face not saved. Face the camera alone in good light, then repeat your request.')
-            return list(self._candidate[0])
+            samples = [np.asarray(f, dtype=np.float32) for f, at in self._candidate if now - at <= self.enrollment_window]
+        latest = samples[-1] / max(float(np.linalg.norm(samples[-1])), 1e-12)
+        consistent = [f / n for f in samples if (n := float(np.linalg.norm(f))) > 1e-12 and float(np.dot(f / n, latest)) >= .5]
+        mean = np.mean(consistent, axis=0)
+        return (mean / max(float(np.linalg.norm(mean)), 1e-12)).astype(float).tolist()
 
     def stop(self):
         self._stop.set()
@@ -209,5 +219,5 @@ class VisualContext:
             worker.join(timeout=5)
         with self._lock:
             self._frames.clear()
-            self._candidate = None
+            self._candidate = []
             self._identity = {'face_count': 0, 'matches': [], 'ready': False, 'error': None}

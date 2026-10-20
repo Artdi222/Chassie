@@ -98,7 +98,7 @@ def test_capture_expiration_failure_and_stop_clear_snapshots(tmp_path):
         vision = VisualContext({'vision': {'camera_enabled': True, 'screen_enabled': True}}, memory, clock=lambda: now[0])
         vision._record('camera', 'data:image/jpeg;base64,test', 10)
         vision._record('screen', 'data:image/jpeg;base64,test', 10, 'A GUI window')
-        vision._candidate = (embedding(), 10)
+        vision._candidate = [(embedding(), 10)]
         assert len(vision.snapshot()) == 2
         assert vision.enrollment() == embedding()
         now[0] = 16
@@ -327,3 +327,18 @@ async def test_requested_unavailable_source_does_not_substitute_other_images(app
     app._hermes.stream_message = stream
     await app._run_turn({'text': 'Check my screen', 'source': 'text'})
     assert app._spoken.strip() == 'Screen is unavailable.'
+
+
+def test_enrollment_averages_consistent_recent_samples_and_drops_outliers(tmp_path):
+    now = [20.0]
+    with MemoryStore(tmp_path / 'memory.sqlite') as memory:
+        vision = VisualContext({'vision': {'camera_enabled': True}}, memory, clock=lambda: now[0])
+        a = np.zeros(512); a[0] = 1.0
+        b = np.zeros(512); b[0] = .8; b[1] = .6   # same person, slightly different pose
+        other = np.zeros(512); other[5] = 1.0     # someone else
+        stale = np.zeros(512); stale[9] = 1.0
+        vision._candidate = [(stale.tolist(), 1.0), (other.tolist(), 15.0), (a.tolist(), 17.0), (b.tolist(), 19.0)]
+        result = np.asarray(vision.enrollment())
+        assert abs(np.linalg.norm(result) - 1) < 1e-6
+        assert result[5] == 0 and result[9] == 0      # outlier and stale sample excluded
+        assert result[0] > .9 and result[1] > .2      # mean of the two consistent samples
