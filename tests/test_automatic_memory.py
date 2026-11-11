@@ -27,7 +27,7 @@ def test_vault_uses_hermes_notes_and_rejects_handwritten_mutations(tmp_path):
     with pytest.raises(ValueError):store.delete(manual['id'])
     saved=store.add('I prefer concise and clear explanations.')
     managed=next(row for row in store.list() if row['editable'])
-    assert managed['source']==f"_generated/femiris/{saved['id']}.md"
+    assert managed['source']==f"_generated/chassie/{saved['id']}.md"
     updated=store.update(managed['id'],'I prefer short explanations in Indonesian.')
     assert len([r for r in store.list() if r['editable']])==1
     store.delete(updated['id'])

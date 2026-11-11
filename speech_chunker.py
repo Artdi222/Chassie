@@ -59,6 +59,17 @@ class SpeechChunker:
         self._flush(output)
         return output
 
+    def flush(self) -> list[tuple[str, str]]:
+        """Release buffered text now (e.g. before a slow tool call) and keep streaming.
+
+        A partial emotion tag stays pending so it can still complete.
+        """
+        if self._finished:
+            return []
+        output: list[tuple[str, str]] = []
+        self._flush(output)
+        return output
+
     def _consume(self, character: str, output: list[tuple[str, str]]):
         if self._tag:
             self._tag += character

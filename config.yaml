@@ -3,7 +3,7 @@ hermes:
   endpoint: "/v1/chat/completions"
   health_endpoint: "/health"
   timeout: 30
-  stream_timeout: 180  # Whole streamed request, including bounded consumer backpressure
+  stream_timeout: 300  # Whole streamed request, incl. backpressure and agent-reach/agent-desktop tool calls
   stream_read_timeout: 75  # Hermes keepalive is 30s; allow two intervals plus scheduling slack
   model: "hermes-agent"
   # No provider/text_model/vision_model override: Hermes's own default model

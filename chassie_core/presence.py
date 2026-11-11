@@ -58,8 +58,11 @@ class PresenceMixin:
     def _visual_guest_reason(self,status):
         camera=status.get('camera',{})
         identity=status.get('identity',{})
+        # A camera that is still warming up (no frame yet, no error) is not a failure;
+        # flagging it locked the session in shared scope before the first frame arrived.
         if (self._session_context.owner_profile_id and camera.get('enabled')
-                and (not camera.get('available') or identity.get('presence_ready') is False)):
+                and ((not camera.get('available') and camera.get('error'))
+                     or (camera.get('available') and identity.get('presence_ready') is False))):
             return 'Camera presence could not be checked'
         if camera.get('available') and identity.get('face_count',0)>1:
             return 'Additional face detected'

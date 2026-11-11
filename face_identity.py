@@ -20,10 +20,11 @@ _SELF = r'(?:\s*ku|\s+(?:aku|saya|gue|gw))?'
 _TAIL = r'(?:\s*,?\s*(?:ya|yah|dong|ok(?:e|ay)?|please|pls|thanks|makasih))*\s*[.!?]*'
 _NAME = r'([^\W\d_][\w .\'-]{0,99}?)'
 _COMMANDS = (
-    ('remember', re.compile(_LEAD + r'(?:ingat(?:lah|in)?|simpan|hafalkan|kenali|remember|save|learn)\s+'
-                            r'(?:wajah|muka|my face|face)' + _SELF + r'(?:\s+(?:ya|dong))?\s*[,:-]?\s*'
-                            r'(?:sebagai|as|dengan nama|nama\s*(?:ku|aku|saya)(?:\s+adalah)?|aku|saya|gue|'
-                            r"i am|i'm|im|my name is|called)\s+" + _NAME + _TAIL, re.IGNORECASE)),
+    ('remember', re.compile(_LEAD + r'(?:ingat(?:lah|in)?|inget(?:in)?|simpan|hafalkan|kenali|remember|save|learn)\s+'
+                            r'(?:wajah|muka|my face|face)' + _SELF + r'(?:\s+(?:ya|dong))?'
+                            # The name is optional: without one, Chassie enrolls the selected owner.
+                            r'(?:\s*[,:-]?\s*(?:sebagai|as|dengan nama|nama\s*(?:ku|aku|saya|gue|gw)(?:\s+(?:adalah|tuh))?|'
+                            r"aku|saya|gue|gw|i am|i'm|im|my name is|called)\s+" + _NAME + r')?' + _TAIL, re.IGNORECASE)),
     ('forget', re.compile(_LEAD + r'(?:lupakan|hapus|forget|delete)\s+(?:wajah|muka|the face of|face of|face)'
                           r'(?:\s+(?:milik|punya|of))?\s+' + _NAME + _TAIL, re.IGNORECASE)),
 )
@@ -34,7 +35,7 @@ def face_command(text):
     for action, pattern in _COMMANDS:
         match = pattern.fullmatch(text.strip())
         if match:
-            return action, match[1].strip(" .'-")
+            return action, (match[1] or '').strip(" .'-")
     return None
 
 

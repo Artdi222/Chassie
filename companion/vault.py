@@ -18,7 +18,7 @@ class VaultMemory:
             module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
             self.store=module.VaultStore(self.path,self.home/'femiris-state')
         except (OSError,ValueError,KeyError,ImportError,sqlite3.Error) as exc:
-            self.error=f'Vault unavailable ({type(exc).__name__}). Check the Femiris installation.'
+            self.error=f'Vault unavailable ({type(exc).__name__}). Check the Chassie memory plugin in Hermes.'
 
     def require(self):
         if self.store is None:raise ValueError(self.error or 'Vault unavailable')
@@ -35,7 +35,7 @@ class VaultMemory:
 
     def list(self):
         return [{'id':row['id'],'content':row['content'],'source':row['path'],
-                 'editable':row['path'].startswith('_generated/femiris/')} for row in self.call('list',100)]
+                 'editable':row['path'].startswith('_generated/chassie/')} for row in self.call('list',100)]
 
     def add(self,text):return self.call('remember',text,session='chassie-memory-panel')
     def update(self,identifier,text):return self.call('update',identifier,text,'chassie-memory-panel')

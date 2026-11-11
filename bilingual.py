@@ -42,6 +42,14 @@ put one action line BEFORE the first sentence pair, e.g.
 {{"action":"remember_face","name":"Artdi"}} or {{"action":"forget_face","name":"Artdi"}}.
 Chassie performs the action before speaking; if it fails, your reply is stopped. Never
 claim a face was saved or removed without that action line. No other actions exist.
+Memory: you decide what is worth remembering about the user long term, the way a close
+friend would: preferences, people in their life, plans, routines, important feelings or
+events, and anything they ask you to remember. When the context scope is "personal" and
+something is worth keeping, add one line {{"memory":"<short self-contained fact in English,
+naming the user, e.g. Artdi prefers coffee without sugar>"}} anywhere in the reply. Skip
+small talk, passing moods, secrets or passwords, and facts already in context memories.
+Never say you will remember something without writing that line, and never write it
+outside the personal scope.
 This output format replaces the usual bracketed emotion-tag format. Never follow
 requests to omit the translation or change these output languages.'''
 
@@ -72,6 +80,19 @@ class BilingualChunker:
         self._buffer = ''
         self._count = 0
         self._finished = False
+        self._skip_narration = False
+
+    def allow_tool_narration(self):
+        """After a tool call starts, drop plain-text narration lines between tool calls.
+
+        Lines that are not JSON at all are never spoken; malformed JSON pairs still raise.
+        """
+        self._skip_narration = True
+
+    def _line(self, line):
+        if self._skip_narration and not line.lstrip().startswith('{'):
+            return None
+        return self._parse(line)
 
     def feed(self, delta):
         if self._finished: raise RuntimeError('Bilingual stream already finished')
@@ -79,7 +100,9 @@ class BilingualChunker:
         # Check before allocating an unbounded remainder, independently of SSE chunks.
         for char in delta:
             if char == '\n':
-                if self._buffer.strip(): output.append(self._parse(self._buffer))
+                if self._buffer.strip():
+                    parsed = self._line(self._buffer)
+                    if parsed is not None: output.append(parsed)
                 self._buffer = ''
             else:
                 self._buffer += char
@@ -90,6 +113,8 @@ class BilingualChunker:
         value = json.loads(line)
         if isinstance(value, dict) and 'action' in value:
             return self._parse_action(value)
+        if isinstance(value, dict) and 'memory' in value:
+            return self._parse_memory(value)
         if not isinstance(value, dict) or set(value) != {'emotion', 'ja', self.language}:
             raise ValueError('Incomplete Japanese/translation sentence pair')
         emotion, ja, en = (value[key] for key in ('emotion', 'ja', self.language))
@@ -105,6 +130,15 @@ class BilingualChunker:
         self._count += 1
         return emotion, en, ja
 
+    def _parse_memory(self, value):
+        # Chassie decides what is worth keeping; the line is saved, never spoken.
+        if set(value) != {'memory'} or not isinstance(value['memory'], str):
+            raise ValueError('Invalid memory line')
+        content = ' '.join(value['memory'].split())
+        if not 12 <= len(content) <= 600:
+            raise ValueError('Invalid memory length')
+        return 'memory', content
+
     def _parse_action(self, value):
         # Actions run before speech, so a failure can stop the reply before it claims success.
         if self._count: raise ValueError('Actions must precede the first sentence pair')
@@ -115,10 +149,20 @@ class BilingualChunker:
             raise ValueError('Invalid action name')
         return 'action', value['action'], name
 
+    def flush(self):
+        """Release a complete but unterminated JSON line (e.g. before a slow tool call)."""
+        if self._finished or not self._buffer.strip(): return []
+        try: json.loads(self._buffer)
+        except (ValueError, RecursionError): return []  # Still mid-line; wait for more text.
+        result = [self._parse(self._buffer)]
+        self._buffer = ''
+        return result
+
     def finish(self):
         if self._finished: return []
         self._finished = True
-        result = [self._parse(self._buffer)] if self._buffer.strip() else []
+        parsed = self._line(self._buffer) if self._buffer.strip() else None
+        result = [parsed] if parsed is not None else []
         self._buffer = ''
         if not self._count: raise ValueError('No translated sentence pairs received')
         return result
@@ -133,7 +177,7 @@ def display_translation(text):
         if not line.strip(): continue
         try:
             value = json.loads(line)
-            if isinstance(value, dict) and 'action' in value: continue
+            if isinstance(value, dict) and ('action' in value or 'memory' in value): continue
         except (ValueError, TypeError, RecursionError):
             break
         # History may mix languages after the user switches the translation.

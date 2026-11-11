@@ -198,3 +198,35 @@ async def test_slow_playback_backpressures_text_stream(app):
         task.cancel();playback.first_release.set()
         await asyncio.gather(task,return_exceptions=True)
     assert closed.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('opening,expected', [
+    ('[thinking] Let me check.', 'Let me check.'),   # model's own unterminated opener is flushed
+    ('', 'Let me check that for you.'),              # silent tool call gets a filler
+])
+async def test_speech_starts_while_hermes_runs_a_tool(app, tmp_path, monkeypatch, opening, expected):
+    import desktop_grant
+    from hermes_bridge import ToolProgress
+    monkeypatch.setattr(desktop_grant, 'grant_path', lambda: tmp_path / 'desktop-grant')
+    playback=playback_fixture(app)
+    release=asyncio.Event()
+    async def stream(*args,**kwargs):
+        if opening: yield opening
+        yield ToolProgress(tool='terminal',label='agent-reach reddit search',status='running')
+        await release.wait()
+        yield ToolProgress(tool='terminal',label='',status='completed')
+        yield ' [happy] Found it.'
+    app._hermes.stream_message=stream
+    task=asyncio.create_task(app._run_turn({'text':'look it up','source':'text'}))
+    try:
+        await asyncio.wait_for(playback.first_draining.wait(),2)
+        assert not release.is_set()
+        assert playback.starts==[expected]
+        release.set();playback.first_release.set()
+        await asyncio.wait_for(task,2)
+        assert app._spoken.strip().endswith('Found it.')
+        assert not (tmp_path / 'desktop-grant').exists()
+    finally:
+        release.set();playback.first_release.set();task.cancel()
+        await asyncio.gather(task,return_exceptions=True)

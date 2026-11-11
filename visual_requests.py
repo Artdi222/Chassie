@@ -2,7 +2,8 @@
 import re
 
 _SOURCES = {
-    'screen': re.compile(r'\b(?:layar(?:ku|mu|nya)?|screen(?:shot)?s?|desktop|monitor)\b'),
+    'screen': re.compile(r'\b(?:layar(?:ku|mu|nya)?|screen(?:shot)?s?|desktop|monitor|'
+                         r'tampilan(?:ku|nya)?|aplikasi(?:ku|nya)?|jendela(?:ku|nya)?|window)\b'),
     'camera': re.compile(r'\b(?:kamera(?:ku|mu|nya)?|camera|webcam)\b'),
 }
 _ACTION = re.compile(
@@ -15,6 +16,8 @@ _QUESTION = re.compile(
 _PERSON = re.compile(
     r'\b(?:(?:lihat|liat)\s+(?:aku|saya|wajahku|mukaku)|see\s+me)\b')
 _NEGATIVE = re.compile(r"\b(?:jangan|jgn|tidak|nggak|gak|ga|tak|bukan|not|never|without|don't|do not)\b")
+# Indonesian tag questions ("bisa liat aku gak?") end with a negation word that does not negate.
+_TAG_QUESTION = re.compile(r'\s*,?\s*\b(?:gak|ga|nggak|enggak|engga|ngga|kan|apa\s+(?:gak|nggak|enggak))(?:\s+(?:sih|ya))?\s*$')
 _META = re.compile(r'\b(?:translate|terjemahkan|terjemahin|arti|artinya|meaning|how to|cara)\b')
 _REQUEST_PREFIX = re.compile(
     r'(?:(?:chassie|hey|hi|halo|tolong|coba|bantu|please|kamu|bisa|boleh|dapat|'
@@ -33,6 +36,7 @@ def requested_visual_sources(text):
     text = re.sub(r'```[\s\S]*?```|`[^`]*`|"[^"]*"|“[^”]*”|(?<!\w)\x27[^\x27]*\x27', '', text)
     sources = set()
     for clause in re.split(r'[.!?;\n]|\b(?:but|tapi|tetapi)\b', text):
+        clause = _TAG_QUESTION.sub('', clause)
         if _NEGATIVE.search(clause) or _META.search(clause):
             continue
         clause = clause.strip(' ,:')
