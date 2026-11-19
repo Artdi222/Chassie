@@ -7,6 +7,8 @@ import re
 
 import numpy as np
 
+from speech_polish import normalize_loudness
+
 logger=logging.getLogger('tts')
 
 
@@ -71,6 +73,7 @@ class TTSEngine:
         try:
             data=await self._voicevox.synthesize(text,emotion)
             audio=await asyncio.to_thread(self._decode,data)
+            audio=normalize_loudness(audio,self._sample_rate)  # Same loudness whatever the mood.
         except asyncio.CancelledError: raise
         except Exception as exc: raise RuntimeError('Speech synthesis failed; the text is still available.') from exc
         if not len(audio): raise RuntimeError('TTS decoded no audio')

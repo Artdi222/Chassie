@@ -35,7 +35,12 @@ class CatalogModelDriver:
         for name in wanted - self.active: self.model.AddExpression(name)
         self.active = wanted
 
-    def frame(self, mouth):
+    def frame(self, mouth, pose=None):
         self.model.SetParameterValue('ParamMouthOpenY', mouth)
+        # Parameters persist between frames in live2d-py, so an additive offset would
+        # accumulate until the head pins at ±30°. Set the absolute pose each frame;
+        # the SDK still adds breathing and gaze on top during Update().
+        for param, value in (pose or {}).items():
+            self.model.SetParameterValue(param, value)
         self.model.Update()
         self.model.Draw()

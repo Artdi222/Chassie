@@ -34,7 +34,7 @@ class AvatarManifest:
 def load_manifest(path: str | Path = DEFAULT_MANIFEST) -> AvatarManifest:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if data.get("version") != 1 or not data.get("model_id"):
-        raise ValueError("Avatar manifest requires version 1 and an explicit VTS model_id")
+        raise ValueError("Avatar manifest requires version 1 and an explicit model_id")
     if set(data["emotions"]) != VALID_EMOTIONS:
         raise ValueError("Avatar manifest must map exactly all 16 supported emotions")
     emotions = {}
@@ -54,7 +54,7 @@ def load_manifest(path: str | Path = DEFAULT_MANIFEST) -> AvatarManifest:
 
 
 def audit_assets(manifest: AvatarManifest, model_dir: str | Path) -> dict:
-    """No model mutation or live VTS access; preview notes are not visual approval."""
+    """No model mutation or live renderer access; preview notes are not visual approval."""
     model_dir = Path(model_dir)
     errors, warnings, assets = [], [], {}
     inventory: dict[str, list[Path]] = {}

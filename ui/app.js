@@ -26,7 +26,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatInput = document.getElementById("chat-input");
     const statusGlow = document.getElementById("status-glow");
     const statusText = document.getElementById("status-text");
-    const vtsStatusBadge = document.getElementById("vts-status");
     const faceExpressionBadge = document.getElementById("face-expression");
     const clearBtn = document.getElementById("clear-btn");
     const micToggle = document.getElementById("mic-toggle");
@@ -58,8 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
             setControlsConnected(false);
             document.getElementById('vision-state').textContent = 'Disconnected. Camera and screen status are unknown.';
             document.getElementById('face-identity').textContent = '';
-            vtsStatusBadge.textContent = "Disconnected";
-            vtsStatusBadge.className = "badge disconnected";
             setTimeout(connect, 2000);
         };
 
@@ -84,6 +81,8 @@ document.addEventListener("DOMContentLoaded", () => {
             case "notice":
                 document.getElementById("control-notice").textContent = data.text;
                 if (data.scope === "chat") appendSystemAlert(data.text,data.retry_text);
+                // A failed control never sends settings back: unlock the mic switch at its real state.
+                if (settings && micToggle.disabled) { micToggle.disabled = false; micToggle.checked = settings.mic_enabled; }
                 break;
             case "voice_draft_cleared":
                 if (chatInput.value === voiceDraft) chatInput.value = "";
@@ -111,9 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 break;
             case "status":
                 updateStatus(data.status);
-                break;
-            case "vts_status":
-                updateVtsStatus(data.status);
                 break;
             case "face_context":
                 updateFaceExpression(data.expression);
@@ -195,16 +191,6 @@ document.addEventListener("DOMContentLoaded", () => {
         currentActivity.textContent = activity;
     }
 
-    // Update VTS Connection Indicator
-    function updateVtsStatus(status) {
-        if (status === "connected") {
-            vtsStatusBadge.textContent = "Connected";
-            vtsStatusBadge.className = "badge connected";
-        } else {
-            vtsStatusBadge.textContent = "Disconnected";
-            vtsStatusBadge.className = "badge disconnected";
-        }
-    }
 
     // Update Face tracker expression context
     function updateFaceExpression(expression) {
@@ -373,7 +359,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function setControlsConnected(connected) {
-        ["mic-toggle", "input-mode", "companion-mode", "translation-language", "stop-btn", "profile-select"].forEach(id => {
+        ["mic-toggle", "input-mode", "companion-mode", "translation-language", "initiative-mode", "stop-btn", "profile-select"].forEach(id => {
             document.getElementById(id).disabled = !connected;
         });
         if (!connected) {
@@ -388,6 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const voicevox = settings.speech_engine === "voicevox";
         const subtitles = settings.translation_language === "id" ? "Indonesian" : "English";
         document.getElementById("translation-language").value = settings.translation_language || "en";
+        document.getElementById("initiative-mode").value = settings.initiative_mode || "normal";
         document.getElementById("translation-language").hidden = document.querySelector('label[for="translation-language"]').hidden = !voicevox;
         document.getElementById("speech-language").textContent = voicevox
             ? `Voice: Mochiko-san (VOICEVOX) · speaks Japanese with ${subtitles} subtitles`
@@ -502,6 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("input-mode").addEventListener("change",e=>sendControl({type:"set_input_mode",mode:e.target.value}));
     document.getElementById("companion-mode").addEventListener("change",e=>sendControl({type:"set_mode",mode:e.target.value}));
     document.getElementById("translation-language").addEventListener("change",e=>sendControl({type:"set_translation_language",language:e.target.value}));
+    document.getElementById("initiative-mode").addEventListener("change",e=>sendControl({type:"set_initiative_mode",mode:e.target.value}));
     document.getElementById("stop-btn").addEventListener("click",()=>sendControl({type:"stop"}));
     document.getElementById("resume-btn").addEventListener("click",()=>sendControl({type:"resume_topic"}));
     document.getElementById("profile-select").addEventListener("change",e=>sendControl({type:"select_profile",profile_id:e.target.value || null}));

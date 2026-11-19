@@ -1,4 +1,4 @@
-"""Minimal backend interface; VTS is the first real implementation."""
+"""Minimal avatar backend interface, implemented by the desktop and web renderers."""
 from typing import Protocol
 
 

@@ -226,8 +226,8 @@ def test_capture_continues_during_transcription_and_mute_closes_device(monkeypat
         wait_thread(entered.is_set)
         before=stream.reads
         wait_thread(lambda:stream.reads>before+3)
-        engine.set_muted(True)
-        assert stream.closed and not engine.is_listening()
+        engine.set_muted(True)  # Returns at once; the capture thread closes its own stream.
+        wait_thread(lambda:stream.closed and not engine.is_listening())
         after=stream.reads
         release.set()
         time.sleep(.04)
@@ -237,16 +237,16 @@ def test_capture_continues_during_transcription_and_mute_closes_device(monkeypat
         release.set(); engine.stop()
 
 
-def test_mute_waits_for_pending_startup_then_closes_it(monkeypatch):
+def test_mute_never_blocks_on_a_slow_device_open_and_closes_it_after(monkeypatch):
     import sys
     from types import SimpleNamespace
     monkeypatch.setitem(sys.modules,'webrtcvad',SimpleNamespace(Vad=lambda value:SimpleNamespace(is_speech=lambda frame,rate: False)))
-    constructing=threading.Event(); release=threading.Event(); muted=threading.Event()
+    constructing=threading.Event(); release=threading.Event()
     class Input:
         closed=False
         def start(self): pass
         def read(self,count): time.sleep(.002); return b'\0'*960,False
-        def abort(self): pass
+        def abort(self): raise AssertionError('mute must not abort the device from another thread')
         def close(self): self.closed=True
     streams=[]
     def factory(**kwargs):
@@ -254,16 +254,15 @@ def test_mute_waits_for_pending_startup_then_closes_it(monkeypatch):
         stream=Input(); streams.append(stream); return stream
     engine=STTEngine(CONFIG,queue.Queue(),model_factory=lambda *a,**kw:object(),stream_factory=factory)
     engine.start(); wait_thread(constructing.is_set)
-    def mute(): engine.set_muted(True); muted.set()
-    thread=threading.Thread(target=mute); thread.start()
     try:
-        time.sleep(.01); assert not muted.is_set()
-        release.set(); wait_thread(muted.is_set)
-        assert streams and all(stream.closed for stream in streams)
+        started=time.monotonic(); engine.set_muted(True)
+        assert time.monotonic()-started<.05  # The mic switch never waits for the device.
+        release.set()
+        wait_thread(lambda:streams and all(stream.closed for stream in streams))
         count=len(streams); time.sleep(.03)
-        assert len(streams)==count
+        assert len(streams)==count and not engine.is_listening()
     finally:
-        release.set(); thread.join(1); engine.stop()
+        release.set(); engine.stop()
 
 
 def test_stop_during_model_load_prevents_late_capture_start():

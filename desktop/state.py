@@ -52,6 +52,7 @@ class OverlayState:
     updated_at: float = 0.0
     status: str = 'disconnected'
     mic_enabled: bool | None = None
+    gaze: tuple | None = None  # Owner's face position in the camera, [-1, 1] each axis.
 
     def receive(self, message: dict, now: float) -> bool:
         if message.get('type') == 'settings':
@@ -69,6 +70,10 @@ class OverlayState:
         self.emotion = message['emotion']
         self.mouth = max(0.0, min(1.0, mouth))
         self.status = str(message.get('status', 'idle'))
+        gaze = message.get('gaze')
+        self.gaze = (tuple(max(-1.0, min(1.0, float(v))) for v in gaze)
+                     if isinstance(gaze, list) and len(gaze) == 2
+                     and all(type(v) in (float, int) and math.isfinite(v) for v in gaze) else None)
         self.updated_at = now
         return True
 
@@ -77,7 +82,7 @@ class OverlayState:
 
     def disconnected(self):
         self.emotion, self.mouth, self.generation = 'neutral', 0.0, -1
-        self.status, self.mic_enabled = 'disconnected', None
+        self.status, self.mic_enabled, self.gaze = 'disconnected', None, None
 
 
 @dataclass(frozen=True)

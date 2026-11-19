@@ -39,14 +39,14 @@ class AudioPlayer:
         self._stream=None
         self._thread=None
         self._loop=None
-        self._vts=None
+        self._avatar=None
         self._analyzer=None
         self._effect_tasks=set()
         self._emotion_task=None
 
-    def start(self, loop=None, vts=None, analyzer=None):
+    def start(self, loop=None, avatar=None, analyzer=None):
         self._loop=loop
-        self._vts=vts
+        self._avatar=avatar
         self._analyzer=analyzer
         self._running=True
         self._failure=None
@@ -142,12 +142,12 @@ class AudioPlayer:
         return job.submitted_samples if job else 0
 
     def _schedule_effect(self,job,emotion,mouth):
-        if not self._vts or not self._loop: return
+        if not self._avatar or not self._loop: return
         async def apply():
             if self._current is not job or job.done.is_set(): return
-            if emotion: await self._vts.trigger_emotion(emotion)
+            if emotion: await self._avatar.trigger_emotion(emotion)
             if self._current is job and not job.done.is_set():
-                await self._vts.set_mouth_open(mouth)
+                await self._avatar.set_mouth_open(mouth)
         def schedule():
             if self._current is not job or job.done.is_set(): return
             # Boundary emotions have a separate slot, so slow mouth writes never

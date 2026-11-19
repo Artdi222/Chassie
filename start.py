@@ -113,19 +113,6 @@ async def check_hermes(config: dict) -> bool:
         await bridge.close()
 
 
-async def check_vts(config: dict) -> bool:
-    """Check if VTube Studio API is reachable."""
-    import websockets
-
-    url = f"ws://{config['vts']['host']}:{config['vts']['port']}"
-    try:
-        ws = await asyncio.wait_for(websockets.connect(url), timeout=3.0)
-        await ws.close()
-        return True
-    except Exception:
-        return False
-
-
 def check_webcam(config: dict) -> bool:
     """Check if webcam is available."""
     if not config["face_tracker"]["enabled"]:
@@ -165,13 +152,6 @@ async def run_startup_checks(config: dict):
     else:
         print(f"  [FAIL] Hermes gateway unreachable at {config['hermes']['gateway_url']}")
         print("         Controls remain available. See docs/hermes-setup.md for API setup.")
-
-    # VTube Studio
-    vts_ok = await check_vts(config)
-    if vts_ok:
-        print(f"  [OK] VTube Studio API at ws://{config['vts']['host']}:{config['vts']['port']}")
-    else:
-        print(f"  [WARN] VTube Studio API not reachable. Standalone overlay can still be used.")
 
     # Webcam
     if config["face_tracker"]["enabled"]:

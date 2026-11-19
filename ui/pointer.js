@@ -79,7 +79,13 @@ class ChassiePointer {
         const target=active?1:0;
         this.amount+=(target-this.amount)*(1-Math.exp(-dt/(active?.09:.12)));
         tracking=tracking && preferences.gaze_enabled;
-        const gazeWeight=!tracking || this.reduced.matches || this.hoverSince!==null?0:1-this.amount;
+        let gazeWeight=!tracking || this.reduced.matches || this.hoverSince!==null?0:1-this.amount;
+        const look=this.look;
+        if(!tracking && look && preferences.gaze_enabled && !this.reduced.matches && this.hoverSince===null) {
+            // No cursor nearby: look toward the owner's face from the camera. The camera
+            // image is mirrored relative to the viewer, and model y points up.
+            x=-look[0]*.6;y=-look[1]*.4;gazeWeight=1;
+        }
         this.gazeX=(this.gazeX||0)+(x*gazeWeight-(this.gazeX||0))*(1-Math.exp(-dt/(.1/preferences.follow_speed)));
         this.gazeY=(this.gazeY||0)+(y*gazeWeight-(this.gazeY||0))*(1-Math.exp(-dt/(.1/preferences.follow_speed)));
         internal.focusController.focus(this.gazeX,this.gazeY);
@@ -92,3 +98,31 @@ class ChassiePointer {
     }
 }
 window.ChassiePointer=ChassiePointer;
+
+// Mirrors desktop/motion.py: attentive nods while the user talks, a tilt while
+// thinking, a gentle sway while speaking or idle. Additive degrees, eased.
+const HEAD_POSES={
+    listening:[4,-2,3,1.6,1.5,5], thinking:[-7,6,0,1,1,6],
+    speaking:[0,0,1.2,.9,1.8,3.2], idle:[0,0,0,1,1.2,8],
+};
+function headTarget(status,t){
+    const [tilt,baseY,nod,nodPeriod,sway,swayPeriod]=HEAD_POSES[status]||HEAD_POSES.idle;
+    return {ParamAngleZ:tilt+sway*Math.sin(2*Math.PI*t/swayPeriod),
+            ParamAngleY:baseY-nod*Math.max(0,Math.sin(2*Math.PI*t/nodPeriod)),
+            ParamAngleX:sway*.6*Math.sin(2*Math.PI*t/(swayPeriod*1.7))};
+}
+class ChassieHeadMotion {
+    constructor(){this.current={ParamAngleX:0,ParamAngleY:0,ParamAngleZ:0};this.last=null;
+        this.reduced=matchMedia('(prefers-reduced-motion: reduce)');}
+    apply(core,status){
+        if(this.reduced.matches)return;
+        const now=performance.now()/1000,dt=this.last===null?1/30:Math.min(Math.max(now-this.last,0),.1);this.last=now;
+        const target=headTarget(status,now),ease=1-Math.exp(-dt/.35);
+        for(const id of Object.keys(this.current)) {
+            this.current[id]+=(target[id]-this.current[id])*ease;
+            if(core._model.parameters.ids.includes(id))core.addParameterValueById(id,this.current[id]);
+        }
+    }
+}
+window.ChassieHeadMotion=ChassieHeadMotion;
+window.chassieHeadTarget=headTarget;

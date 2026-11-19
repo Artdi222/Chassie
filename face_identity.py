@@ -67,6 +67,7 @@ class FaceIdentity:
         model_dir = Path(model_dir)
         self.detector = self.recognizer = self.fallback = None
         self.error = None
+        self.last_gaze = None  # Largest face centre, normalized to [-1, 1]; None when no face.
         try:
             if (model_dir / DETECTOR).is_file():
                 self.detector = cv2.FaceDetectorYN.create(str(model_dir / DETECTOR), '', (640, 480), .9, .3, 100)
@@ -102,8 +103,11 @@ class FaceIdentity:
             return [None] * len(result.face_landmarks), None
         self.detector.setInputSize((width, height))
         _, faces = self.detector.detect(frame)
+        self.last_gaze = None
         if faces is None:
             return [], None
+        x, y, w, h = max(faces, key=lambda f: f[2] * f[3])[:4]
+        self.last_gaze = (round(float((x + w / 2) / width * 2 - 1), 3), round(float((y + h / 2) / height * 2 - 1), 3))
         if self.recognizer is None:
             return [None] * len(faces), None
         matches, candidate = [], None

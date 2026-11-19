@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const embedded = ['chat', 'settings', 'models', 'wardrobe'].includes(panel);
     const studio = window.modelStudio = {models: [], selection: null, ready: false, modelId: null, error: null};
     let avatar = null, app = null, loadRevision = 0, avatarEvent = {}, subtitleGeneration = -1;
-    let cursorInteraction=null,cursorPosition=null;
+    let cursorInteraction=null,cursorPosition=null,headMotion=null;
     let reactionWeights={},reactionLast=performance.now();
     let zoom = 1.8, offset = {x: 0, y: 0}, nativeSize = {width: 1, height: 1}, loadingId = null;
     const send = data => window.chassie?.send(data);
@@ -172,9 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const mouth=performance.now()-(avatarEvent.received || 0)<750 ? (avatarEvent.mouth || 0) : 0;
         if (m.mouth) core.setParameterValueById('ParamMouthOpenY',Math.max(mouth,s.mouth_preview));
+        if(headMotion)headMotion.apply(core,avatarEvent.status||"idle");
         if(cursorInteraction) {
             cursorInteraction.settings=s.interaction;
             cursorInteraction.position=cursorPosition;
+            cursorInteraction.look=Array.isArray(avatarEvent.gaze)?avatarEvent.gaze:null;
             studio.pointer=cursorInteraction.update(pointer!==null || !$('panel-backdrop').hidden);
         }
     }
@@ -198,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const model=await PIXI.live2d.Live2DModel.from(m.url,{autoInteract:false});
             if (revision!==loadRevision) {model.destroy({children:true,texture:true,baseTexture:true});return;}
-            avatar=model;reactionWeights={}; nativeSize={width:model.width,height:model.height}; zoom=1.8;offset={x:0,y:0};
+            avatar=model;reactionWeights={};headMotion=studio.headMotion=new ChassieHeadMotion(); nativeSize={width:model.width,height:model.height}; zoom=1.8;offset={x:0,y:0};
             cursorInteraction=new ChassiePointer(model,m,$('avatar-canvas'));
             studio.pointerController=cursorInteraction;
             studio.modelId=m.id; app.stage.addChild(model);

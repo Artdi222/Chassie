@@ -105,7 +105,6 @@ async def test_stop_during_first_playback_mute_waits_then_restores_capture(tmp_p
                         'companion': {'memory_path': str(tmp_path / 'memory.sqlite')}},
                        components={'stt': stt, 'hermes': hermes,
                                    'tts': Mock(synthesize_stream=synthesize), 'player': player,
-                                   'vts': Mock(reset_expressions=AsyncMock(), set_mouth_open=AsyncMock()),
                                    'analyzer': Mock()})
     app._broadcast_to_ui = AsyncMock()
     app._turn_task = asyncio.create_task(app._run_turn({'text': 'test'}))

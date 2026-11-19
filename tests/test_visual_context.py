@@ -255,6 +255,7 @@ def test_face_enrollment_does_not_unlock_personal_memories_and_forget_works(app)
     {'face_count': 0, 'presence_ready': False},
 ])
 async def test_presence_gates_private_context_before_background_monitor(app, identity):
+    app._guest_privacy = True
     playback = playback_fixture(app); playback.first_release.set()
     profile = app._memory.create_profile('Owner', consent=True)
     app._session_context.set_owner(profile.id)

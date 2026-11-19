@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from urllib.parse import urlsplit
 from aiohttp import web
+from chassie_core.initiative import PREFIX as INITIATIVE_PREFIX
 
 logger=logging.getLogger('orchestrator')
 
@@ -29,11 +30,12 @@ class WebMixin:
                     await ws.send_json(self._model_selection.payload())
                     if self._subtitle: await ws.send_json(self._subtitle)
                     await ws.send_json({'type':'status','status':self._current_status})
-                    await ws.send_json({'type':'vts_status','status':'connected' if self._vts.is_authenticated else 'disconnected'})
                     await ws.send_json(self._avatar_payload())
                     await ws.send_json({'type':'avatar_inventory','capabilities':self._avatar_capabilities()})
                     active_stream_id=self._stream_view['id'] if self._stream_view and not self._stream_view['done'] else None
                     await ws.send_json(self._history_snapshot())
+                    if self._automatic_memory and self._vault and getattr(self._vault,'store',True) is None:
+                        await ws.send_json({'type':'notice','text':'Memory is off: '+str(self._vault.error)})
                     self._ui_sockets.add(ws)
                     if self._stream_view and self._stream_view['id']==active_stream_id and self._stream_view['text']:
                         await ws.send_json({'type':'chat_stream',**{k:v for k,v in self._stream_view.items() if k!='user_text'}})
@@ -67,6 +69,8 @@ class WebMixin:
             else:
                 items.append({'role':'user','text':view['user_text']})
                 if view['text']: items.append({'role':'assistant','text':view['text'],'stream_id':view['id']})
+        # Initiative prompts are Chassie's own cues, never shown as user messages.
+        items=[i for i in items if not (i['role']=='user' and INITIATIVE_PREFIX in str(i['text']))]
         return {'type':'history_snapshot','items':items}
 
     async def _register_overlay(self,ws,data):
@@ -83,24 +87,22 @@ class WebMixin:
                 files=data.get('expressions')
                 if not isinstance(files,list) or len(files)>256 or any(not isinstance(f,str) for f in files):
                     raise ValueError('Overlay must report its loaded expression filenames')
-                # Catalog models react through generated parameters, not VTS expression files.
+                # Catalog models react through generated parameters, not expression files.
                 self._overlay_sockets[ws]=frozenset()
         finally:
             await self._broadcast_avatar_inventory()
 
     def _avatar_capabilities(self):
-        vts=self._vts.get_capabilities()
         overlays=[files for ws,files in self._overlay_sockets.items()
                   if ws in self._ui_sockets and not ws.closed]
         emotions={}
         for name,mapping in self._avatar_manifest.emotions.items():
             backends=[]
-            if vts.get('emotions',{}).get(name,{}).get('available',False): backends.append('vts')
             if any(set(mapping.files)<=files for files in overlays): backends.append('overlay')
             emotions[name]={'files':list(mapping.files),'note':mapping.note,
                             'preview_required':mapping.preview_required,
                             'available':bool(backends),'backends':backends}
-        return {**vts,'model_id':self._avatar_manifest.model_id,'overlay_ready':bool(overlays),'emotions':emotions}
+        return {'model_id':self._avatar_manifest.model_id,'overlay_ready':bool(overlays),'emotions':emotions}
 
     async def _broadcast_avatar_inventory(self):
         await self._broadcast_to_ui({'type':'avatar_inventory','capabilities':self._avatar_capabilities()})
@@ -111,7 +113,11 @@ class WebMixin:
             except (ConnectionError,RuntimeError,asyncio.TimeoutError): self._ui_sockets.discard(ws)
         if self._ui_sockets: await asyncio.gather(*(send(ws) for ws in tuple(self._ui_sockets)))
 
-    def _avatar_payload(self): return {'type':'avatar_state',**self._avatar_state,'generation':self._generation,'status':self._current_status}
+    def _avatar_payload(self):
+        gaze=self._vision.gaze() if self._vision and hasattr(self._vision,'gaze') else None
+        valid=isinstance(gaze,tuple) and len(gaze)==2 and all(type(v) is float for v in gaze)
+        return {'type':'avatar_state',**self._avatar_state,'generation':self._generation,'status':self._current_status,
+                'gaze':list(gaze) if valid else None}
 
     async def _broadcast_avatar(self): await self._broadcast_to_ui(self._avatar_payload())
 

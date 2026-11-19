@@ -65,7 +65,11 @@ class FloatingPanel(QWidget):
         if event.button()==Qt.MouseButton.LeftButton:self.drag=event.globalPosition().toPoint()-self.pos()
 
     def mouseMoveEvent(self,event):
-        if self.drag is not None and event.buttons()&Qt.MouseButton.LeftButton:self.move(event.globalPosition().toPoint()-self.drag)
+        if self.drag is None or not event.buttons()&Qt.MouseButton.LeftButton:return
+        # Same XWayland race as the avatar: let the compositor move the panel.
+        handle=self.windowHandle()
+        if handle is not None and handle.startSystemMove():self.drag=None;return
+        self.move(event.globalPosition().toPoint()-self.drag)
 
     def mouseReleaseEvent(self,event):self.drag=None
 

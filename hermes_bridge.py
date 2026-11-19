@@ -111,6 +111,7 @@ class HermesBridge:
             if key_path.exists(): self._api_key=key_path.read_text(encoding='utf-8').strip()
         self._bilingual=config.get('tts',{}).get('engine')=='voicevox'
         self._english_prompt=cfg.get('system_prompt','')
+        self._persona=' '.join(str(config.get('companion',{}).get('persona') or '').split())
         self.translation_language=config.get('tts',{}).get('translation_language','en')
         self._session=None
         self._messages=[]
@@ -162,7 +163,8 @@ class HermesBridge:
         revision=self._revision
         messages=[dict(m) for m in self._messages]
         style='Keep the reply concise and task-focused.' if mode=='focus' else 'Use a relaxed conversational tone; do not invent personal facts.'
-        messages.append({'role':'system','content':style+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')+' '+TOOL_GUIDANCE})
+        persona=(' Personality: '+self._persona) if self._persona else ''
+        messages.append({'role':'system','content':style+persona+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')+' '+TOOL_GUIDANCE})
         user={'role':'user','content':text}
         messages.append({'role':'user','content':self._turn_content(text,context)})
         try:
@@ -189,6 +191,23 @@ class HermesBridge:
         self._trim()
         return response
 
+    async def complete_once(self,system,text):
+        """One-off background request: no chat history, persona, speech protocol or personal memory header."""
+        if not self._session: raise RuntimeError('Hermes not connected')
+        messages=[{'role':'system','content':system},{'role':'user','content':text}]
+        try:
+            async with self._session.post(self._base_url+self._endpoint,json=self._request_payload(messages),
+                                          timeout=aiohttp.ClientTimeout(total=self._stream_timeout)) as resp:
+                if resp.status!=200: raise RuntimeError(f'Hermes returned HTTP {resp.status}')
+                data=await resp.json()
+            response=data['choices'][0]['message']['content']
+        except asyncio.CancelledError: raise
+        except (aiohttp.ClientError,asyncio.TimeoutError,ValueError,KeyError,IndexError,TypeError) as exc:
+            raise RuntimeError('Hermes could not complete the background request') from exc
+        if not isinstance(response,str) or not response.strip() or re.match(r'^API call failed',response.strip()):
+            raise RuntimeError('Hermes returned no usable text')
+        return response
+
     async def stream_message(self,text,context='',mode='focus',images=None):
         """Yield only assistant text from Hermes chat-completions SSE.
 
@@ -202,7 +221,8 @@ class HermesBridge:
         revision=self._revision
         messages=[dict(m) for m in self._messages]
         style='Keep the reply concise and task-focused.' if mode=='focus' else 'Use a relaxed conversational tone; do not invent personal facts.'
-        messages.append({'role':'system','content':style+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')+' '+TOOL_GUIDANCE})
+        persona=(' Personality: '+self._persona) if self._persona else ''
+        messages.append({'role':'system','content':style+persona+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')+' '+TOOL_GUIDANCE})
         user={'role':'user','content':text}
         if images:
             parts=[{'type':'text','text':self._turn_content(text,context)}]
@@ -325,6 +345,15 @@ class HermesBridge:
             if self._pending: self._pending=(self._pending[0],self._pending[1]-excess)
 
     def complete_response(self): self._pending=None
+
+    def discard_response(self):
+        """Forget the pending exchange entirely (a silent initiative), keeping history lean."""
+        if self._pending:
+            revision,index=self._pending
+            if revision==self._revision and 1<=index<len(self._messages) and self._messages[index-1]['role']=='user':
+                del self._messages[index-1:index+1]
+        self._pending=None
+        self._revision+=1
 
     def interrupt_response(self,spoken_text=''):
         if self._pending:

@@ -8,12 +8,10 @@ from orchestrator import Orchestrator
 
 @pytest.fixture
 def app(tmp_path):
-    vts = Mock(is_authenticated=False, last_error='VTS unavailable', preview_emotion=AsyncMock(return_value=False))
-    vts.get_capabilities.return_value = {'emotions': {}}
     stt = Mock(error=None, is_listening=Mock(return_value=False))
     config = {'audio': {'output_sample_rate': 24000}, 'companion': {'memory_path': str(tmp_path / 'memory.sqlite')}}
     result = Orchestrator(config, text_mode=True, components={
-        'vts': vts, 'stt': stt, 'hermes': Mock(get_history=Mock(return_value=[])),
+        'stt': stt, 'hermes': Mock(get_history=Mock(return_value=[])),
         'tts': Mock(), 'player': Mock(), 'analyzer': Mock()})
     yield result
     result._memory.close()
@@ -32,13 +30,13 @@ async def test_no_renderer_does_not_advertise_or_accept_preview(app):
 
 
 @pytest.mark.asyncio
-async def test_overlay_ready_tracks_model_but_previews_need_vts(app):
+async def test_overlay_ready_tracks_model_without_expression_files(app):
     socket = Mock(closed=False, send_json=AsyncMock())
     app._ui_sockets.add(socket)
     await app._register_overlay(socket, registration())
     inventory = app._avatar_capabilities()
     assert inventory['overlay_ready']
-    # Tian Muzi reacts through generated parameters, never VTS expression files.
+    # Tian Muzi reacts through generated parameters, never expression files.
     assert not inventory['emotions']['happy']['available']
     await app._register_overlay(socket, registration(False))
     assert not app._avatar_capabilities()['overlay_ready']
@@ -52,18 +50,6 @@ async def test_wrong_model_and_unknown_socket_are_rejected(app):
     assert not app._avatar_capabilities()['overlay_ready']
     with pytest.raises(ValueError):
         await app.handle_control({'type': 'overlay_ready', **registration()})
-
-
-@pytest.mark.asyncio
-async def test_vts_preview_works_with_ready_overlay(app):
-    socket = Mock(closed=False, send_json=AsyncMock())
-    app._ui_sockets.add(socket)
-    await app._register_overlay(socket, registration())
-    app._vts.get_capabilities.return_value = {'emotions': {'happy': {'available': True}}}
-    app._vts.preview_emotion.return_value = True
-    await app.handle_control({'type': 'preview_emotion', 'emotion': 'happy'})
-    app._vts.preview_emotion.assert_awaited_once_with('happy')
-    assert app._avatar_state['emotion'] == 'happy'
 
 
 async def receive_type(ws, kind):

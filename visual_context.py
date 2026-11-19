@@ -6,7 +6,9 @@ capture workers never contact a model provider or write screenshots to disk.
 from __future__ import annotations
 
 import base64
+from collections import deque
 import json
+import logging
 import os
 from pathlib import Path
 import shutil
@@ -16,7 +18,13 @@ import time
 
 import numpy as np
 
+from ambient import ChangeWatcher, SceneWatcher, create_detector
 from face_identity import FaceIdentity, MODEL_DIR
+
+logger = logging.getLogger('vision')
+# Mean grayscale difference (0-255) on a 64x36 thumbnail before the screen is sent again.
+# Typing a word or moving the cursor stays below it; a new page, tab, app or scene does not.
+SCREEN_SEND_DIFF = 3.0
 
 
 def encode_frame(frame, max_edge=1600):
@@ -31,8 +39,14 @@ def encode_frame(frame, max_edge=1600):
     return 'data:image/jpeg;base64,' + base64.b64encode(jpeg).decode('ascii')
 
 
-def capture_screen():
+def capture_screen(max_edge=1920):
     """Capture the visible GUI, including app contents, on Wayland or X11."""
+    frame, title = capture_screen_frame()
+    return encode_frame(frame, max_edge), title
+
+
+def capture_screen_frame():
+    """Raw BGR frame of the focused monitor and the active window title."""
     import cv2
     import numpy as np
     title = ''
@@ -58,7 +72,7 @@ def capture_screen():
         frame = cv2.cvtColor(np.asarray(ImageGrab.grab(all_screens=True)), cv2.COLOR_RGB2BGR)
     if frame is None:
         raise RuntimeError('Desktop capture returned no image')
-    return encode_frame(frame, 1920), title
+    return frame, title
 
 
 class VisualContext:
@@ -83,6 +97,14 @@ class VisualContext:
         self._identity = {'face_count': 0, 'matches': [], 'ready': False, 'error': None}
         self._identity_revision = -1
         self._errors = {'camera': None, 'screen': None}
+        self.ambient_enabled = cfg.get('ambient_objects', True) is not False
+        # Every turn carries the screen: smaller snapshots keep the model fast.
+        self.screen_always = cfg.get('screen_always', False) is True
+        self.screen_max_edge = int(cfg.get('screen_max_edge', 1280))
+        self._events = deque(maxlen=8)
+        self._screen_thumb = None  # Latest screen, 64x36 grayscale.
+        self._sent_thumb = None    # Screen as last sent to the model.
+        self._gaze = None
 
     def start(self):
         if self._threads:
@@ -108,11 +130,23 @@ class VisualContext:
                 self._identity = {'face_count': 0, 'matches': [], 'ready': False, 'error': message}
 
     def _screen_loop(self):
+        import cv2
+        # Larger threshold than the camera: scrolling text is not worth a remark,
+        # opening a game, video or another app is.
+        change = ChangeWatcher(threshold=28.0, confirm=2, cooldown=300.0)
         while not self._stop.is_set():
             try:
                 captured_at = self.clock()
-                image, title = capture_screen()
+                frame, title = capture_screen_frame()
+                image = encode_frame(frame, self.screen_max_edge)
+                thumb = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (64, 36), interpolation=cv2.INTER_AREA)
+                with self._lock:
+                    self._screen_thumb = thumb.astype(np.float32)
+                changed = change.feed(cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (32, 18)), captured_at)
                 self._record('screen', image, captured_at, title)
+                if changed and self.ambient_enabled:
+                    with self._lock:
+                        self._events.append((captured_at, 'screen_changed'))
             except Exception as exc:
                 self._fail('screen', f'Screen unavailable ({type(exc).__name__}). Check desktop capture access.')
             self._stop.wait(self.interval)
@@ -126,6 +160,13 @@ class VisualContext:
             recognition_error = recognizer.error
         except Exception as exc:
             recognition_error = str(exc) if isinstance(exc, RuntimeError) else 'Face recognition unavailable'
+        objects, watcher, change = None, SceneWatcher(), ChangeWatcher()
+        if self.ambient_enabled:
+            try:
+                objects = create_detector(self.model_dir)
+                logger.info('Ambient objects: %s on %s', type(objects).__name__, 'GPU' if getattr(objects, 'on_gpu', False) else 'CPU')
+            except Exception as exc:
+                logger.info('Ambient object detection off: %s', exc)
         while not self._stop.is_set():
             cap = None
             try:
@@ -155,9 +196,19 @@ class VisualContext:
                         except Exception:
                             # A recognizer failure must not disable visual camera input.
                             recognition_error = 'Face recognition unavailable for this frame.'
+                    new_objects = []
+                    if self.ambient_enabled and change.feed(cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (32, 24)), now):
+                        new_objects.append('view_changed')
+                    if objects:
+                        try:
+                            new_objects += watcher.feed(objects.labels(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)), now)
+                        except Exception:
+                            pass
                     with self._lock:
                         if self._stop.is_set():
                             break
+                        self._gaze = getattr(recognizer, 'last_gaze', None) if recognizer else None
+                        self._events.extend((now, label) for label in new_objects)
                         self._identity = {'face_count': len(matches), 'matches': [m for m in matches if m],
                                           'ready': recognizer is not None and recognizer.ready and not recognition_error,
                                           'presence_ready': recognizer is not None and not (recognition_error == 'Face recognition unavailable for this frame.'),
@@ -174,6 +225,8 @@ class VisualContext:
             self._stop.wait(3)
         if recognizer:
             recognizer.close()
+        if objects:
+            objects.close()
 
     def snapshot(self):
         now = self.clock()
@@ -196,6 +249,35 @@ class VisualContext:
             return {'camera': {'enabled': self.camera_enabled, 'available': 'camera' in frames, 'error': self._errors['camera']},
                     'screen': {'enabled': self.screen_enabled, 'available': 'screen' in frames, 'error': self._errors['screen']},
                     'identity': identity}
+
+    def gaze(self):
+        """Normalized position of the largest visible face, or None when stale or absent."""
+        with self._lock:
+            camera = self._frames.get('camera')
+            if camera is None or self.clock() - camera['captured_at'] > self.freshness:
+                return None
+            return self._gaze
+
+    def screen_changed(self, threshold=SCREEN_SEND_DIFF):
+        """True when the screen differs from what the model last saw (or it never saw it)."""
+        with self._lock:
+            if self._screen_thumb is None:
+                return False
+            if self._sent_thumb is None:
+                return True
+            return float(np.mean(np.abs(self._screen_thumb - self._sent_thumb))) >= threshold
+
+    def mark_screen_sent(self):
+        with self._lock:
+            if self._screen_thumb is not None:
+                self._sent_thumb = self._screen_thumb.copy()
+
+    def pop_events(self):
+        """Newly appeared object labels since the last call, oldest first."""
+        with self._lock:
+            events = [(at, label) for at, label in self._events if self.clock() - at <= self.freshness * 3]
+            self._events.clear()
+            return events
 
     def get_observation(self):
         status = self.status()

@@ -26,7 +26,7 @@ class PointerInteraction:
                           for key,value in HEADPAT.items() if key in available]}))
         model.LoadExtraExpression(HEADPAT_ID,str(path))
 
-    def update(self,x,y,width,height,*,ratio=1,now,dragging=False,enabled=True,settings=None):
+    def update(self,x,y,width,height,*,ratio=1,now,dragging=False,enabled=True,settings=None,look=None):
         preferences=interaction_settings(settings)
         radius=preferences['gaze_radius']
         if radius!=self.radius:
@@ -78,6 +78,10 @@ class PointerInteraction:
         # entering a pat, and resume following only as the expression fades out.
         weight=float(self.tracking)*(0 if self.hover_since is not None else 1-self.amount)
         target=((x-width/2)*weight,(y-height/2)*weight)
+        if look is not None and preferences['gaze_enabled'] and not self.tracking and self.hover_since is None:
+            # No cursor nearby: look toward the owner. The camera image is mirrored
+            # relative to the viewer, so a face on the image's left is on her right.
+            target=(-look[0]*width*.35,look[1]*height*.25)
         ease=1-math.exp(-dt/(.1/preferences['follow_speed']))
         self.gaze=tuple(a+(b-a)*ease for a,b in zip(self.gaze,target))
         if not self.tracking and max(abs(v) for v in self.gaze)<.01:

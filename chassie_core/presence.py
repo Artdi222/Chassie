@@ -47,7 +47,7 @@ class PresenceMixin:
                 observation=self._vision.get_observation() if self._vision else self._face_tracker.get_observation()
                 async with self._control_lock:
                     if self._vision and self._vision.camera_enabled:await self._update_presence(self._vision.status(),time.monotonic())
-                    elif observation['available'] and observation['face_count']>1:await self._pause_personal('camera-presence','Additional face detected')
+                    elif getattr(self,'_guest_privacy',True) and observation['available'] and observation['face_count']>1:await self._pause_personal('camera-presence','Additional face detected')
                 state=(observation['available'],observation['face_count'],observation['expression'])
                 if state!=previous:
                     previous=state
@@ -56,6 +56,8 @@ class PresenceMixin:
             await asyncio.sleep(.2)
 
     def _visual_guest_reason(self,status):
+        if not getattr(self,'_guest_privacy',True):
+            return None  # Owner chose to keep personal context while others are on camera.
         camera=status.get('camera',{})
         identity=status.get('identity',{})
         # A camera that is still warming up (no frame yet, no error) is not a failure;
@@ -79,12 +81,3 @@ class PresenceMixin:
                 previous=status
                 await self._broadcast_to_ui({'type':'vision_status',**status})
             await asyncio.sleep(1)
-
-    async def _vts_reconnect_loop(self):
-        while self._running:
-            try:
-                if not self._vts.is_authenticated: await self._vts.connect()
-            except Exception: pass
-            await self._broadcast_to_ui({'type':'vts_status','status':'connected' if self._vts.is_authenticated else 'disconnected'})
-            await self._broadcast_avatar_inventory()
-            await asyncio.sleep(5)

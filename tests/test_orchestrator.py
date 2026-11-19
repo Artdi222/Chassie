@@ -18,13 +18,11 @@ def app(tmp_path):
     async def stream(*args,**kwargs):
         yield await hermes.send_message(*args,**kwargs)
     hermes.stream_message=stream
-    vts=Mock(trigger_emotion=AsyncMock(return_value=True),set_mouth_open=AsyncMock(),reset_expressions=AsyncMock(),disconnect=AsyncMock(),is_authenticated=False)
-    vts.get_capabilities.return_value={'emotions':{}}
     player=Mock(cancel_utterance=Mock(),flush_effects=AsyncMock())
     face=Mock(get_context_string=Mock(return_value=''),get_observation=Mock(return_value={'available':False,'face_count':0,'expression':'unknown','observed_at':0,'identity_verified':False}))
     config={'audio':{'sample_rate':16000,'output_sample_rate':24000},'stt':{},'tts':{},'hermes':{},
             'companion':{'memory_path':str(tmp_path/'memory.sqlite')},'conversation':{'input_mode':'review'}}
-    result=Orchestrator(config,components={'stt':stt,'hermes':hermes,'vts':vts,'player':player,'face':face,'tts':Mock(),'analyzer':Mock()})
+    result=Orchestrator(config,components={'stt':stt,'hermes':hermes,'player':player,'face':face,'tts':Mock(),'analyzer':Mock()})
     yield result
     result._memory.close()
 

@@ -1,5 +1,4 @@
 faster-whisper>=1.0.0
-pyvts>=0.3.0
 websockets>=12.0
 numpy>=1.24.0
 sounddevice>=0.4.6
@@ -13,6 +12,8 @@ webrtcvad-wheels>=2.0.10
 av>=12.0
 Pillow>=10.0
 sherpa-onnx==1.13.8
-# GPU speech recognition (optional; CPU fallback without them)
+# GPU inference (optional; CPU fallback without them). ORT 1.26 is the last CUDA 12 build,
+# sharing cuBLAS/cuDNN with faster-whisper. Install after faster-whisper so it replaces onnxruntime.
+onnxruntime-gpu[cuda]==1.26.0
 nvidia-cublas-cu12
 nvidia-cudnn-cu12==9.*

@@ -157,21 +157,17 @@ class STTEngine:
                     except queue.Empty: break
 
     def set_muted(self,muted):
-        # Serialize startup with mute so no later stream can begin capture after
-        # this call returns. Device read stays outside this lock so abort wakes it.
-        with self._stream_lock:
-            with self._lock:
-                if self._muted==muted: return
-                self._muted=muted
-                self.invalidate()
-                stream=self._stream if muted else None
-            if stream:
-                try:
-                    try: stream.abort()
-                    finally: stream.close()
-                except Exception: pass
-                finally:
-                    with self._lock: self._stream=None
+        """Mute without touching the device from this thread.
+
+        Aborting a PortAudio/ALSA stream while the capture thread is inside read()
+        crashed the whole process (core dump in pa_linux_alsa.c), and waiting for the
+        stream lock froze the mic switch. The capture thread closes its own stream
+        within one 30 ms block; audio read meanwhile is dropped by the _muted checks.
+        """
+        with self._lock:
+            if self._muted==muted: return
+            self._muted=muted
+            self.invalidate()
         self._wake.set()
 
     def publish_transcript(self,text,epoch,start,end,speaker=None):

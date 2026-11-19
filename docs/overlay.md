@@ -66,7 +66,7 @@ The real window reported `pinned: true`, `floating: true`, `no_blur: true`, `no_
 - Transparent, frameless, always-on-top avatar window. The separate controls window provides show/hide, click-through, size, position reset, backend-confirmed microphone control, stop and quit.
 - Zoom in/out and frame higher/lower change the model crop independently of window size; framing is saved with window geometry. Reset waist-up framing restores the default crop. Old saved positions without framing fields use the new waist-up default. Drag using the left mouse button while click-through is off. Click-through starts off so the recovery path is visible before enabling it. The tray opens controls; without a tray, controls minimize instead of disappearing.
 - Uses 30 FPS by default, with `--fps 15` or `--fps 60` available. Hidden windows stop scheduling paint updates. Existing five 4096² textures alone occupy approximately 320 MiB as RGBA on the GPU before mipmaps and renderer buffers; small window size does not shrink those source textures. Measure total memory and frame time on the 4 GB VRAM / 8 GB RAM target before enabling additional local models.
-- Emotion and FX use the same candidate file manifest as VTS. Native Cubism expression mixing is used, with only owned expressions removed at neutral; outfit expressions are not reset. VTS tracking tuning, saved outfits and physics overrides from `.vtube.json` are not yet imported. The native default can therefore look different from VTS.
+- Emotion and FX use the shared candidate file manifest (VTube Studio support was removed). Native Cubism expression mixing is used, with only owned expressions removed at neutral; outfit expressions are not reset. VTS tracking tuning, saved outfits and physics overrides from `.vtube.json` are not yet imported. The native default can therefore look different from VTS.
 - A runtime `.model3.json` is derived under `.chassie/overlay/` with relative references to original files plus explicit EyeBlink, LipSync and expression entries. Original model files and rig IDs remain untouched; no texture copies or image placeholders are generated. The empty costume expression is excluded.
 
 ## Local wire protocol
@@ -97,7 +97,7 @@ Each smoke opens only its own avatar window, captures its own framebuffer after 
 
 ## Verification still required on the target device
 
-1. Compare the verified rendered avatar against VTS using the same expression sequence; verify compositor appearance over actual desktop backgrounds.
+1. Verify compositor appearance over actual desktop backgrounds.
 2. Test alpha edges against light/dark desktop backgrounds, clipping, physics, blink, lip-sync and all 16 emotion candidates, especially angry/curious.
 3. Test drag, click-through with recovery controls, hide/show, scaling, DPI changes, display removal, reconnect and clean exit without OpenGL errors.
 4. Speak/stop/mute from controls against the running assistant; verify audio cancellation and backend-confirmed microphone state.

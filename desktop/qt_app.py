@@ -11,6 +11,7 @@ from PySide6.QtWebSockets import QWebSocket
 from PySide6.QtWidgets import (QApplication, QCheckBox, QLabel, QMenu, QMessageBox,
                                QPushButton, QStyle, QSystemTrayIcon, QVBoxLayout, QWidget)
 
+from desktop.motion import HeadMotion
 from desktop.model import prepare_entry, CatalogModelDriver
 # Load Qt's C++ runtime before the Live2D wheel. Importing _v3cpp first
 # interposes its std::filesystem symbols into Qt WebEngine and aborts when
@@ -72,6 +73,7 @@ class AvatarWindow(QOpenGLWidget):
             self.model.SetAutoBlinkEnable(True)
             self.model.SetAutoBreathEnable(True)
             self.driver = CatalogModelDriver(self.model,self.entry)
+            self.head_motion = HeadMotion(self.model.GetParamIds())
             if self.entry:
                 self.pointer_interaction=PointerInteraction(self.model,self.entry.head_parts,self.model_path.parent)
             self.loaded_expressions = tuple(self.model.GetExpressionIds())
@@ -103,8 +105,10 @@ class AvatarWindow(QOpenGLWidget):
                 cursor=self.mapFromGlobal(QCursor.pos())
                 self.pointer_interaction.update(cursor.x(),cursor.y(),self.width(),self.height(),
                     ratio=self.devicePixelRatioF(),now=time.monotonic(),dragging=self.drag_offset is not None,
-                    settings=self.selection.get('interaction'))
-            self.driver.frame(max(self.state.mouth_at(time.monotonic()),self.selection.get('mouth_preview',0)))
+                    settings=self.selection.get('interaction'),look=self.state.gaze)
+            now=time.monotonic()
+            self.driver.frame(max(self.state.mouth_at(now),self.selection.get('mouth_preview',0)),
+                              self.head_motion.step(self.state.status,now))
             if not self.renderer_ready:
                 self.renderer_ready = True
                 self.readiness_changed.emit(True)
@@ -126,16 +130,29 @@ class AvatarWindow(QOpenGLWidget):
         if visible:
             self.show()
 
+    # Under XWayland a client-side move() races the compositor: X root coordinates jump to
+    # the new window position before Hyprland moves the surface, so every drag step was
+    # counted twice and the window flew away. Hand the drag to the compositor instead
+    # (_NET_WM_MOVERESIZE); it tracks the pointer itself with no feedback loop.
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.drag_offset = event.globalPosition().toPoint() - self.pos()
             self.press_position = event.globalPosition().toPoint()
 
     def mouseMoveEvent(self, event):
-        if self.drag_offset is not None and event.buttons() & Qt.MouseButton.LeftButton:
-            if (event.globalPosition().toPoint()-self.press_position).manhattanLength()>6:
-                self.move(event.globalPosition().toPoint() - self.drag_offset)
-                self.relocated.emit()
+        if self.drag_offset is None or not event.buttons() & Qt.MouseButton.LeftButton:
+            return
+        if (event.globalPosition().toPoint() - self.press_position).manhattanLength() <= 6:
+            return
+        handle = self.windowHandle()
+        if handle is not None and handle.startSystemMove():
+            self.drag_offset = self.press_position = None  # The compositor owns the drag now.
+            return
+        self.move(event.globalPosition().toPoint() - self.drag_offset)
+
+    def moveEvent(self, event):
+        super().moveEvent(event)
+        self.relocated.emit()  # Keep the bubbles beside the avatar however it moved.
 
     def mouseReleaseEvent(self, event):
         if self.press_position is not None and (event.globalPosition().toPoint()-self.press_position).manhattanLength()<=6:

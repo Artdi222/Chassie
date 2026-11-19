@@ -14,12 +14,12 @@ from test_orchestrator import app
 
 
 def test_vault_uses_hermes_notes_and_rejects_handwritten_mutations(tmp_path):
-    home=tmp_path/'hermes';plugin=home/'plugins/femiris';plugin.mkdir(parents=True)
-    source=Path.home()/'.hermes/plugins/femiris/store.py'
-    if not source.exists():pytest.skip('Femiris plugin is not installed')
+    home=tmp_path/'hermes';plugin=home/'plugins/chassie';plugin.mkdir(parents=True)
+    source=Path.home()/'.hermes/plugins/chassie/store.py'
+    if not source.exists():pytest.skip('Chassie memory plugin is not installed')
     shutil.copyfile(source,plugin/'store.py')
     vault=tmp_path/'Memory';vault.mkdir();(vault/'handwritten.md').write_text('A handwritten note about my workspace.')
-    (home/'femiris.json').write_text(json.dumps({'vault_path':str(vault)}))
+    (home/'chassie.json').write_text(json.dumps({'vault_path':str(vault)}))
     store=VaultMemory(home)
     assert store.status()['available']
     manual=next(row for row in store.list() if row['source']=='handwritten.md')
@@ -86,7 +86,7 @@ async def test_introduction_requires_consent_and_never_selects_new_owner(app):
 
 @pytest.mark.asyncio
 async def test_enrollment_speech_is_never_sent_as_chat_and_other_voice_pauses_memory(app):
-    app._broadcast_to_ui=AsyncMock();app._automatic_memory=True;app._input_mode='hands_free'
+    app._broadcast_to_ui=AsyncMock();app._automatic_memory=True;app._input_mode='hands_free';app._guest_privacy=True
     owner=app._memory.create_profile('Owner',consent=True);app._session_context.set_owner(owner.id)
     await app._handle_speech_event(SpeechEvent('transcript',0,0,4,'My voice sample',{'enrollment':'Saved','saved':True}))
     assert app._ui_input_queue.empty()
@@ -98,7 +98,7 @@ async def test_enrollment_speech_is_never_sent_as_chat_and_other_voice_pauses_me
 
 @pytest.mark.asyncio
 async def test_auto_presence_requires_stable_owner_and_cannot_unlock_voice_scope(app):
-    app._automatic_memory=True;app._broadcast_to_ui=AsyncMock()
+    app._automatic_memory=True;app._broadcast_to_ui=AsyncMock();app._guest_privacy=True
     owner=app._memory.create_profile('Owner',consent=True);app._session_context.set_owner(owner.id)
     def status(matches,count=1):return {'camera':{'enabled':True,'available':True},'identity':{'face_count':count,'ready':True,'presence_ready':True,'matches':matches}}
     await app._update_presence(status([],2),10)
@@ -148,7 +148,7 @@ def test_startup_uses_only_the_configured_owner_without_manual_profile_selection
     owner=app._memory.create_profile('Configured owner',consent=True)
     config={**app._config,'companion':{**app._config['companion'],'automatic_memory':True},
             'hermes':{'personal_memory_profile_id':owner.id}}
-    parts={'stt':app._stt,'hermes':app._hermes,'vts':app._vts,'player':app._audio_player,
+    parts={'stt':app._stt,'hermes':app._hermes,'player':app._audio_player,
            'tts':app._tts,'analyzer':app._audio_analyzer,'vault':Mock(),'speaker':VoiceIdentity(app._memory)}
     restarted=Orchestrator(config,components=parts)
     try:
@@ -160,3 +160,19 @@ def test_startup_uses_only_the_configured_owner_without_manual_profile_selection
     missing=Orchestrator(config,components=parts)
     try:assert missing._session_context.owner_profile_id is None
     finally:missing._memory.close()
+
+
+@pytest.mark.asyncio
+async def test_default_keeps_personal_scope_when_others_appear_and_tells_the_model(app):
+    from types import SimpleNamespace
+    app._automatic_memory=True;app._broadcast_to_ui=AsyncMock();app._input_mode='hands_free'
+    owner=app._memory.create_profile('Owner',consent=True);app._session_context.set_owner(owner.id)
+    assert app._guest_privacy is False
+    status={'camera':{'enabled':True,'available':True},'identity':{'face_count':2,'ready':True,'presence_ready':True,
+            'matches':[{'profile_id':owner.id,'name':'Owner'},{'profile_id':'f','name':'Friend'}]}}
+    await app._update_presence(status,10)
+    await app._handle_speech_event(SpeechEvent('transcript',0,0,4,'halo semua',{'match':{'profile_id':'f','name':'Friend'}}))
+    app._vision=SimpleNamespace(camera_enabled=True,screen_enabled=False,status=lambda:status)
+    context=json.loads(app._context_text())
+    assert context['scope']=='personal'
+    assert context['others_in_view']['count']==1 and context['others_in_view']['recognized']==['Friend']

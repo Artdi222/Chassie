@@ -137,7 +137,7 @@ async def test_translation_language_switch_persists_and_reaches_hermes(app, tmp_
     assert app._settings()['translation_language'] == 'id'
     assert app._hermes.translation_language == 'id'
     with pytest.raises(ValueError): await app.handle_control({'type': 'set_translation_language', 'language': 'fr'})
-    assert json.loads(app._speech_settings_path.read_text()) == {'translation_language': 'id'}
+    assert json.loads(app._speech_settings_path.read_text()) == {'translation_language': 'id', 'initiative_mode': 'normal'}
 
 
 def test_hermes_prompt_follows_translation_language():

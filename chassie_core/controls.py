@@ -34,11 +34,19 @@ class ControlsMixin:
                 'speech':self._tts.status() if isinstance(self._tts,TTSEngine) else None,
                 'speech_language':'Japanese' if self._bilingual else 'English',
                 'translation_language':self._translation_language,
+                'initiative_mode':self._initiative.mode,
                 'automatic_barge_in':self._barge_in,'pending_topic':bool(self._pending_topic),
                 'vision':self._vision.status() if self._vision else None,
                 'face_observation':self._face_tracker.get_observation() if self._face_tracker else None}
 
     async def _broadcast_settings(self): await self._broadcast_to_ui(self._settings())
+
+    def _save_speech_settings(self):
+        self._speech_settings_path.parent.mkdir(parents=True,exist_ok=True)
+        pending=self._speech_settings_path.with_suffix('.tmp')
+        pending.write_text(json.dumps({'translation_language':self._translation_language,
+                                       'initiative_mode':self._initiative.mode}))
+        pending.replace(self._speech_settings_path)
 
     async def handle_control(self,data):
         if not isinstance(data,dict): raise ValueError('Expected an object')
@@ -79,9 +87,10 @@ class ControlsMixin:
                 if language not in LANGUAGES:raise ValueError('Choose English or Indonesian')
                 await self._cancel_turn()
                 self._translation_language=language;self._hermes.translation_language=language
-                self._speech_settings_path.parent.mkdir(parents=True,exist_ok=True)
-                pending=self._speech_settings_path.with_suffix('.tmp')
-                pending.write_text(json.dumps({'translation_language':language}));pending.replace(self._speech_settings_path)
+                self._save_speech_settings()
+            elif kind=='set_initiative_mode':
+                await self._set_initiative_mode(data.get('mode'))
+                self._save_speech_settings()
             elif kind in ('stop','clear_history'):
                 await self._cancel_turn(clear=kind=='clear_history')
                 if kind=='clear_history': await self._broadcast_to_ui({'type':'history_cleared'})
@@ -96,11 +105,6 @@ class ControlsMixin:
                 info=self._avatar_capabilities()['emotions'].get(name)
                 if info is None: raise ValueError('Unknown expression')
                 if not info['available']: raise ValueError('Connect a ready avatar renderer before previewing')
-                vts_ok=False
-                if 'vts' in info['backends']:
-                    vts_ok=await self._vts.preview_emotion(name)
-                if not vts_ok and 'overlay' not in info['backends']:
-                    raise ValueError(self._vts.last_error or 'VTS preview unavailable')
                 self._avatar_state['emotion']=name;await self._broadcast_avatar()
             elif kind=='avatar_inventory':
                 return {'type':'avatar_inventory','capabilities':self._avatar_capabilities()}

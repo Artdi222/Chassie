@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 from bilingual import JAPANESE
+from speech_polish import clean_speech
 
 # Keep the user's preferred Normal delivery independent of avatar emotions.
 NORMAL_STYLE = 20
@@ -71,7 +72,7 @@ class VoicevoxTTS:
 
     async def _request(self, text, emotion):
         await self._ensure_process()
-        request = json.dumps({'text': text, 'style': NORMAL_STYLE,
+        request = json.dumps({'text': clean_speech(text), 'style': NORMAL_STYLE,
                               'speed': self.speed}, ensure_ascii=False)
         self._process.stdin.write((request + '\n').encode('utf-8'))
         await self._process.stdin.drain()

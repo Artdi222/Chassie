@@ -7,6 +7,7 @@ from emotion_parser import VALID_EMOTIONS
 JAPANESE = re.compile(r'[\u3040-\u30ff\u3400-\u9fff]')
 LANGUAGES = {'en': 'English', 'id': 'Indonesian'}
 ACTIONS = ('remember_face', 'forget_face')
+LOOK_SOURCES = ('camera', 'screen')
 EXAMPLES = {'en': 'Hello! What would you like to talk about today?',
             'id': 'Halo! Hari ini mau ngobrol tentang apa?'}
 
@@ -22,6 +23,9 @@ arrays, or emotion tags outside JSON. Use exactly the keys emotion, ja, {languag
 The ja value is natural spoken Japanese (prefer under 120 characters; maximum 350).
 Finish each spoken sentence within its object; never split a sentence or leave a
 clause hanging for the next object. Use natural ending punctuation for breath pauses.
+The voice is one calm Normal speaking style for every emotion, so carry feelings in word
+choice, not typography: in ja never use ♪ ☆ 〜 w (笑) emoji, repeated ！！ or ？！, or long
+… chains, and avoid stretched or laughing syllables (わーい, ふふっ, えへへ, きゃー).
 The Japanese speech engine cannot reliably pronounce Latin-script words. In ja,
 write ALL foreign words, names, app names, abbreviations and filenames using their
 spoken Japanese kana readings, never raw Latin letters. Use the word's pronunciation
@@ -41,7 +45,17 @@ their face under a name, and the context does not already report a local_face_op
 put one action line BEFORE the first sentence pair, e.g.
 {{"action":"remember_face","name":"Artdi"}} or {{"action":"forget_face","name":"Artdi"}}.
 Chassie performs the action before speaking; if it fails, your reply is stopped. Never
-claim a face was saved or removed without that action line. No other actions exist.
+claim a face was saved or removed without that action line.
+Looking again: when you want a better or fresh look at the camera or screen (for example
+you just asked the user to bring something closer, or to show you the result), add one line
+{{"action":"look","source":"camera"}} (or "screen") anywhere in the reply. Chassie takes a
+new snapshot a few seconds after you finish speaking and sends it to you; then react to it.
+Use it only when a fresh look is useful, never twice in a row about the same thing.
+No other actions exist.
+Initiative: messages starting with [Chassie initiative] are not from the user; they tell you
+what Chassie noticed while it was quiet. Speak up only if you have something natural, short
+and genuinely worth saying (1-2 pairs). Otherwise reply with exactly one line {{"skip":true}}
+and nothing else. Never mention the initiative message or that you were prompted.
 Memory: you decide what is worth remembering about the user long term, the way a close
 friend would: preferences, people in their life, plans, routines, important feelings or
 events, and anything they ask you to remember. When the context scope is "personal" and
@@ -81,6 +95,7 @@ class BilingualChunker:
         self._count = 0
         self._finished = False
         self._skip_narration = False
+        self._skipped = False
 
     def allow_tool_narration(self):
         """After a tool call starts, drop plain-text narration lines between tool calls.
@@ -113,6 +128,10 @@ class BilingualChunker:
         value = json.loads(line)
         if isinstance(value, dict) and 'action' in value:
             return self._parse_action(value)
+        if value == {'skip': True}:
+            if self._count: raise ValueError('Skip must be the only line')
+            self._skipped = True
+            return 'skip',
         if isinstance(value, dict) and 'memory' in value:
             return self._parse_memory(value)
         if not isinstance(value, dict) or set(value) != {'emotion', 'ja', self.language}:
@@ -140,6 +159,11 @@ class BilingualChunker:
         return 'memory', content
 
     def _parse_action(self, value):
+        if value.get('action') == 'look':
+            # Runs after the reply, so it may appear anywhere.
+            if set(value) != {'action', 'source'} or value['source'] not in LOOK_SOURCES:
+                raise ValueError('Invalid look action')
+            return 'action', 'look', value['source']
         # Actions run before speech, so a failure can stop the reply before it claims success.
         if self._count: raise ValueError('Actions must precede the first sentence pair')
         if set(value) != {'action', 'name'} or value['action'] not in ACTIONS or not isinstance(value['name'], str):
@@ -164,7 +188,7 @@ class BilingualChunker:
         parsed = self._line(self._buffer) if self._buffer.strip() else None
         result = [parsed] if parsed is not None else []
         self._buffer = ''
-        if not self._count: raise ValueError('No translated sentence pairs received')
+        if not self._count and not self._skipped: raise ValueError('No translated sentence pairs received')
         return result
 
 

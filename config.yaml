@@ -6,11 +6,13 @@ hermes:
   stream_timeout: 300  # Whole streamed request, incl. backpressure and agent-reach/agent-desktop tool calls
   stream_read_timeout: 75  # Hermes keepalive is 30s; allow two intervals plus scheduling slack
   model: "hermes-agent"
-  # No provider/text_model/vision_model override: Hermes's own default model
-  # (model.default in ~/.hermes/config.yaml) answers text and image turns.
+  # Chassie's own model, independent of Hermes's global default (model.default).
+  provider: "anthropic"  # Native Anthropic credentials in ~/.hermes/.env
+  text_model: "claude-haiku-5-5"
+  vision_model: "claude-haiku-5-5"  # Haiku also reads camera and screen snapshots
   personal_memory_session_key: "chassie-owner-memory"  # Only sent for a selected personal profile
   personal_memory_profile_id: "85fe4caec29b444db4f0d39d8c403f77"  # Existing local Artdi profile
-  reasoning_effort: "low"  # Fast companion replies; null inherits Hermes/CLI settings
+  reasoning_effort: "low"  # Haiku with low reasoning for faster replies; null inherits Hermes/CLI settings
   api_key_env: "CHASSIE_HERMES_API_KEY"
   api_key_file: ".chassie/hermes-api-key"  # Local secret; excluded from source control
   # English-only fallback prompt; VOICEVOX uses the paired Japanese/English protocol in bilingual.py.
@@ -40,7 +42,7 @@ stt:
   model: "small"  # GPU: ~0.9 s per 5 s of audio, ~430 MB VRAM; large-v3-turbo exceeds this laptop's RAM
   device: "cuda"  # Falls back to cpu_model on CPU if CUDA/cuBLAS/cuDNN are unavailable
   cpu_model: "base"
-  language: null  # Auto-detect Indonesian or English
+  language: "id"  # Locked to Indonesian; null lets Whisper auto-detect (often misreads short Indonesian as English)
   compute_type: "int8_float16"
   cpu_threads: 2
   beam_size: 3
@@ -58,19 +60,11 @@ tts:
   sample_rate: 24000
   stream_chunk_ms: 50
 
-vts:
-  host: "localhost"
-  port: 8001
-  plugin_name: "AI VTuber Companion"
-  plugin_developer: "Chassie"
-  expression_reset_delay: 0.1
-
 face_tracker:
   enabled: true
   camera_index: 0
   detection_confidence: 0.5
   update_interval: 0.5
-  mirror_to_vts: false
   expressions:
     smile_threshold: 0.3
     frown_threshold: 0.25
@@ -89,6 +83,9 @@ vision:
   screen_enabled: true
   interval_seconds: 2
   model_dir: ".chassie/vision-models"
+  screen_always: true  # Attach the current screen to every turn and react to big screen changes
+  screen_max_edge: 1280  # Screen snapshot size; smaller keeps replies fast
+  ambient_objects: true  # Notice new things in view locally (object detector + view-change), used by initiative
 
 audio:
   sample_rate: 16000
@@ -101,13 +98,25 @@ logging:
   level: "INFO"
   format: "[{time}] [{level}] [{component}] {message}"
 
-# Emotion/FX mappings live in avatar/ulvm2_0001.json (shared by VTS and overlay).
+# Emotion/FX mappings live in avatar/ulvm2_0001.json (used by the desktop and web renderers).
 
 conversation:
   input_mode: "review"  # review or hands_free; independent of browser connections
   barge_in: true  # Speak to interrupt Chassie; needs PipeWire echo cancellation, else mic pauses during replies
+  thinking_filler_seconds: 2.5  # Say a short "えっとね…" if the first sentence is slower than this; null disables
+
+initiative:
+  mode: "normal"  # normal, rare or off: whether Chassie may start talking when you go quiet (UI setting overrides)
 ui:
   port: 8000
 
 companion:
   automatic_memory: true  # Use the configured owner and the Hermes Obsidian vault
+  guest_privacy: false  # true: pause personal memory and initiatives when another face or unknown voice appears
+  # Added to every reply's system prompt. Keep it consistent with her identity notes in the vault.
+  persona: >-
+    Calm, gentle and attentive, playful in a soft way. Act like a friend sharing the room, not
+    an assistant: have your own opinions and small preferences, notice details (what is on
+    screen, what the owner is holding, the time of day), ask natural follow-up questions, and
+    bring back things from memories (plans, people, how something went). Tease lightly now and
+    then. Keep replies short and spoken; do not offer help unless it is wanted.
