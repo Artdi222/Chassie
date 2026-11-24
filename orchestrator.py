@@ -32,11 +32,12 @@ from stt_engine import STTEngine
 from tts_engine import TTSEngine
 from speech_chunker import SpeechChunker
 from speech_pacing import SpeechPacing
-from bilingual import BilingualChunker, LANGUAGES, split_first_clause
+from bilingual import BilingualChunker, LANGUAGES, display_translation, split_first_clause
 from avatar import load_manifest
 from avatar.manifest import DEFAULT_MANIFEST
 from avatar.catalog import ModelCatalog, ModelSelection
 from chassie_core.sessions import SessionStore, new_session_id
+from chassie_core.reminders import ReminderStore, parse_time
 from chassie_core.initiative import PREFIX as INITIATIVE_PREFIX
 from face_identity import face_command
 from visual_context import VisualContext
@@ -141,6 +142,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         if self._input_mode not in ('review','hands_free'): raise ValueError('Invalid input mode')
         self._speech_settings_path=selection_path.with_name('speech-settings.json')
         self._sessions=SessionStore(selection_path.with_name('sessions'))
+        self._reminders=ReminderStore(selection_path.with_name('reminders.json'))
+        self._summary_tasks=set()
         self._translation_language=config.get('tts',{}).get('translation_language','en')
         try:saved=json.loads(self._speech_settings_path.read_text())
         except (OSError,ValueError):saved={}
@@ -278,7 +281,12 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         payload={'scope':context.scope,'mode':context.mode,
                  'memories':(self._vault_recall(query) if context.scope=='personal' else []) if self._automatic_memory
                             else [{'content':m.content,'source':m.source} for m in context.memories[-8:]],
-                 'shared_notes':list(context.shared_notes[-4:])}
+                 'shared_notes':list(context.shared_notes[-4:]),
+                 'local_time':datetime.datetime.now().astimezone().strftime('%A %Y-%m-%d %H:%M %Z')}
+        if context.scope=='personal':
+            recap=self._previous_chat()
+            if recap: payload['previous_chat']={**recap,'note':'Recap of the last earlier conversation; '
+                'bring it up only if it fits, as something you remember.'}
         if context.scope=='personal':
             payload['profile_id']=self._session_context.owner_profile_id
         if self._speaker and self._speaker.last and time.monotonic()-self._speaker.last['at']<30:
@@ -650,6 +658,17 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
 
     async def _run_model_action(self,user_text,action,name):
         """Run a model-requested action before any speech; a failure stops the reply."""
+        if action=='remind':
+            if not self._personal_scope(): return  # Only the owner sets reminders.
+            try:
+                item=self._reminders.add(name['text'],parse_time(name['at']),name.get('repeat'))
+            except (ValueError,TypeError,KeyError) as exc:
+                logger.warning('Reminder not set: %s',exc);return
+            when=datetime.datetime.fromisoformat(item['at']).strftime('%a %d %b %H:%M')
+            await self._broadcast_to_ui({'type':'notice','scope':'chat','text':f"Reminder set: {item['text']} · {when}"
+                                         +(f" ({item['repeat']})" if item.get('repeat') else '')})
+            await self._broadcast_to_ui(self._sessions_message())
+            return
         if action=='look':
             attached={f['source'] for f in self._turn_images}
             if (not self._turn_sentences and not getattr(self,'_looked',False) and name not in attached
@@ -721,6 +740,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
 
     def _open_session(self,session_id):
         data=self._sessions.load(session_id)
+        self._summarize_later(getattr(self._hermes,'session_id',None))
         self._hermes.load_session(data['id'],data['messages'])
         self._pending_topic=None;self._stream_view=None
 
@@ -732,13 +752,48 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         try:
             self._open_session(latest)
             logger.info('Continued chat session %s',latest)
+            for item in [s for s in self._sessions.list(20) if s['id']!=latest and s.get('needs_summary')][:3]:
+                self._summarize_later(item['id'])
         except (OSError,ValueError) as exc: logger.warning('Could not continue the last chat: %s',type(exc).__name__)
+
+    SUMMARY_SYSTEM=('Summarize this chat between Artdi and his companion Chassie in Indonesian, in one or two '
+                    'short sentences: what they talked about and anything left open. Refer to them by name in '
+                    'the third person. Plain text only.')
+
+    def _summarize_later(self,session_id):
+        """Recap a session the owner just left, in the background; the next chat can recall it."""
+        if not isinstance(session_id,str) or not self._personal_scope(): return
+        task=asyncio.create_task(self._summarize(session_id))
+        self._summary_tasks.add(task);task.add_done_callback(self._summary_tasks.discard)
+
+    async def _summarize(self,session_id):
+        try:
+            data=self._sessions.load(session_id)
+            messages=[m for m in data['messages'] if not (m['role']=='user' and INITIATIVE_PREFIX in m['content'])]
+            if len(messages)<4 or data.get('summary_count')==len(data['messages']): return
+            lines=[('Artdi: ' if m['role']=='user' else 'Chassie: ')
+                   +(display_translation(m['content']) if m['role']=='assistant' else m['content'])[:600] for m in messages[-60:]]
+            summary=await self._hermes.complete_once(self.SUMMARY_SYSTEM,'\n'.join(lines))
+            self._sessions.set_summary(session_id,summary,len(data['messages']))
+            logger.info('Chat session %s summarized',session_id)
+            await self._broadcast_to_ui(self._sessions_message())
+        except asyncio.CancelledError: raise
+        except Exception as exc: logger.warning('Chat summary postponed: %s',type(exc).__name__)
+
+    def _previous_chat(self):
+        """Recap of the latest other session, for a fresh or short conversation."""
+        current=getattr(self._hermes,'session_id',None)
+        messages=self._hermes.session_messages() if hasattr(self._hermes,'session_messages') else []
+        if isinstance(messages,list) and len(messages)>=6: return None
+        earlier=next((s for s in self._sessions.list(10) if s['id']!=current and s.get('summary')),None)
+        return {'summary':earlier['summary'],'when':earlier['updated'][:16]} if earlier else None
 
     def _sessions_message(self):
         items=self._sessions.list() if self._personal_scope() else []
         current=getattr(self._hermes,'session_id',None)
         return {'type':'sessions','items':items,'current':current if isinstance(current,str) else None,
-                'available':self._personal_scope()}
+                'available':self._personal_scope(),
+                'reminders':self._reminders.list() if self._personal_scope() else []}
 
     async def _save_turn_memories(self,text):
         """Save the memory lines Chassie chose to write this turn to the Obsidian vault.
@@ -799,6 +854,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._hermes.interrupt_response(self._spoken)
         self._save_session()  # Keep what was said before a new chat or a guest clears the window.
         if clear:
+            self._summarize_later(getattr(self._hermes,'session_id',None))
             self._hermes.clear_history();self._pending_topic=None
             self._stream_view=None
         elif self._stream_view and self._stream_view['interrupted']:

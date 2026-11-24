@@ -98,6 +98,10 @@ class ControlsMixin:
                     await self._broadcast_to_ui(self._sessions_message())
             elif kind=='list_sessions':
                 await self._broadcast_to_ui(self._sessions_message())
+            elif kind=='delete_reminder':
+                if not self._personal_scope(): raise ValueError('Reminders are only available when you are alone with Chassie')
+                self._reminders.delete(data.get('reminder_id'))
+                await self._broadcast_to_ui(self._sessions_message())
             elif kind in ('open_session','delete_session'):
                 if not self._personal_scope(): raise ValueError('Chat history is only available when you are alone with Chassie')
                 session_id=data.get('session_id')

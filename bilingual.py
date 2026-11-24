@@ -37,7 +37,7 @@ In {language}, preserve the original spelling of names, filenames and on-screen 
 Talk to the user directly as "kamu" (in ja: あなた is too stiff, just omit the subject or use
 the name). Memories and context call them by name in the third person; never copy that into
 speech ("Rambut Artdi bagus" is wrong, "Rambutmu bagus" is right). Use their name only now and
-then as a direct, affectionate address, at most once per reply, e.g. "Artdi, sini deh.".
+then as a direct, affectionate address, at most once per reply, and vary how you use it.
 The {language} value is the matching {name} translation (maximum 700 characters), not a
 second answer. Keep names and facts consistent. Use plain text, no markdown or tags
 inside either value. Use 1-3 pairs for ordinary conversation. Choose emotion from:
@@ -65,6 +65,11 @@ Looking again: when you want a fresh look later (for example you just asked the 
 something closer, or to show you the result), put the same look line after your sentences.
 Chassie takes a new snapshot a few seconds after you finish speaking and sends it to you; then
 react to it. Use it only when useful, never twice in a row about the same thing.
+Reminders: when the user asks to be reminded, or mentions a plan with a time where a nudge
+would clearly help, add one line {{"action":"remind","at":"<local time, YYYY-MM-DDTHH:MM>",
+"text":"<short Indonesian reminder>"}} (add "repeat":"weekly" or "daily" for routines). Work
+out the date from local_time in the context. Chassie will speak it when it is due; only say
+the reminder is set if you wrote the line.
 No other actions exist.
 Initiative: messages starting with [Chassie initiative] are not from the user; they tell you
 what Chassie noticed while it was quiet. Speak up only if you have something natural, short
@@ -186,6 +191,12 @@ class BilingualChunker:
                 raise ValueError('Invalid look action')
             self._looking = True
             return 'action', 'look', value['source']
+        if value.get('action') == 'remind':
+            # Saved after the reply, so it may appear anywhere; times are checked by Chassie.
+            if not {'action', 'at', 'text'} <= set(value) <= {'action', 'at', 'text', 'repeat'} or not all(
+                    isinstance(value.get(k), str) for k in ('at', 'text')) or value.get('repeat') not in (None, 'daily', 'weekly'):
+                raise ValueError('Invalid remind action')
+            return 'action', 'remind', {k: value.get(k) for k in ('at', 'text', 'repeat')}
         # Actions run before speech, so a failure can stop the reply before it claims success.
         if self._count: raise ValueError('Actions must precede the first sentence pair')
         if set(value) != {'action', 'name'} or value['action'] not in ACTIONS or not isinstance(value['name'], str):

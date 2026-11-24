@@ -95,6 +95,8 @@ def initiative_text(reason,detail,now_local):
         'late_night':f'It is {detail} at night and the owner is still up. Check on them gently if it fits.',
         'app':f'The owner has been using {detail} for a while (a screen snapshot is attached when '
               'available). Say something about what they are doing only if natural.',
+        'reminder':f'Reminder the owner asked you to give now: "{detail}". Say it now, briefly and '
+                   'warmly, in your own words; do not skip.',
         'quiet':f'The owner has been quiet for about {detail} minutes. Start a short, natural chat if '
                 'you like: follow up on something from memories (a plan, an event, how something '
                 'went), react to the current app, or just check in. Skip if nothing fits.',
@@ -153,6 +155,7 @@ class InitiativeMixin:
 
     async def _initiative_loop(self):
         app_checked=0.0
+        reminders_checked=0.0
         gaze=None
         while self._running:
             await asyncio.sleep(1)
@@ -169,6 +172,17 @@ class InitiativeMixin:
                     if app and app!=state.app:state.app,state.app_since=app,now
                 busy=(self._turn_task and not self._turn_task.done()) or not self._ui_input_queue.empty()
                 if busy or self._current_status not in ('idle','listening'):continue
+                if now-reminders_checked>=10:
+                    reminders_checked=now
+                    camera_on=bool(self._vision and self._vision.camera_enabled)
+                    # Wait until the owner is in front of the camera, so nobody talks to an empty room.
+                    due=self._reminders.due() if self._owner_alone() and (visible or not camera_on) else []
+                    if due:
+                        # Reminders bypass the chatty limits: the owner asked for them.
+                        self._reminders.done(due[0]['id'])
+                        await self._start_initiative('reminder',due[0]['text'],set())
+                        await self._broadcast_to_ui(self._sessions_message())
+                        continue
                 choice=decide(state,now,owner_alone=self._owner_alone(),face_visible=visible,
                               camera_on=bool(self._vision and self._vision.camera_enabled),
                               mic_on=self._mic_enabled,clock_time=datetime.datetime.now(),
@@ -200,7 +214,7 @@ class InitiativeMixin:
         now=time.monotonic()
         if reason=='look':
             state.look=None;state.look_chain+=1
-        else:
+        elif reason!='reminder':
             state.look_chain=0
             state.last_initiative=now;state.history.append(now);state.unanswered+=1
         if reason=='returned':state.pending_return=False

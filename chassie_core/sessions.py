@@ -45,7 +45,19 @@ class SessionStore:
             previous = {}
         now = dt.datetime.now().astimezone().isoformat(timespec='seconds')
         data = {'id': session_id, 'title': previous.get('title') or self._title(messages, skip_title),
-                'created': previous.get('created') or now, 'updated': now, 'messages': messages}
+                'created': previous.get('created') or now, 'updated': now, 'messages': messages,
+                **{k: previous[k] for k in ('summary', 'summary_count') if k in previous}}
+        self._write(path, data)
+        return data
+
+    def set_summary(self, session_id, summary, count):
+        """Store a short recap of the first `count` messages (kept until the chat grows)."""
+        data = self.load(session_id)
+        data['summary'] = ' '.join(str(summary).split())[:400]
+        data['summary_count'] = count
+        self._write(self._path(session_id), data)
+
+    def _write(self, path, data):
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         fd, tmp = tempfile.mkstemp(prefix='.' + path.name, dir=self.directory)
         try:
@@ -56,7 +68,6 @@ class SessionStore:
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)
-        return data
 
     @staticmethod
     def _title(messages, skip=None):
@@ -79,7 +90,10 @@ class SessionStore:
             try:
                 data = json.loads(path.read_text(encoding='utf-8'))
                 sessions.append({'id': data['id'], 'title': data.get('title') or 'Obrolan',
-                                 'updated': data.get('updated', ''), 'count': len(data.get('messages', []))})
+                                 'updated': data.get('updated', ''), 'count': len(data.get('messages', [])),
+                                 'summary': data.get('summary'),
+                                 'needs_summary': len(data.get('messages', [])) >= 4
+                                                  and data.get('summary_count') != len(data.get('messages', []))})
             except (OSError, ValueError, KeyError):
                 continue
         sessions.sort(key=lambda s: s['updated'], reverse=True)

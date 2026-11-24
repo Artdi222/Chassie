@@ -380,6 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const title=document.createElement("strong");title.textContent=item.title;
             const meta=document.createElement("span");meta.textContent=sessionMeta(item);
             open.append(title,meta);
+            if(item.summary){const recap=document.createElement("em");recap.className="session-summary";recap.textContent=item.summary;open.append(recap);}
             open.addEventListener("click",()=>{
                 if(item.id!==sessionState.current)sendControl({type:"open_session",session_id:item.id});
                 closeSessions();
@@ -394,6 +395,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 setTimeout(()=>{delete remove.dataset.confirm;remove.title="Delete this chat";meta.textContent=sessionMeta(item);},3000);
             });
             row.append(open,remove);sessionList.append(row);
+        }
+        renderReminders(data.reminders||[]);
+    }
+    function renderReminders(items){
+        if(!items.length)return;
+        const heading=document.createElement("h3");heading.className="session-heading";heading.textContent="Reminders";
+        sessionList.append(heading);
+        for(const item of items){
+            const row=document.createElement("div");row.className="session-item reminder-item";
+            const body=document.createElement("div");body.className="session-open";
+            const title=document.createElement("strong");title.textContent=item.text;
+            const meta=document.createElement("span");
+            meta.textContent=sessionDate(item.at)+(item.repeat?" · "+item.repeat:"");
+            body.append(title,meta);
+            const remove=document.createElement("button");remove.type="button";remove.className="session-delete";
+            remove.title="Delete this reminder";remove.setAttribute("aria-label","Delete reminder: "+item.text);
+            remove.innerHTML='<svg class="icon"><use href="icons.svg#close"/></svg>';
+            remove.addEventListener("click",()=>sendControl({type:"delete_reminder",reminder_id:item.id}));
+            row.append(body,remove);sessionList.append(row);
         }
     }
     function closeSessions(){sessionList.hidden=true;sessionsToggle.setAttribute("aria-expanded","false");}
