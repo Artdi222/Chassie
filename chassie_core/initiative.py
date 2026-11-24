@@ -23,6 +23,7 @@ MODES={'normal':{'quiet':60,'cooldown':180,'per_hour':8},
        'off':None}
 AWAY_SECONDS=180      # Owner must be out of view this long before a welcome-back.
 APP_STABLE_SECONDS=90 # A new app must stay focused this long before Chassie mentions it.
+OPEN_DELAY=6.0       # Seconds after opening before her hello (the avatar and voice are ready).
 LOOK_DELAY=4.0        # After "bring it closer", give the user time to do it.
 MAX_LOOK_CHAIN=2
 
@@ -43,6 +44,8 @@ class InitiativeState:
     look:dict|None=None
     look_chain:int=0
     late_night_day:str|None=None
+    greeted:bool=True   # False right after Chassie opens: she says hello first, once.
+    opened_at:float=0.0
     events:list=field(default_factory=list)
     last_face_seen:float|None=None
     last_wait_log:float=-1e9
@@ -57,7 +60,12 @@ def decide(state,now,*,owner_alone,face_visible,camera_on,mic_on,clock_time,scre
     if not owner_alone:return None
     if state.look and state.look['due'] is not None and now>=state.look['due']:
         return 'look',state.look['source'],{state.look['source']}
-    if settings is None or not mic_on:return None
+    # A muted mic only means the owner types; it is not a request for silence (use mode 'off').
+    if settings is None:return None
+    if not state.greeted:
+        if camera_on and not face_visible:return None  # Greet once they sit down.
+        if now-state.opened_at>=OPEN_DELAY:return 'opened',None,set()
+        return None
     if now-state.last_initiative<settings['cooldown']:return None
     if sum(1 for t in state.history if now-t<3600)>=settings['per_hour']:return None
     quiet=now-state.last_activity
@@ -95,6 +103,9 @@ def initiative_text(reason,detail,now_local):
         'late_night':f'It is {detail} at night and the owner is still up. Check on them gently if it fits.',
         'app':f'The owner has been using {detail} for a while (a screen snapshot is attached when '
               'available). Say something about what they are doing only if natural.',
+        'opened':'Chassie was just opened on the owner\'s computer. Say hello first, like a friend who '
+                 'notices they are here: fit it to the time of day, or pick up something from previous_chat '
+                 'or memories (a plan, how something went). One or two short sentences; do not skip.',
         'reminder':f'Reminder the owner asked you to give now: "{detail}". Say it now, briefly and '
                    'warmly, in your own words; do not skip.',
         'quiet':f'The owner has been quiet for about {detail} minutes. Start a short, natural chat if '
@@ -107,7 +118,9 @@ def initiative_text(reason,detail,now_local):
 class InitiativeMixin:
     def _init_initiative(self,saved_mode=None):
         mode=saved_mode or self._config.get('initiative',{}).get('mode','normal')
-        self._initiative=InitiativeState(mode=mode if mode in MODES else 'normal',last_activity=time.monotonic())
+        now=time.monotonic()
+        self._initiative=InitiativeState(mode=mode if mode in MODES else 'normal',last_activity=now,
+                                         greeted=False,opened_at=now)
 
     def _note_activity(self,*,user=False):
         state=self._initiative
@@ -116,6 +129,7 @@ class InitiativeMixin:
             # The delay starts when Chassie finishes speaking, giving the user time to act.
             state.look['due']=state.last_activity+LOOK_DELAY
         if user:
+            state.greeted=True  # They spoke first; no opening hello now.
             state.unanswered=0
             state.look=None;state.look_chain=0
 
@@ -202,7 +216,7 @@ class InitiativeMixin:
         if settings is None or quiet<settings['quiet'] or now-state.last_wait_log<120:return
         state.last_wait_log=now
         reasons=[name for name,blocked in (
-            ('not personal scope',not self._owner_alone()),('mic muted',not self._mic_enabled),
+            ('not personal scope',not self._owner_alone()),
             ('owner away from camera',not present),
             ('cooldown',now-state.last_initiative<settings['cooldown']),
             ('hourly limit',sum(1 for t in state.history if now-t<3600)>=settings['per_hour']),
@@ -218,6 +232,7 @@ class InitiativeMixin:
             state.look_chain=0
             state.last_initiative=now;state.history.append(now);state.unanswered+=1
         if reason=='returned':state.pending_return=False
+        if reason=='opened':state.greeted=True
         if reason=='noticed':state.events=[e for e in state.events if e[1]=='screen_changed']
         if reason=='screen':state.events=[e for e in state.events if e[1]!='screen_changed']
         if reason=='app':state.app_mentioned=detail

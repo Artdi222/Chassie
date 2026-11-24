@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import json
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import numpy as np
 import pytest
@@ -48,7 +48,7 @@ def test_quiet_check_in_waits_for_silence_and_respects_privacy_and_presence():
     assert observe(state, quiet)[0] == 'quiet'
     assert observe(state, quiet, owner_alone=False) is None
     assert observe(state, quiet, face_visible=False) is None
-    assert observe(state, quiet, mic_on=False) is None
+    assert observe(state, quiet, mic_on=False)[0] == 'quiet'  # Typing with the mic off still gets check-ins.
     assert observe(state, quiet, camera_on=False, face_visible=False)[0] == 'quiet'
     assert observe(InitiativeState(mode='off', last_activity=0), 10_000) is None
 
@@ -347,3 +347,26 @@ def test_look_only_reply_without_trailing_newline_is_valid():
     chunker = BilingualChunker('en')
     assert chunker.feed('{"action":"look","source":"camera"}') == []
     assert chunker.finish() == [('action', 'look', 'camera')]
+
+
+
+def test_opening_hello_once_after_the_owner_sits_down():
+    state = InitiativeState(last_activity=0, greeted=False, opened_at=0)
+    assert observe(state, 3) is None  # Avatar and voice are still starting.
+    assert observe(state, 10, face_visible=False) is None  # Wait until they are in front of the camera.
+    assert observe(state, 10, mic_on=False)[0] == 'opened'
+    assert observe(state, 10, camera_on=False, face_visible=False)[0] == 'opened'
+    assert observe(InitiativeState(mode='off', greeted=False), 10) is None
+
+
+@pytest.mark.asyncio
+async def test_opening_hello_is_queued_once_and_skipped_if_the_owner_speaks_first(app):
+    app._broadcast_to_ui = AsyncMock()
+    app._init_initiative()
+    state = app._initiative
+    await app._start_initiative('opened', None, set())
+    item = app._ui_input_queue.get_nowait()
+    assert item['reason'] == 'opened' and 'just opened' in item['text'] and state.greeted
+    app._init_initiative()
+    app._note_activity(user=True)
+    assert app._initiative.greeted

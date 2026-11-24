@@ -12,7 +12,7 @@ Companion desktop lokal dengan avatar Live2D: ngobrol lewat teks atau suara, men
 - Balasan di-stream per kalimat: kalimat pertama langsung disintesis, subtitle mengikuti audio.
 - Riwayat chat per sesi: membuka aplikasi melanjutkan chat terakhir, **History** membuka/menghapus sesi lama, dan setiap sesi yang ditinggalkan diringkas otomatis untuk diingat di chat berikutnya.
 - Pengingat: "ingetin aku Sabtu jam 4 buat les gitar" membuat pengingat (bisa mingguan/harian) yang diucapkan Chassie saat waktunya dan kamu ada di depan kamera.
-- Inisiatif: menyapa saat kamu kembali, mengomentari perubahan layar/kamera, atau memulai obrolan saat lama diam (mode normal/rare/off).
+- Inisiatif: menyapa duluan saat Chassie dibuka, menyambut saat kamu kembali, mengomentari perubahan layar/kamera, atau memulai obrolan saat lama diam, juga saat mic mati (mode normal/rare/off; `off` untuk benar-benar diam).
 
 **Suara dan avatar**
 - Satu gaya suara VOICEVOX (Mochiko-san Normal) dengan prosodi per kalimat: pitch, rentang intonasi, dan tempo mengikuti emosi dan bentuk kalimat (tanya naik, seru, "…" melambat).
