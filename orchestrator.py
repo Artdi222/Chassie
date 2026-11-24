@@ -49,6 +49,18 @@ from chassie_core.presence import PresenceMixin
 from chassie_core.initiative import InitiativeMixin
 from chassie_core.web import WebMixin
 
+class _Chunks(list):
+    mouth=None
+
+
+def _with_mouth(chunks,mouth=None):
+    """Sentence audio chunks plus the synthesizer's lip-sync keyframes (sentence-relative)."""
+    result=_Chunks(chunks)
+    result.mouth=mouth if mouth is not None else next((getattr(c,'mouth',None) for c in chunks
+                                                      if getattr(c,'mouth',None)),None)
+    return result
+
+
 class _LookNow(Exception):
     """The model asked to see a source before saying anything: retry the turn with it."""
 
@@ -325,7 +337,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 raise RuntimeError('Generated sentence audio exceeds the 60-second limit.')
             if len(pcm): chunks.append(pcm)
         if not chunks: raise RuntimeError('Speech synthesis returned no audio.')
-        return chunks
+        return _with_mouth(chunks)
 
     async def _begin_playback(self):
         # begin_utterance may wait for a device lock. Shield the worker task so
@@ -439,7 +451,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 if delay:
                     await asyncio.sleep(delay)
                     if generation!=self._generation: return
-                chunks=pacing.smooth(chunks)
+                chunks=_with_mouth(pacing.smooth(chunks),getattr(chunks,'mouth',None))
                 if first:
                     self._turn_metrics['first_pcm_seconds']=time.monotonic()-started
                     self._speaking_since=time.monotonic()
@@ -458,9 +470,12 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                     self._subtitle={'type':'subtitle','text':sentence,'generation':generation}
                     await self._broadcast_to_ui(self._subtitle)
                 prefetch=asyncio.create_task(self._next_speech(sentences))
+                mouth_offset=0
                 for chunk_index,pcm in enumerate(chunks):
                     if generation!=self._generation: return
-                    if not await self._audio_player.enqueue(pcm,emotion=emotion,generation=job):
+                    lips={'mouth':chunks.mouth,'mouth_offset':mouth_offset} if getattr(chunks,'mouth',None) else {}
+                    mouth_offset+=len(pcm)
+                    if not await self._audio_player.enqueue(pcm,emotion=emotion,generation=job,**lips):
                         raise RuntimeError('Audio playback was interrupted.')
                     self._turn_metrics.setdefault('first_audio_queued_seconds',time.monotonic()-started)
                     if chunk_index==0 and part!='tail':

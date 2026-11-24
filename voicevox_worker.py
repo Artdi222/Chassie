@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from speech_prosody import apply_contour  # noqa: E402
+from speech_prosody import apply_contour, mouth_keyframes  # noqa: E402
 
 # Only Mochiko-san talk styles from official VVM 0.16.4 (15.vvm).
 MOCHIKO_STYLES = {20, 77, 78, 79, 80}
@@ -56,7 +56,8 @@ def main():
             query.output_stereo = False
             wav = synth.synthesis(query, style)
             if len(wav) > 8 * 1024 * 1024: raise ValueError('Audio exceeds limit')
-            print(json.dumps({'wav': base64.b64encode(wav).decode('ascii')}), flush=True)
+            print(json.dumps({'wav': base64.b64encode(wav).decode('ascii'),
+                              'mouth': mouth_keyframes(query)}), flush=True)
 
 
 if __name__ == '__main__':

@@ -30,6 +30,11 @@ def sentence_chunks(text, max_chars=350):
         if sentence: chunks.append(sentence)
     return chunks
 
+class SpeechAudio(np.ndarray):
+    """PCM that also carries lip-sync keyframes ([seconds, openness]) from the synthesizer."""
+    mouth=None
+
+
 class TTSEngine:
     def __init__(self,config):
         cfg=config['tts']
@@ -73,11 +78,14 @@ class TTSEngine:
         if not text or not text.strip(): return
         try:
             data=await self._voicevox.synthesize(text,emotion)
+            mouth=getattr(self._voicevox,'last_mouth',None)  # Read before any other await.
             audio=await asyncio.to_thread(self._decode,data)
             audio=normalize_loudness(audio,self._sample_rate)  # Same loudness whatever the mood.
         except asyncio.CancelledError: raise
         except Exception as exc: raise RuntimeError('Speech synthesis failed; the text is still available.') from exc
         if not len(audio): raise RuntimeError('TTS decoded no audio')
+        if mouth:
+            audio=audio.view(SpeechAudio);audio.mouth=mouth
         yield audio
 
     def _decode(self,data):

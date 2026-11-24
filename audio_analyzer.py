@@ -11,7 +11,7 @@ import numpy as np
 class AudioAnalyzer:
     """Analyzes audio chunks to produce mouth-open values for lip-sync."""
 
-    def __init__(self, sample_rate: int = 24000, chunk_ms: int = 50, smoothing: float = 0.3, threshold: float = 0.15, exponent: float = 2.0):
+    def __init__(self, sample_rate: int = 24000, chunk_ms: int = 50, smoothing: float = 0.3, threshold: float = 0.08, exponent: float = 0.8):
         """
         Args:
             sample_rate: Audio sample rate in Hz.

@@ -12,6 +12,18 @@ import numpy as np
 
 logger = logging.getLogger('audio_player')
 
+def keyframe_mouth(frames,t):
+    """Linear interpolation of [seconds, openness] keyframes; closed outside them."""
+    if not frames or t<=frames[0][0] or t>=frames[-1][0]: return 0.0
+    lo,hi=0,len(frames)-1
+    while hi-lo>1:
+        mid=(lo+hi)//2
+        if frames[mid][0]<=t: lo=mid
+        else: hi=mid
+    (t0,v0),(t1,v1)=frames[lo],frames[hi]
+    return float(v0 if t1<=t0 else v0+(v1-v0)*(t-t0)/(t1-t0))
+
+
 @dataclass
 class _Utterance:
     generation: int
@@ -98,7 +110,8 @@ class AudioPlayer:
     def clear_queue(self):
         self.cancel_utterance()
 
-    async def enqueue(self, chunk, emotion=None, *, generation=None):
+    async def enqueue(self, chunk, emotion=None, *, generation=None, mouth=None, mouth_offset=0):
+        """Queue PCM; with mouth keyframes ([s, openness]) lip-sync follows the syllables, not loudness."""
         if generation is None:
             generation=self._current.generation if self._current else self.begin_utterance()
         audio=np.asarray(chunk,dtype=np.float32)
@@ -112,7 +125,8 @@ class AudioPlayer:
                     job=self._current
                     if not self._running or not job or job.generation!=generation or job.ended: return False
                     if len(self._queue)<self._max_blocks:
-                        self._queue.append((job,block,emotion if offset==0 else None))
+                        lips=(mouth,(mouth_offset+offset)/self._sample_rate) if mouth else None
+                        self._queue.append((job,block,emotion if offset==0 else None,lips))
                         self._condition.notify_all()
                         break
                 await asyncio.sleep(.005)
@@ -199,7 +213,7 @@ class AudioPlayer:
                         self._condition.wait(.02)
                     if not self._running: break
                     if drain is None:
-                        job,block,emotion=self._queue.popleft()
+                        job,block,emotion,lips=self._queue.popleft()
                         self._condition.notify_all()
                         if self._current is not job: continue
                 if drain is not None:
@@ -227,7 +241,13 @@ class AudioPlayer:
                             if self._current is drain: drain.done.set()
                     continue
                 if self._current is not job: continue
-                mouth=self._analyzer.analyze_chunk(block) if self._analyzer else 0
+                if lips:
+                    # What the listener hears now was written one output latency ago.
+                    latency=getattr(stream,'latency',0.0)
+                    latency=latency if isinstance(latency,(int,float)) and math.isfinite(latency) else 0.0
+                    mouth=keyframe_mouth(lips[0],lips[1]+len(block)/2/self._sample_rate-min(latency,.25))
+                else:
+                    mouth=self._analyzer.analyze_chunk(block) if self._analyzer else 0
                 with self._io_lock:
                     if self._current is not job or not self._running: continue
                     self._schedule_effect(job,emotion,mouth)

@@ -34,3 +34,19 @@ def test_contour_falls_emphasises_and_rises_for_questions():
     assert last[1] > last[0] > 5.8 - .03
 
 
+
+def test_mouth_keyframes_open_per_vowel_and_close_on_lips_and_pauses():
+    from speech_prosody import mouth_keyframes
+    from audio_player import keyframe_mouth
+    query = {'speed_scale': 1.0, 'pre_phoneme_length': .1, 'accent_phrases': [
+        {'moras': [{'consonant': 'm', 'consonant_length': .06, 'vowel': 'a', 'vowel_length': .15},
+                   {'consonant': None, 'consonant_length': None, 'vowel': 'i', 'vowel_length': .1}],
+         'pause_mora': {'vowel': 'pau', 'vowel_length': .2}}]}
+    frames = mouth_keyframes(query)
+    assert keyframe_mouth(frames, .05) == 0  # Silence before speech.
+    assert keyframe_mouth(frames, .136) < .05  # Lips closed for "m".
+    assert keyframe_mouth(frames, .22) > .9  # Wide "a".
+    assert .3 < keyframe_mouth(frames, .36) < .6  # Narrow "i".
+    assert keyframe_mouth(frames, .5) == 0  # Pause.
+    faster = mouth_keyframes({**query, 'speed_scale': 2.0})
+    assert faster[-1][0] < frames[-1][0]

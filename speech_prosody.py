@@ -96,3 +96,45 @@ def apply_contour(accent_phrases, shape, emphasis):
     elif shape == 'trail':
         for step, mora in enumerate(voiced[-2:], 1):
             put(mora, 'pitch', get(mora, 'pitch') - .04 * step)
+
+
+# Mouth openness per vowel (Japanese visemes); devoiced vowels (capital) barely open.
+VOWEL_OPEN = {'a': 1.0, 'o': .78, 'e': .68, 'u': .5, 'i': .45, 'N': .18, 'cl': 0.0, 'pau': 0.0,
+              'A': .25, 'I': .15, 'U': .15, 'E': .2, 'O': .2}
+BILABIAL = {'m', 'b', 'p', 'my', 'by', 'py', 'f', 'w', 'v'}
+
+
+def mouth_keyframes(query):
+    """[time s, openness] keyframes following each mora of a VOICEVOX query, after speed scaling.
+
+    Lips close for m/b/p and pauses, half-close on other consonants, and open per vowel.
+    """
+    def get(m, key, default=None):
+        return m.get(key, default) if isinstance(m, dict) else getattr(m, key, default)
+    speed = float(get(query, 'speed_scale') or 1.0)
+    t = float(get(query, 'pre_phoneme_length') or 0.0) / speed
+    frames = [[0.0, 0.0], [t, 0.0]]
+    last = 0.0
+    for phrase in get(query, 'accent_phrases') or []:
+        moras = list(get(phrase, 'moras') or [])
+        pause = get(phrase, 'pause_mora')
+        for mora in moras + ([pause] if pause else []):
+            consonant = get(mora, 'consonant')
+            c_len = float(get(mora, 'consonant_length') or 0.0) / speed
+            v_len = float(get(mora, 'vowel_length') or 0.0) / speed
+            vowel = get(mora, 'vowel') or 'pau'
+            if consonant and c_len > 0:
+                closed = 0.0 if consonant in BILABIAL else last * .35
+                frames.append([t + c_len * .6, closed])
+            t += c_len
+            value = VOWEL_OPEN.get(vowel, .5)
+            if vowel in ('pau', 'cl'):
+                frames.append([t + min(.05, v_len * .5), 0.0])
+            else:
+                frames.append([t + min(.045, v_len * .45), value])
+                if v_len > .12:
+                    frames.append([t + v_len - .04, value * .85])
+            t += v_len
+            last = value
+    frames.append([t + .04, 0.0])
+    return [[round(a, 4), round(b, 3)] for a, b in frames]

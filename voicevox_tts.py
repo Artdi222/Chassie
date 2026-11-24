@@ -34,6 +34,7 @@ class VoicevoxTTS:
         # Same Normal style always; only pitch, range, tempo and contour follow each sentence.
         self.lively = cfg.get('lively_prosody', True) is not False
         self.prosody = ProsodyPlanner()
+        self.last_mouth = None  # Lip-sync keyframes of the sentence just synthesized.
         if type(self.threads) is not int or not 1 <= self.threads <= 8:
             raise ValueError('VOICEVOX cpu_threads must be between 1 and 8')
 
@@ -87,6 +88,8 @@ class VoicevoxTTS:
         line = await self._process.stdout.readline()
         result = json.loads(line)
         data = base64.b64decode(result['wav'], validate=True)
+        mouth = result.get('mouth')
+        self.last_mouth = mouth if isinstance(mouth, list) and len(mouth) < 20000 else None
         if not data or len(data) > 8 * 1024 * 1024: raise ValueError('Invalid VOICEVOX audio')
         return data
 
