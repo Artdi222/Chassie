@@ -24,7 +24,8 @@ def test_available_models_exclude_removed_model_and_model_four_assets_are_valid(
         assert all((native.parent/p).is_file() for p in refs['Textures'])
         for expression in refs['Expressions']:
             params=json.loads((native.parent/expression['File']).read_text())['Parameters']
-            assert params and all(p['Id'] in entry.parameter_ids for p in params)
+            # Generated reactions keep only eyelid multipliers; the driver blends the rest.
+            assert (params or '__chassie__' in expression['File']) and all(p['Id'] in entry.parameter_ids for p in params)
             assert not any(p['Id']=='ParamMouthOpenY' for p in params)
         assert entry.path.read_bytes()==original
         assert all('costume_v0100' not in x['id'] for x in entry.expressions)

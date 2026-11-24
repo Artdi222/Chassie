@@ -16,7 +16,11 @@ def prepare_entry(entry, cache_dir):
         if relative in entry.generated:
             path=cache_dir/entry.id/relative
             path.parent.mkdir(parents=True,exist_ok=True)
-            path.write_text(json.dumps(entry.generated[relative]),encoding='utf-8')
+            # The driver blends Overwrite parameters itself (smooth in and out); only the
+            # eyelid multipliers, which must apply after auto-blink, stay in the SDK file.
+            data=dict(entry.generated[relative])
+            data['Parameters']=[p for p in data['Parameters'] if p.get('Blend')=='Multiply']
+            path.write_text(json.dumps(data),encoding='utf-8')
         else:path=entry.assets[relative]
         return os.path.relpath(path,cache_dir).replace(os.sep,'/')
     data = entry.manifest(reference)
@@ -32,6 +36,7 @@ BODY_FOLLOW_SECONDS = .35  # VTS-like smoothing so the body trails the head.
 # In conversation she holds still and faces the owner; the idle sway returns afterwards.
 FOCUSED = {'speaking': .15, 'listening': .25}
 FOCUS_SECONDS = .6
+REACTION_IN, REACTION_OUT = .16, .22  # Time constants: ~0.5 s in, ~0.7 s out.
 
 
 class CatalogModelDriver:
@@ -42,10 +47,24 @@ class CatalogModelDriver:
         self.follow = {}
         self.last = None
         self.sway = 1.0  # Eased breath sway scale: 1 idle, small while in conversation.
+        # SDK RemoveExpression snaps parameters back instantly, so emotion reactions are
+        # cross-faded here: each has a weight eased toward 0 or 1 every frame.
+        self.reactions = {rid: {p['Id']: p['Value'] for p in data['Parameters'] if p.get('Blend') != 'Multiply'}
+                          for rid, data in (getattr(entry, 'generated', None) or {}).items()}
+        self.defaults = {}
+        try:
+            for i in range(model.GetParameterCount()):
+                parameter = model.GetParameter(i)
+                self.defaults[parameter.id] = float(parameter.default)
+        except (AttributeError, TypeError):
+            pass
+        self.weights = {}
+        self.wanted_reactions = set()
 
     def apply(self, selection, emotion):
         from avatar.catalog import active_files
         wanted = set(active_files(self.entry, selection, emotion))
+        self.wanted_reactions = {name for name in wanted if name in self.reactions}
         for name in self.active - wanted: self.model.RemoveExpression(name)
         for name in wanted - self.active: self.model.AddExpression(name)
         self.active = wanted
@@ -74,6 +93,7 @@ class CatalogModelDriver:
         values = {aliases.get(param, param): value for param, value in pose.items()}
         for param, value in values.items():
             self.model.SetParameterValue(param, value)
+        self._blend_reactions(dt)
         ease = 1 - math.exp(-dt / BODY_FOLLOW_SECONDS)
         for source, target in (getattr(self.entry, 'body_follow', None) or {}).items():
             current = self.follow.get(target, 0.0)
@@ -82,3 +102,24 @@ class CatalogModelDriver:
             self.model.SetParameterValue(target, current)
         self.model.Update()
         self.model.Draw()
+
+    def _blend_reactions(self, dt):
+        """Write each reacted parameter as default plus the eased, weighted reaction offsets."""
+        for rid in self.wanted_reactions | set(self.weights):
+            target = 1.0 if rid in self.wanted_reactions else 0.0
+            weight = self.weights.get(rid, 0.0)
+            weight += (target - weight) * (1 - math.exp(-dt / (REACTION_IN if target else REACTION_OUT)))
+            self.weights[rid] = weight
+        touched = {}
+        for rid, weight in self.weights.items():
+            shaped = weight * weight * (3 - 2 * weight)  # Smoothstep: soft start and landing.
+            for param, value in self.reactions[rid].items():
+                base = self.defaults.get(param, 0.0)
+                touched[param] = touched.get(param, base) + shaped * (value - base)
+        for param, value in touched.items():
+            self.model.SetParameterValue(param, value)
+        for rid in [r for r, w in self.weights.items() if r not in self.wanted_reactions and w < .002]:
+            del self.weights[rid]
+            for param in self.reactions[rid]:
+                if param not in touched or all(param not in self.reactions[r] for r in self.weights):
+                    self.model.SetParameterValue(param, self.defaults.get(param, 0.0))

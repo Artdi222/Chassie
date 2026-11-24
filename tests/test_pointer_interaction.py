@@ -191,7 +191,7 @@ def test_breath_sway_settles_while_speaking():
     t=[0.]
     model=Mock();written={}
     model.SetParameterValue.side_effect=lambda k,v:written.__setitem__(k,v)
-    entry=Mock(aliases={'ParamAngleX':'AngleX','ParamAngleY':'AngleY','ParamAngleZ':'AngleZ'},body_follow={})
+    entry=Mock(aliases={'ParamAngleX':'AngleX','ParamAngleY':'AngleY','ParamAngleZ':'AngleZ'},body_follow={},generated={})
     driver=CatalogModelDriver(model,entry,clock=lambda:t[0])
     def peak(status):
         values=[]
@@ -202,3 +202,23 @@ def test_breath_sway_settles_while_speaking():
     assert idle>6 and speaking<idle*.25
 
 
+
+def test_emotion_reactions_cross_fade_instead_of_snapping():
+    from desktop.model import CatalogModelDriver
+    t=[0.]
+    model=Mock();written={}
+    model.SetParameterValue.side_effect=lambda k,v:written.__setitem__(k,v)
+    model.GetParameterCount.return_value=0
+    generated={'__chassie__/sad.exp3.json':{'Parameters':[{'Id':'Brow','Value':1.,'Blend':'Overwrite'}]},
+               '__chassie__/happy.exp3.json':{'Parameters':[{'Id':'Smile','Value':1.,'Blend':'Overwrite'}]}}
+    entry=Mock(aliases={},body_follow={},generated=generated)
+    driver=CatalogModelDriver(model,entry,clock=lambda:t[0])
+    driver.wanted_reactions={'__chassie__/sad.exp3.json'}
+    for _ in range(60): t[0]+=1/30;driver.frame(0.,{})
+    assert written['Brow']>.99
+    driver.wanted_reactions={'__chassie__/happy.exp3.json'}
+    t[0]+=1/30;driver.frame(0.,{})
+    # One frame after switching, the old reaction is still mostly there and the new one just starting.
+    assert written['Brow']>.9 and 0<written['Smile']<.1
+    for _ in range(90): t[0]+=1/30;driver.frame(0.,{})
+    assert written['Brow']==0 and written['Smile']>.99
