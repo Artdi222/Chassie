@@ -35,14 +35,30 @@ DEEPSEEK_REACTIONS = {
     'shy': {'key7':.8,'ParamMouthForm':.45,'EyeSmile':.3},
     'sleepy': {'ParamEyeLOpen':.45,'ParamEyeROpen':.45,'ParamMouthForm':.1},
     'excited': {'ParamMouthForm':1,'EyeSmile':.7,'MouthSmile_L':.8,'MouthSmile_R':.8,'ParamBrowLY':.4,'ParamBrowRY':.4,'key7':.35,'LeanInput':-15},
-    'love': {'key4':1,'key7':.8,'ParamMouthForm':.6},
+    # Heart eyes (key4) look obsessive, so love stays a soft blushing smile.
+    'love': {'key7':.8,'ParamMouthForm':.6,'EyeSmile':.45,'MouthSmile_L':.4,'MouthSmile_R':.4},
     'teasing': {'key9':1,'key6':1,'MouthSmile_L':.8,'ParamMouthForm':.4,'ParamBrowRY':.3},
     'concerned': {'BrowInnerUp':.7,'ParamBrowLAngle':.35,'ParamBrowRAngle':.35,'ParamMouthForm':-.2,'key13':.6,'LeanInput':-12},
     'defeated': {'ParamEyeLOpen':.55,'ParamEyeROpen':.55,'BrowInnerUp':.6,'ParamBrowLY':-.35,'ParamBrowRY':-.35,'ParamMouthForm':-.55,'key13':1,'key2':.5},
     'flustered': {'key7':1,'key5':1,'CheeckPuff':.6,'ParamBrowLY':.25,'ParamBrowRY':.25,'key13':.5},
     'shocked': {'key3':1,'ParamBrowLY':.9,'ParamBrowRY':.9,'ParamMouthForm':-.5,'key13':.7},
 }
+# Extra looks for frequent emotions, so the same feeling is not always the same face.
+# Saved as "<emotion>~2", "<emotion>~3"; the desktop picks one each time the emotion changes.
+DEEPSEEK_VARIANTS = {
+    'happy': [{'ParamMouthForm':.8,'EyeSmile':.95,'key9':1,'MouthSmile_L':.6,'MouthSmile_R':.6},
+              {'ParamMouthForm':.6,'EyeSmile':.4,'key7':.45,'MouthSmile_L':.5,'MouthSmile_R':.5,'LeanInput':-10}],
+    'teasing': [{'LEyeSquint':.9,'MouthSmile_L':.9,'MouthX':-.4,'ParamMouthForm':.35,'ParamBrowLY':.3},
+                {'key5':1,'key9':1,'ParamMouthForm':.6,'MouthSmile_L':.6,'MouthSmile_R':.6}],
+    'curious': [{'ParamBrowLY':.5,'ParamBrowRY':.1,'MouthX':.35,'ParamMouthForm':.1},
+                {'ParamBrowLY':.3,'ParamBrowRY':.3,'Movement3':1,'ParamMouthForm':.2}],
+    'thinking': [{'ParamBrowLY':.1,'ParamBrowRY':.3,'MouthX':-.45,'LEyeSquint':.4,'ParamMouthForm':-.05}],
+    'shy': [{'key7':1,'EyeSmile':.55,'MouthSmile_L':.3,'MouthSmile_R':.3,'ParamMouthForm':.3,'LeanInput':10}],
+    'excited': [{'ParamMouthForm':1,'key9':1,'ShockL':.3,'ShockR':.3,'ParamBrowLY':.5,'ParamBrowRY':.5,'LeanInput':-20}],
+    'love': [{'key7':1,'EyeSmile':.8,'ParamMouthForm':.45,'LeanInput':-12}],
+}
 MODEL_REACTIONS={'Model_4':REACTIONS,'DeepSeek':DEEPSEEK_REACTIONS}
+MODEL_VARIANTS={'DeepSeek':DEEPSEEK_VARIANTS}
 ALIASES={}
 
 
@@ -50,19 +66,29 @@ ALIASES={}
 FALLBACKS={'waiting':'thinking'}
 
 
-def expression_id(emotion, generated=None):
-    """Reaction file for an emotion; with the model's generated table, fall back when missing."""
+def expression_id(emotion, generated=None, variant=0):
+    """Reaction file for an emotion; with the model's generated table, fall back when missing.
+
+    variant n>0 picks "<emotion>~<n+1>" when the model has that many looks, else the base look.
+    """
     name=ALIASES.get(emotion,emotion)
     if generated is not None and f'__chassie__/{name}.exp3.json' not in generated:
         name=FALLBACKS.get(name,name)
-    return f'__chassie__/{name}.exp3.json' if any(name in table for table in MODEL_REACTIONS.values()) else None
+    if name not in {key for table in MODEL_REACTIONS.values() for key in table}: return None
+    if generated is not None and variant:
+        looks=[f'__chassie__/{name}.exp3.json']+sorted(k for k in generated if k.startswith(f'__chassie__/{name}~'))
+        return looks[variant%len(looks)]
+    return f'__chassie__/{name}.exp3.json'
 
 
 def generated_reactions(parameter_ids, model_id='Model_4'):
     """Empty for packages without a reaction table: their own expressions stay manual."""
     result={}
-    for name,values in MODEL_REACTIONS.get(model_id,{}).items():
-        result[expression_id(name)]={'Type':'Live2D Expression','FadeInTime':.25,'FadeOutTime':.2,
+    tables=[(f'__chassie__/{name}.exp3.json',values) for name,values in MODEL_REACTIONS.get(model_id,{}).items()]
+    tables+=[(f'__chassie__/{name}~{index}.exp3.json',values)
+             for name,looks in MODEL_VARIANTS.get(model_id,{}).items() for index,values in enumerate(looks,2)]
+    for key,values in tables:
+        result[key]={'Type':'Live2D Expression','FadeInTime':.25,'FadeOutTime':.2,
             'Parameters':[{'Id':key,'Value':value,'Blend':'Multiply' if key in ('ParamEyeLOpen','ParamEyeROpen') else 'Overwrite'}
                           for key,value in values.items() if key in parameter_ids]}
     return result

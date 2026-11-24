@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 import ipaddress
 import math
+import random
 from urllib.parse import urlsplit
 
 from emotion_parser import VALID_EMOTIONS
@@ -67,6 +68,7 @@ def validate_endpoint(endpoint: str) -> str:
 @dataclass
 class OverlayState:
     emotion: str = 'neutral'
+    variant: int = 0  # Which look of the emotion to show, when the model has several.
     mouth: float = 0.0
     generation: int = -1
     updated_at: float = 0.0
@@ -87,6 +89,9 @@ class OverlayState:
                 or message.get('emotion') not in VALID_EMOTIONS):
             return False
         self.generation = generation
+        if message['emotion'] != self.emotion:
+            # A fresh look each time the feeling changes; steady while it stays the same.
+            self.variant = random.randrange(1000)
         self.emotion = message['emotion']
         self.mouth = max(0.0, min(1.0, mouth))
         self.status = str(message.get('status', 'idle'))

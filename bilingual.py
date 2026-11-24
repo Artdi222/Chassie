@@ -38,6 +38,11 @@ The {language} value is the matching {name} translation (maximum 700 characters)
 second answer. Keep names and facts consistent. Use plain text, no markdown or tags
 inside either value. Use 1-3 pairs for ordinary conversation. Choose emotion from:
 {', '.join(sorted(VALID_EMOTIONS))}.
+The avatar's face and the voice's tone follow each pair's emotion, so pick the one that fits
+that sentence and let it shift as the feeling moves (e.g. surprised, then excited, then
+teasing). Use the whole range when it fits (concerned, sad, flustered, shocked, sleepy,
+defeated, angry, excited, surprised), not only happy and teasing; neutral is fine for plain
+facts. Keep love for genuinely tender moments.
 Example:
 {{"emotion":"happy","ja":"こんにちは！今日は何を話しましょうか？","{language}":"{EXAMPLES[language]}"}}
 Actions: only when the user explicitly asks you in this message to remember or forget

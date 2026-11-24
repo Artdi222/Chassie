@@ -61,9 +61,9 @@ class CatalogModelDriver:
         self.weights = {}
         self.wanted_reactions = set()
 
-    def apply(self, selection, emotion):
+    def apply(self, selection, emotion, variant=0):
         from avatar.catalog import active_files
-        wanted = set(active_files(self.entry, selection, emotion))
+        wanted = set(active_files(self.entry, selection, emotion, variant))
         self.wanted_reactions = {name for name in wanted if name in self.reactions}
         for name in self.active - wanted: self.model.RemoveExpression(name)
         for name in wanted - self.active: self.model.AddExpression(name)

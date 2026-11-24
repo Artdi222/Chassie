@@ -223,9 +223,9 @@ class ModelSelection:
         return {'type': 'model_state', 'revision': self.revision, **self.state}
 
 
-def active_files(entry, selection, emotion='neutral'):
+def active_files(entry, selection, emotion='neutral', variant=0):
     names = [selection.get('outfit'), selection.get('prop'), *selection.get('accessories', []), *selection.get('effects', [])]
     if not selection.get('auto', True):
         names.append(selection.get('expression'))
-    elif entry.generated:names.append(expression_id(emotion,entry.generated))
+    elif entry.generated:names.append(expression_id(emotion,entry.generated,variant))
     return [x for x in names if x]

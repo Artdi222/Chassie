@@ -100,7 +100,7 @@ def test_default_selection_prefers_tian_muzi(tmp_path):
 def test_local_deepseek_package_reacts_automatically(tmp_path):
     entry=ModelCatalog().get('DeepSeek')
     assert entry.public()['name']=='DeepSeek-chan' and entry.public()['mouth']
-    assert len(entry.generated)==16
+    assert len(entry.generated)==16+10  # 16 reactions plus extra looks
     for value in entry.generated.values():
         assert value['Parameters'] and all(p['Id'] in entry.parameter_ids for p in value['Parameters'])
     assert active_files(entry,{'auto':True},'love')==['__chassie__/love.exp3.json']
@@ -115,3 +115,12 @@ def test_waiting_falls_back_to_thinking_for_models_without_it():
     table=generated_reactions({'ParamMouthForm','ParamBrowLY'},'Model_4')
     assert expression_id('waiting',table)=='__chassie__/thinking.exp3.json'
 
+
+def test_variants_rotate_looks_and_love_never_uses_heart_eyes():
+    from avatar.reactions import expression_id, generated_reactions, DEEPSEEK_REACTIONS, DEEPSEEK_VARIANTS
+    ids={'ParamMouthForm','EyeSmile','key9','key7','MouthSmile_L','MouthSmile_R','LeanInput'}
+    table=generated_reactions(ids,'DeepSeek')
+    looks={expression_id('happy',table,v) for v in range(6)}
+    assert looks=={'__chassie__/happy.exp3.json','__chassie__/happy~2.exp3.json','__chassie__/happy~3.exp3.json'}
+    assert expression_id('sad',table,5)=='__chassie__/sad.exp3.json'  # No extra looks: base only.
+    assert 'key4' not in DEEPSEEK_REACTIONS['love'] and all('key4' not in v for v in DEEPSEEK_VARIANTS['love'])
