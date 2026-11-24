@@ -142,7 +142,30 @@ def test_vts_style_rig_gets_pose_gaze_and_headpat_through_its_tracking_inputs(tm
     PointerInteraction(Model(),['head'],tmp_path,aliases)
     ids={p['Id'] for p in written['headpat']['Parameters']}
     assert {'AngleY','AngleZ','EyeSmile','ParamMouthForm'}<=ids and 'ParamAngleY' not in ids
-    driver=CatalogModelDriver(Model(),SimpleNamespace(aliases=aliases))
+    driver=CatalogModelDriver(Model(),SimpleNamespace(aliases=aliases),clock=lambda:0.)
     driver.frame(0.,{'ParamAngleX':1.,'ParamAngleZ':-7.},look=(.5,-.5))
     assert written['AngleX']==16. and written['AngleY']==-15. and written['AngleZ']==-7.
     assert 'ParamAngleZ' not in written
+
+
+def test_physics_driven_rig_breathes_and_its_body_trails_the_head():
+    from types import SimpleNamespace
+    from desktop.model import CatalogModelDriver
+    written={}
+    model=SimpleNamespace(SetParameterValue=lambda p,v:written.__setitem__(p,v),Update=lambda:None,Draw=lambda:None)
+    entry=SimpleNamespace(aliases={'ParamAngleX':'AngleX','ParamAngleY':'AngleY','ParamAngleZ':'AngleZ'},
+                          body_follow={'AngleX':'PositionX'})
+    t=[6.5345/4]  # Quarter of the X breathing cycle: full sway.
+    driver=CatalogModelDriver(model,entry,clock=lambda:t[0])
+    driver.frame(0.,{})
+    assert abs(written['AngleX']-7.5)<1e-6
+    assert 0<written['PositionX']<written['AngleX']  # Smoothed: the body lags the head.
+    for _ in range(60):
+        driver.frame(0.,{})  # Same instant, dt clamps to 0 -> no further easing.
+    plain=SimpleNamespace(aliases={},body_follow={})
+    written.clear();CatalogModelDriver(model,plain,clock=lambda:t[0]).frame(0.,{'ParamAngleX':2.})
+    assert written=={'ParamMouthOpenY':0.,'ParamAngleX':2.}  # Tian Muzi path unchanged.
+
+
+
+

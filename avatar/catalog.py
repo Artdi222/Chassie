@@ -13,6 +13,9 @@ ROOT = Path(__file__).resolve().parents[1] / 'model'
 # standard ParamAngle*; writing ParamAngle* directly is overwritten every frame.
 PARAM_ALIASES = {'DeepSeek': {'ParamAngleX': 'AngleX', 'ParamAngleY': 'AngleY', 'ParamAngleZ': 'AngleZ',
                               'ParamEyeLSmile': 'EyeSmile', 'ParamEyeRSmile': 'EyeSmile'}}
+# VTS feeds these rigs' body physics from the face angles with smoothing (FaceAngle ->
+# Position*), so the torso, hips and hair follow the head instead of standing still.
+BODY_FOLLOW = {'DeepSeek': {'AngleX': 'PositionX', 'AngleY': 'PositionY', 'AngleZ': 'PositionZ'}}
 DEFAULT_MODEL = 'Model_4'  # Tian Muzi stays the default; other local packages are opt-in
 NAMES = {'Model_4': 'Tian Muzi', 'DeepSeek': 'DeepSeek-chan'}
 LABELS = {
@@ -83,6 +86,8 @@ class ModelEntry:
             label, kind = LABELS.get(stem, (stem.replace('_', ' '), 'effect' if stem.startswith('fx_') else 'expression'))
             self.expressions.append({'id': relative, 'name': label, 'original': stem, 'kind': kind, 'parameters': params})
         self.aliases={k:v for k,v in PARAM_ALIASES.get(self.id,{}).items() if v in self.parameter_ids}
+        self.body_follow={k:v for k,v in BODY_FOLLOW.get(self.id,{}).items()
+                          if k in self.parameter_ids and v in self.parameter_ids}
         self.generated=generated_reactions(self.parameter_ids,self.id)
         if self.generated:
             self.expressions.extend({'id':key,'name':Path(key).name.split('.')[0].title(),
