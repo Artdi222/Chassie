@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!avatar || !s || !m || studio.modelId !== m.id) return;
         let ids=[s.outfit,s.prop,...s.accessories,...s.effects];
         if (!s.auto) ids.push(s.expression);
-        else if(m.id==='Model_4') {
+        else if(m.expressions.some(x=>x.generated)) {
             const aliases={};
             const mood={thinking:'thinking',listening:'curious',idle:'neutral',disconnected:'neutral'}[avatarEvent.status] || avatarEvent.emotion;
             ids.push(...m.expressions.filter(x=>x.generated && x.original===(aliases[mood]||mood)).map(x=>x.id));

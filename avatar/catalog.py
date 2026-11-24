@@ -9,7 +9,12 @@ from .interaction import interaction_settings
 from .reactions import generated_reactions, expression_id
 
 ROOT = Path(__file__).resolve().parents[1] / 'model'
-NAMES = {'Model_4': 'Tian Muzi'}
+# VTube Studio-style rigs take face tracking on custom inputs and let physics drive the
+# standard ParamAngle*; writing ParamAngle* directly is overwritten every frame.
+PARAM_ALIASES = {'DeepSeek': {'ParamAngleX': 'AngleX', 'ParamAngleY': 'AngleY', 'ParamAngleZ': 'AngleZ',
+                              'ParamEyeLSmile': 'EyeSmile', 'ParamEyeRSmile': 'EyeSmile'}}
+DEFAULT_MODEL = 'Model_4'  # Tian Muzi stays the default; other local packages are opt-in
+NAMES = {'Model_4': 'Tian Muzi', 'DeepSeek': 'DeepSeek-chan'}
 LABELS = {
     '1 帽': ('Hat', 'accessory'), '2 手机': ('Phone', 'prop'),
     '3 麦克': ('Microphone', 'prop'), '4 手柄': ('Controller', 'prop'),
@@ -29,6 +34,15 @@ LABELS = {
     'highlight_onoff': ('Eye highlights', 'expression'),
     'costume_v0000': ('Outfit v0000', 'outfit'), 'costume_v0052': ('Outfit v0052', 'outfit'),
     'costume_v0101': ('Outfit v0101', 'outfit'),
+    # DeepSeek-chan
+    '体型1': ('Body size 1', 'outfit'), '体型2': ('Body size 2', 'outfit'), '默认体型': ('Default body', 'outfit'),
+    '兔牙': ('Fang', 'expression'), '前倾': ('Lean forward', 'prop'), '加载': ('Loading', 'effect'),
+    '单片眼镜': ('Monocle', 'accessory'), '圈圈眼': ('Swirl eyes', 'expression'), '尾巴开关': ('Tail', 'accessory'),
+    '屑屑眼': ('Smug eyes', 'expression'), '流冷汗': ('Cold sweat', 'expression'), '流泪': ('Tears', 'expression'),
+    '竖食指关': ('Finger down', 'prop'), '竖食指开': ('Finger up', 'prop'), '胸口衣服': ('Chest cloth', 'accessory'),
+    '脱鞋': ('Shoes off', 'accessory'), '脸红': ('Blush', 'expression'), '裙子切换': ('Skirt switch', 'accessory'),
+    '钢盆': ('Steel basin', 'prop'), '黑框眼镜': ('Black glasses', 'accessory'), '黑脸': ('Dark face', 'expression'),
+    '＞＜': ('> < eyes', 'expression'), '爱心眼': ('Heart eyes', 'expression'),
 }
 
 
@@ -68,8 +82,9 @@ class ModelEntry:
             stem = file.name.removesuffix('.exp3.json')
             label, kind = LABELS.get(stem, (stem.replace('_', ' '), 'effect' if stem.startswith('fx_') else 'expression'))
             self.expressions.append({'id': relative, 'name': label, 'original': stem, 'kind': kind, 'parameters': params})
-        if self.id=='Model_4':
-            self.generated=generated_reactions(self.parameter_ids)
+        self.aliases={k:v for k,v in PARAM_ALIASES.get(self.id,{}).items() if v in self.parameter_ids}
+        self.generated=generated_reactions(self.parameter_ids,self.id)
+        if self.generated:
             self.expressions.extend({'id':key,'name':Path(key).name.split('.')[0].title(),
                 'original':Path(key).name.split('.')[0],'kind':'expression','generated':True,
                 'parameters':value['Parameters']} for key,value in self.generated.items())
@@ -105,7 +120,8 @@ class ModelEntry:
         return {'id': self.id, 'name': NAMES.get(self.id, self.id), 'source_name': self.path.stem.removesuffix('.model3'),
                 'url': f'/api/models/{self.id}/model.json',
                 'expressions': self.expressions, 'texture_count': len(self.data['FileReferences']['Textures']),
-                'mouth': 'ParamMouthOpenY' in self.parameter_ids, 'head_parts': self.head_parts}
+                'mouth': 'ParamMouthOpenY' in self.parameter_ids, 'head_parts': self.head_parts,
+                'aliases': self.aliases}
 
 
 class ModelCatalog:
@@ -144,7 +160,8 @@ class ModelSelection:
         self.catalog, self.path = catalog, Path(path) if path else None
         self.revision = 0
         self._interactions={}
-        self.state = {'model_id': next(iter(catalog.models), None), 'expression': None, 'outfit': None,
+        default=DEFAULT_MODEL if DEFAULT_MODEL in catalog.models else next(iter(catalog.models), None)
+        self.state = {'model_id': default, 'expression': None, 'outfit': None,
                       'accessories': [], 'prop': None, 'effects': [], 'auto': True, 'mouth_preview': 0.0,
                       'interaction':interaction_settings()}
         if self.path and self.path.is_file():
@@ -205,5 +222,5 @@ def active_files(entry, selection, emotion='neutral'):
     names = [selection.get('outfit'), selection.get('prop'), *selection.get('accessories', []), *selection.get('effects', [])]
     if not selection.get('auto', True):
         names.append(selection.get('expression'))
-    elif entry.id=='Model_4':names.append(expression_id(emotion))
+    elif entry.generated:names.append(expression_id(emotion))
     return [x for x in names if x]

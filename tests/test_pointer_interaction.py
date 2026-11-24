@@ -1,3 +1,4 @@
+import json
 from unittest.mock import Mock
 import pytest
 from desktop.pointer import GAZE_RADIUS, HEADPAT_ID, PointerInteraction
@@ -125,3 +126,23 @@ def test_hair_halo_can_start_a_pat_but_a_brief_pass_cannot(tmp_path):
     interaction.update(150,300,300,500,ratio=2,now=2.05)
     interaction.update(150,300,300,500,ratio=2,now=2.2)
     assert not interaction.headpat
+
+
+def test_vts_style_rig_gets_pose_gaze_and_headpat_through_its_tracking_inputs(tmp_path):
+    from types import SimpleNamespace
+    from desktop.model import CatalogModelDriver
+    written={}
+    class Model:
+        def GetParamIds(self):return ['ParamAngleX','ParamAngleY','AngleX','AngleY','AngleZ','EyeSmile','ParamMouthForm']
+        def LoadExtraExpression(self,name,path):written['headpat']=json.loads(open(path).read())
+        def SetParameterValue(self,param,value):written[param]=value
+        def Update(self):pass
+        def Draw(self):pass
+    aliases={'ParamAngleX':'AngleX','ParamAngleY':'AngleY','ParamAngleZ':'AngleZ','ParamEyeLSmile':'EyeSmile','ParamEyeRSmile':'EyeSmile'}
+    PointerInteraction(Model(),['head'],tmp_path,aliases)
+    ids={p['Id'] for p in written['headpat']['Parameters']}
+    assert {'AngleY','AngleZ','EyeSmile','ParamMouthForm'}<=ids and 'ParamAngleY' not in ids
+    driver=CatalogModelDriver(Model(),SimpleNamespace(aliases=aliases))
+    driver.frame(0.,{'ParamAngleX':1.,'ParamAngleZ':-7.},look=(.5,-.5))
+    assert written['AngleX']==16. and written['AngleY']==-15. and written['AngleZ']==-7.
+    assert 'ParamAngleZ' not in written

@@ -85,6 +85,9 @@ class OverlayState:
         self.status, self.mic_enabled, self.gaze = 'disconnected', None, None
 
 
+MODEL_FRAMING = {'DeepSeek': (2.4, -1.25)}
+
+
 @dataclass(frozen=True)
 class Framing:
     """Model framing, independent of the desktop window's position and size."""
@@ -93,7 +96,8 @@ class Framing:
 
     @classmethod
     def for_model(cls, model_id):
-        return cls(2.4, -1.65)
+        # DeepSeek-chan's canvas has more headroom above her head than Tian Muzi's.
+        return cls(*MODEL_FRAMING.get(model_id, (2.4, -1.65)))
 
     def adjust(self, zoom: float = 0, vertical: float = 0):
         return Framing(max(1.0, min(4.0, self.zoom + zoom)),

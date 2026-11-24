@@ -15,7 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description='Render the real model, capture its own framebuffer and exit')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--emotion', default='happy')
-    parser.add_argument('--model-id', choices=['Model_4'], default='Model_4')
+    parser.add_argument('--model-id', default='Model_4')
     parser.add_argument('--exercise-controls', action='store_true')
     parser.add_argument('--endpoint', default='ws://127.0.0.1:9/ws', help='Optional local test server for controls')
     parser.add_argument('--expect-emotion', help='Fail unless the final rendered state matches this emotion')

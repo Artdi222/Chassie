@@ -1,4 +1,4 @@
-"""Subtle model-four reactions using only its actual Cubism parameters."""
+"""Subtle per-model reactions using only each package's actual Cubism parameters."""
 REACTIONS = {
     'happy': {'ParamMouthForm':.75,'ParamEyeLSmile':.45,'ParamEyeRSmile':.45,'ParamCheek':.25},
     'sad': {'ParamMouthForm':-.4,'ParamBrowLForm':-.45,'ParamBrowRForm':-.45,'ParamBrowLY':-.2,'ParamBrowRY':-.2},
@@ -19,6 +19,27 @@ REACTIONS = {
     # Param49 is the package's wide-eyed stare.
     'shocked': {'Param49':1,'ParamBrowLY':.9,'ParamBrowRY':.9,'ParamMouthForm':-.5},
 }
+# DeepSeek-chan (VBridger/ARKit rig): no ParamCheek/EyeSmile pair or brow form, but it ships
+# toggles: key1 dark face, key2 tears, key4 heart eyes, key5 >< eyes, key7 blush, key9 fang,
+# key13 cold sweat. Its Param46/48/49 are grass physics, so Tian Muzi's table must not apply.
+DEEPSEEK_REACTIONS = {
+    'happy': {'ParamMouthForm':.7,'EyeSmile':.6,'MouthSmile_L':.5,'MouthSmile_R':.5},
+    'sad': {'ParamMouthForm':-.4,'BrowInnerUp':.7,'ParamBrowLY':-.2,'ParamBrowRY':-.2},
+    'thinking': {'ParamBrowLY':.2,'ParamBrowRY':-.15,'ParamMouthForm':.1,'MouthX':.3},
+    'curious': {'ParamBrowLY':.35,'ParamBrowRY':.35,'ParamMouthForm':.25},
+    'surprised': {'ParamBrowLY':.65,'ParamBrowRY':.65,'ShockL':.5,'ShockR':.5,'ParamMouthForm':-.2},
+    'angry': {'ParamBrowLAngle':-.65,'ParamBrowRAngle':-.65,'ParamBrowLY':-.25,'ParamBrowRY':-.25,'ParamMouthForm':-.35,'key1':.6},
+    'shy': {'key7':.8,'ParamMouthForm':.45,'EyeSmile':.3},
+    'sleepy': {'ParamEyeLOpen':.45,'ParamEyeROpen':.45,'ParamMouthForm':.1},
+    'excited': {'ParamMouthForm':1,'EyeSmile':.7,'MouthSmile_L':.8,'MouthSmile_R':.8,'ParamBrowLY':.4,'ParamBrowRY':.4,'key7':.35},
+    'love': {'key4':1,'key7':.8,'ParamMouthForm':.6},
+    'teasing': {'key9':1,'MouthSmile_L':.8,'ParamMouthForm':.4,'LEyeSquint':.55,'ParamBrowRY':.3},
+    'concerned': {'BrowInnerUp':.7,'ParamBrowLAngle':.35,'ParamBrowRAngle':.35,'ParamMouthForm':-.2,'key13':.6},
+    'defeated': {'ParamEyeLOpen':.55,'ParamEyeROpen':.55,'BrowInnerUp':.6,'ParamBrowLY':-.35,'ParamBrowRY':-.35,'ParamMouthForm':-.55,'key13':1},
+    'flustered': {'key7':1,'key5':1,'CheeckPuff':.6,'ParamBrowLY':.25,'ParamBrowRY':.25},
+    'shocked': {'ShockL':1,'ShockR':1,'ParamBrowLY':.9,'ParamBrowRY':.9,'ParamMouthForm':-.5,'key13':.7},
+}
+MODEL_REACTIONS={'Model_4':REACTIONS,'DeepSeek':DEEPSEEK_REACTIONS}
 ALIASES={}
 
 
@@ -27,9 +48,10 @@ def expression_id(emotion):
     return f'__chassie__/{name}.exp3.json' if name in REACTIONS else None
 
 
-def generated_reactions(parameter_ids):
+def generated_reactions(parameter_ids, model_id='Model_4'):
+    """Empty for packages without a reaction table: their own expressions stay manual."""
     result={}
-    for name,values in REACTIONS.items():
+    for name,values in MODEL_REACTIONS.get(model_id,{}).items():
         result[expression_id(name)]={'Type':'Live2D Expression','FadeInTime':.25,'FadeOutTime':.2,
             'Parameters':[{'Id':key,'Value':value,'Blend':'Multiply' if key in ('ParamEyeLOpen','ParamEyeROpen') else 'Overwrite'}
                           for key,value in values.items() if key in parameter_ids]}

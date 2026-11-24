@@ -12,7 +12,7 @@ from test_orchestrator import app
 def test_available_models_exclude_removed_model_and_model_four_assets_are_valid(tmp_path):
     catalog=ModelCatalog()
     assert not catalog.errors
-    assert set(catalog.models)=={'Model_4'}
+    assert 'Model_4' in catalog.models and 'Model_3' not in catalog.models
     assert catalog.get('Model_4').public()['name']=='Tian Muzi'
     assert len(catalog.get('Model_4').expressions)==15
     with pytest.raises(ValueError):catalog.get('Model_3')
@@ -52,7 +52,7 @@ async def test_model_routes_only_serve_catalogued_renderer_assets(app):
     try:
         async with ClientSession() as client:
             async with client.get(url+'/api/models') as response:
-                assert {m['id'] for m in (await response.json())['models']}=={'Model_4'}
+                assert {m['id'] for m in (await response.json())['models']}==set(app._model_selection.catalog.models) >= {'Model_4'}
             async with client.get(url+'/api/models/Model_3/model.json') as response:
                 assert response.status==404
             async with client.get(url+'/api/models/Model_4/model.json') as response:
@@ -76,3 +76,33 @@ def test_interaction_preferences_persist_per_model_and_validate_atomically(tmp_p
     for invalid in ({'gaze_radius':401},{'follow_speed':float('nan')},{'headpat_enabled':'true'}):
         with pytest.raises(ValueError):selection.change({'model_id':'Model_4','interaction':invalid})
         assert path.read_bytes()==before
+
+
+def test_reaction_tables_are_per_model_and_only_use_real_parameters():
+    from avatar.reactions import generated_reactions, MODEL_REACTIONS, DEEPSEEK_REACTIONS
+    from emotion_parser import VALID_EMOTIONS
+    for table in MODEL_REACTIONS.values():
+        assert set(table)==VALID_EMOTIONS-{'neutral'}
+    # DeepSeek-chan's Param46/48/49 are grass physics, never facial reactions.
+    assert not {'Param46','Param48','Param49'}&{k for v in DEEPSEEK_REACTIONS.values() for k in v}
+    assert generated_reactions({'ParamMouthForm'},'Unknown')=={}
+    happy=generated_reactions({'ParamMouthForm','EyeSmile'},'DeepSeek')['__chassie__/happy.exp3.json']
+    assert {p['Id'] for p in happy['Parameters']}=={'ParamMouthForm','EyeSmile'}
+
+
+def test_default_selection_prefers_tian_muzi(tmp_path):
+    c=ModelCatalog()
+    assert ModelSelection(c,tmp_path/'none.json').state['model_id']=='Model_4'
+
+
+@pytest.mark.skipif('DeepSeek' not in ModelCatalog().models, reason='optional local DeepSeek-chan package')
+def test_local_deepseek_package_reacts_automatically(tmp_path):
+    entry=ModelCatalog().get('DeepSeek')
+    assert entry.public()['name']=='DeepSeek-chan' and entry.public()['mouth']
+    assert len(entry.generated)==15
+    for value in entry.generated.values():
+        assert value['Parameters'] and all(p['Id'] in entry.parameter_ids for p in value['Parameters'])
+    assert active_files(entry,{'auto':True},'love')==['__chassie__/love.exp3.json']
+    native=prepare_entry(entry,tmp_path)
+    refs=json.loads(native.read_text())['FileReferences']
+    assert all((native.parent/e['File']).is_file() for e in refs['Expressions'])

@@ -14,3 +14,6 @@ __pycache__/
 .pytest_cache/
 .test-artifacts/
 vts_token.json
+
+# DeepSeek-chan: free model, redistribution not allowed (see model/DeepSeek/TERMS.txt)
+model/DeepSeek/

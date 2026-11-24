@@ -13,17 +13,21 @@ HEADPAT = {'ParamAngleX':0, 'ParamAngleY':-10, 'ParamAngleZ':3,
 
 
 class PointerInteraction:
-    def __init__(self,model,head_parts,cache_dir):
+    def __init__(self,model,head_parts,cache_dir,aliases=None):
         self.model=model; self.head_parts=set(head_parts)
+        self.look=(0.,0.)  # Normalised gaze for rigs whose physics overrides Drag().
         self.hover_since=None; self.headpat=False
         self.leave_since=None; self.anchor=None
         self.last=None; self.amount=0.; self.gaze=(0.,0.)
         self.radius=GAZE_RADIUS;self.samples=GAZE_SAMPLES
         available=set(model.GetParamIds())
+        aliases=aliases or {}
+        values={}
+        for key,value in HEADPAT.items():values.setdefault(aliases.get(key,key),value)
         path=cache_dir/'chassie-headpat.exp3.json'
         path.write_text(json.dumps({'Type':'Live2D Expression','FadeInTime':.24,'FadeOutTime':.28,
             'Parameters':[{'Id':key,'Value':value,'Blend':'Overwrite'}
-                          for key,value in HEADPAT.items() if key in available]}))
+                          for key,value in values.items() if key in available]}))
         model.LoadExtraExpression(HEADPAT_ID,str(path))
 
     def update(self,x,y,width,height,*,ratio=1,now,dragging=False,enabled=True,settings=None,look=None):
@@ -87,6 +91,8 @@ class PointerInteraction:
         if not self.tracking and max(abs(v) for v in self.gaze)<.01:
             self.gaze=(0.,0.)
         self.model.Drag((width/2+self.gaze[0])*ratio,(height/2+self.gaze[1])*ratio)
+        clamp=lambda v:max(-1.,min(1.,v))
+        self.look=(clamp(self.gaze[0]/(width/2)) if width else 0.,clamp(-self.gaze[1]/(height/2)) if height else 0.)
         if active!=self.headpat:
             if active:self.model.AddExpression(HEADPAT_ID)
             else:self.model.RemoveExpression(HEADPAT_ID)

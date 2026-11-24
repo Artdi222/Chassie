@@ -75,7 +75,8 @@ class AvatarWindow(QOpenGLWidget):
             self.driver = CatalogModelDriver(self.model,self.entry)
             self.head_motion = HeadMotion(self.model.GetParamIds())
             if self.entry:
-                self.pointer_interaction=PointerInteraction(self.model,self.entry.head_parts,self.model_path.parent)
+                self.pointer_interaction=PointerInteraction(self.model,self.entry.head_parts,self.model_path.parent,
+                                                            getattr(self.entry,'aliases',None))
             self.loaded_expressions = tuple(self.model.GetExpressionIds())
             self.context().aboutToBeDestroyed.connect(self.cleanup)
             self.resizeGL(self.width(), self.height())
@@ -96,7 +97,7 @@ class AvatarWindow(QOpenGLWidget):
             live2d.clearBuffer(0.0, 0.0, 0.0, 0.0)
             if self.entry:
                 emotion=self.state.emotion
-                if self.entry.id=='Model_4':
+                if self.entry.generated:
                     emotion={'thinking':'thinking','listening':'curious','idle':'neutral','disconnected':'neutral'}.get(self.state.status,emotion)
                 self.driver.apply(self.selection,emotion)
             self.model.SetScale(self.framing.zoom)
@@ -108,7 +109,8 @@ class AvatarWindow(QOpenGLWidget):
                     settings=self.selection.get('interaction'),look=self.state.gaze)
             now=time.monotonic()
             self.driver.frame(max(self.state.mouth_at(now),self.selection.get('mouth_preview',0)),
-                              self.head_motion.step(self.state.status,now))
+                              self.head_motion.step(self.state.status,now),
+                              self.pointer_interaction.look if self.pointer_interaction else None)
             if not self.renderer_ready:
                 self.renderer_ready = True
                 self.readiness_changed.emit(True)
