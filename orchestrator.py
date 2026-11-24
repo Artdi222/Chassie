@@ -270,7 +270,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             payload['vision_on_request']={'camera_enabled':self._vision.camera_enabled is True,
                 'screen_enabled':self._vision.screen_enabled is True,'note':
                 ('No new snapshot is attached to this message. The screen is attached automatically '
-                 'whenever it changes; a camera snapshot is attached when the user asks, e.g. "liat aku". '
+                 'whenever it changes; the camera is attached only when the user asks, e.g. "liat aku", '
+                 'so unless a webcam photo is attached you cannot see the owner. '
                  'Never claim you have no camera or cannot see the screen.')
                 if getattr(self._vision,'screen_always',False) is True else
                 'No snapshot is attached to this message, but Chassie can look. A camera or screen '
