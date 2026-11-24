@@ -17,3 +17,8 @@ vts_token.json
 
 # DeepSeek-chan: free model, redistribution not allowed (see model/DeepSeek/TERMS.txt)
 model/DeepSeek/
+
+# Original model archives: the extracted files are what Chassie loads (GitHub limit is 100 MB)
+model/*/*.zip
+# Licensed model download that must not be redistributed
+/DeepSeek-chan*.zip
