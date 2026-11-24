@@ -409,7 +409,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
     async def _route(self,sentence,text,put):
         """Send one parsed line where it belongs: memory, action, silence, or speech."""
         kind=sentence[0]
-        if kind=='memory': self._turn_memories.append(sentence[1])
+        if kind=='memory': self._turn_memories.append((sentence[1],sentence[2] if len(sentence)>2 else {}))
         elif kind=='action': await self._run_model_action(text,*sentence[1:])
         elif kind=='skip': self._turn_skipped=True
         else: await put(sentence)
@@ -711,9 +711,11 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         if not (memories and self._automatic_memory and self._vault): return
         if self._session_context.context_for_request(self._memory).scope!='personal': return
         saved=0
-        for content in memories[:3]:
+        for content,extras in memories[:3]:
             try:
-                result=await asyncio.to_thread(self._vault.call,'remember',content,session='chassie')
+                # Title and category shape the Obsidian note; the plugin guesses them when absent.
+                result=await asyncio.to_thread(self._vault.call,'remember',content,session='chassie',
+                                               title=extras.get('title'),category=extras.get('category'))
                 saved+=bool(result.get('saved'))
             except (ValueError,AttributeError) as exc:
                 logger.warning('Memory not saved: %s',exc)

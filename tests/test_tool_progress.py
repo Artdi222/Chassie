@@ -96,3 +96,11 @@ def test_model_memory_lines_are_parsed_hidden_and_validated():
     assert 'coffee' not in display_translation(memory + '\n' + pair)
     with pytest.raises(ValueError):
         BilingualChunker('en').feed('{"memory":"short"}\n')
+
+
+
+def test_memory_line_may_carry_a_title_and_category():
+    from bilingual import BilingualChunker
+    line = '{"memory":"Artdi suka kopi tanpa gula.","title":"Kopi tanpa gula","category":"people"}\n'
+    assert BilingualChunker('en').feed(line) == [
+        ('memory', 'Artdi suka kopi tanpa gula.', {'title': 'Kopi tanpa gula', 'category': 'people'})]

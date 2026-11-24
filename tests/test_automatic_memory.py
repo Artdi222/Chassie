@@ -27,11 +27,17 @@ def test_vault_uses_hermes_notes_and_rejects_handwritten_mutations(tmp_path):
     with pytest.raises(ValueError):store.delete(manual['id'])
     saved=store.add('I prefer concise and clear explanations.')
     managed=next(row for row in store.list() if row['editable'])
-    assert managed['source']==f"_generated/chassie/{saved['id']}.md"
+    # Saved as a readable note in its taxonomy folder, listed in the generated overview.
+    assert managed['source']==saved['source_file'] and managed['source'].startswith('_generated/chassie/People/')
+    note=(vault/managed['source']).read_text()
+    assert note.startswith('---\nid: '+saved['id']) and '\n# ' in note and '[[Artdi]]' in note
+    assert managed['content']=='I prefer concise and clear explanations.'
+    assert Path(managed['source']).stem in (vault/'_generated/chassie/Memories.md').read_text()
     updated=store.update(managed['id'],'I prefer short explanations in Indonesian.')
     assert len([r for r in store.list() if r['editable']])==1
     store.delete(updated['id'])
     assert not any(r['editable'] for r in store.list())
+    assert '[[' not in (vault/'_generated/chassie/Memories.md').read_text()
     assert (vault/'handwritten.md').is_file()
 
 

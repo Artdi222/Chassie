@@ -1,6 +1,7 @@
 """Use the same vault/index as Hermes, without a second memory database."""
 import importlib.util
 import json
+import re
 import sqlite3
 from pathlib import Path
 
@@ -35,7 +36,8 @@ class VaultMemory:
         except (OSError,sqlite3.Error) as exc:raise ValueError('Vault operation could not finish. Check the vault and try again.') from exc
 
     def list(self):
-        return [{'id':row['id'],'content':row['content'],'source':row['path'],
+        # A saved memory note starts with its "# title"; the panel shows only the fact.
+        return [{'id':row['id'],'content':re.sub(r'\A(?:\[Note date: [^\]]*\]\n)?#\s[^\n]*\n+','',row['content']) if row['path'].startswith('_generated/chassie/') else row['content'],'source':row['path'],
                  'editable':row['path'].startswith('_generated/chassie/')} for row in self.call('list',100)]
 
     def add(self,text):return self.call('remember',text,session='chassie-memory-panel')

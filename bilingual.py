@@ -73,8 +73,12 @@ and nothing else. Never mention the initiative message or that you were prompted
 Memory: you decide what is worth remembering about the user long term, the way a close
 friend would: preferences, people in their life, plans, routines, important feelings or
 events, and anything they ask you to remember. When the context scope is "personal" and
-something is worth keeping, add one line {{"memory":"<short self-contained fact in English,
-naming the user, e.g. Artdi prefers coffee without sugar>"}} anywhere in the reply. Skip
+something is worth keeping, add one line {{"memory":"<short self-contained fact in Indonesian,
+naming the user>","title":"<3-6 word Indonesian note title>","category":"<people|events|plans|
+technical|learnings|reflections>"}} anywhere in the reply, e.g. {{"memory":"Artdi suka kopi
+tanpa gula.","title":"Kopi tanpa gula","category":"people"}}. people = who they are and what
+they like; events = something that happened (include the date); plans = what they intend to
+do. Skip
 small talk, passing moods, secrets or passwords, and facts already in context memories.
 Never say you will remember something without writing that line, and never write it
 outside the personal scope.
@@ -166,12 +170,14 @@ class BilingualChunker:
 
     def _parse_memory(self, value):
         # Chassie decides what is worth keeping; the line is saved, never spoken.
-        if set(value) != {'memory'} or not isinstance(value['memory'], str):
+        if not {'memory'} <= set(value) <= {'memory', 'title', 'category'} or not all(
+                isinstance(v, str) for v in value.values()):
             raise ValueError('Invalid memory line')
         content = ' '.join(value['memory'].split())
         if not 12 <= len(content) <= 600:
             raise ValueError('Invalid memory length')
-        return 'memory', content
+        extras = {k: ' '.join(value[k].split())[:80] for k in ('title', 'category') if value.get(k, '').strip()}
+        return ('memory', content, extras) if extras else ('memory', content)
 
     def _parse_action(self, value):
         if value.get('action') == 'look':
