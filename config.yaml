@@ -77,12 +77,13 @@ app_context:
   enabled: true
 
 # Automatic local capture, including when browser/panels are closed.
-# Fresh snapshots are sent only when that message explicitly asks to see a source.
+# The model asks for the camera when seeing is worth it; the screen is sent when it changed and other apps are open.
 vision:
   camera_enabled: true
   screen_enabled: true
   interval_seconds: 2
   model_dir: ".chassie/vision-models"
+  camera_always: false  # true: webcam on every message (costly); false: the model looks when it is worth it
   screen_always: true  # Attach the current screen to every turn and react to big screen changes
   screen_max_edge: 1280  # Screen snapshot size; smaller keeps replies fast
   ambient_objects: true  # Notice new things in view locally (object detector + view-change), used by initiative

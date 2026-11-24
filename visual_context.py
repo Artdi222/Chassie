@@ -100,6 +100,8 @@ class VisualContext:
         self.ambient_enabled = cfg.get('ambient_objects', True) is not False
         # Every turn carries the screen: smaller snapshots keep the model fast.
         self.screen_always = cfg.get('screen_always', False) is True
+        # The model sees the owner on every message instead of only when asked.
+        self.camera_always = cfg.get('camera_always', False) is True
         self.screen_max_edge = int(cfg.get('screen_max_edge', 1280))
         self._events = deque(maxlen=8)
         self._screen_thumb = None  # Latest screen, 64x36 grayscale.

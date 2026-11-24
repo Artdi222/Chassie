@@ -4,7 +4,7 @@ import re
 _SOURCES = {
     'screen': re.compile(r'\b(?:layar(?:ku|mu|nya)?|screen(?:shot)?s?|desktop|monitor|'
                          r'tampilan(?:ku|nya)?|aplikasi(?:ku|nya)?|jendela(?:ku|nya)?|window)\b'),
-    'camera': re.compile(r'\b(?:kamera(?:ku|mu|nya)?|camera|webcam)\b'),
+    'camera': re.compile(r'\b(?:(?:di)?kamera(?:ku|mu|nya)?|camera|webcam)\b'),
 }
 _ACTION = re.compile(
     r'\b(?:lihat(?:in)?|liat(?:in)?|cek|periksa|baca(?:kan)?|jelaskan|deskripsikan|'

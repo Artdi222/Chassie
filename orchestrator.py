@@ -49,6 +49,10 @@ from chassie_core.presence import PresenceMixin
 from chassie_core.initiative import InitiativeMixin
 from chassie_core.web import WebMixin
 
+class _LookNow(Exception):
+    """The model asked to see a source before saying anything: retry the turn with it."""
+
+
 class _AvatarOutput:
     def __init__(self, owner): self.owner=owner
     async def trigger_emotion(self,emotion):
@@ -81,6 +85,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._turn_app=None
         self._turn_initiative=False;self._turn_skipped=False
         self._screen_unchanged=False
+        self._look_now=None;self._looked=False  # Model-chosen look before answering (once per turn)
         self._previous_user_text=''
         self._semantic=None
         self._transcripts=Path(config.get('companion',{}).get('memory_path',str(Path(__file__).parent/'.chassie/memory.sqlite'))).parent/'transcripts'
@@ -270,8 +275,13 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             payload['vision_on_request']={'camera_enabled':self._vision.camera_enabled is True,
                 'screen_enabled':self._vision.screen_enabled is True,'note':
                 ('No new snapshot is attached to this message. The screen is attached automatically '
-                 'whenever it changes; the camera is attached only when the user asks, e.g. "liat aku", '
-                 'so unless a webcam photo is attached you cannot see the owner. '
+                 'whenever it changes and other apps are open; '+
+                 ('the camera is normally attached to every message, so a missing webcam photo means the '
+                  'camera frame is momentarily unavailable. '
+                  if getattr(self._vision,'camera_always',False) is True else
+                  'no webcam photo is attached, so you cannot see the owner right now. If seeing them or '
+                  'the room would really change your answer, start your reply with the look action for '
+                  'the camera and Chassie will show you a fresh photo at once; for ordinary chat, do not. ')+
                  'Never claim you have no camera or cannot see the screen.')
                 if getattr(self._vision,'screen_always',False) is True else
                 'No snapshot is attached to this message, but Chassie can look. A camera or screen '
@@ -374,6 +384,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             self._turn_metrics['hermes_complete_seconds']=time.monotonic()-started
             for sentence in chunker.finish(): await self._route(sentence,text,put)
             await sentences.put(None)
+        except _LookNow:
+            await sentences.put(None)
         except (ValueError, RecursionError) as exc:
             if not self._bilingual: raise
             raise RuntimeError(f'The reply did not contain valid Japanese speech and {LANGUAGES[self._translation_language]} translations. Please retry.') from exc
@@ -419,7 +431,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 item=await prefetch
                 prefetch=None
                 if item is None:
-                    if first and not self._turn_skipped: raise RuntimeError('Hermes returned no speakable text.')
+                    if first and not self._turn_skipped and self._look_now is None: raise RuntimeError('Hermes returned no speakable text.')
                     break
                 emotion,sentence,chunks,part,speech=item
                 if generation!=self._generation: return
@@ -511,14 +523,11 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                         elif self._vision.screen_changed(): requested.add('screen')
                         else:
                             requested.discard('screen');self._screen_unchanged=True
+                if (getattr(self._vision,'camera_always',False) is True and self._vision.camera_enabled is True
+                        and not self._turn_initiative):
+                    requested.add('camera')
                 if requested:
-                    frames,status=self._vision.request_context()
-                    self._turn_images=[frame for frame in frames if frame['source'] in requested]
-                    if any(frame['source']=='screen' for frame in self._turn_images) and hasattr(self._vision,'mark_screen_sent'):
-                        self._vision.mark_screen_sent()
-                    self._turn_vision={source:status.get(source,{}) for source in requested}
-                    if 'camera' in requested:
-                        self._turn_vision['identity']=status.get('identity',{})
+                    status=self._attach_visual(requested)
                 else:
                     status=self._vision.status()
                 reason=self._visual_guest_reason(status)
@@ -539,11 +548,20 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 if self._turn_vision:
                     self._turn_vision={**self._turn_vision,'identity':{**self._turn_vision.get('identity',{}),'matches':[]}}
                 await self._broadcast_to_ui({'type':'notice','scope':'chat','text':self._face_command_result})
-            sentences=asyncio.Queue(maxsize=8)
-            tasks=[asyncio.create_task(self._produce_speech(text,generation,sentences,started)),
-                   asyncio.create_task(self._play_speech(sentences,generation,started))]
-            await asyncio.gather(*tasks)
-            if generation!=self._generation: return
+            self._looked=False
+            while True:
+                self._look_now=None
+                sentences=asyncio.Queue(maxsize=8)
+                tasks=[asyncio.create_task(self._produce_speech(text,generation,sentences,started)),
+                       asyncio.create_task(self._play_speech(sentences,generation,started))]
+                await asyncio.gather(*tasks)
+                if generation!=self._generation: return
+                if self._look_now is None: break
+                # Hermes chose to look before answering: forget the attempt and ask again with the image.
+                logger.info('Model looked at the %s before answering',self._look_now)
+                self._hermes.discard_response()
+                self._looked=True
+                self._attach_visual({f['source'] for f in self._turn_images}|{self._look_now})
             if self._turn_skipped and not self._turn_sentences:
                 self._hermes.discard_response()
                 logger.info('Initiative skipped by the model')
@@ -564,8 +582,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             await asyncio.gather(*tasks,return_exceptions=True)
             await self._audio_player.flush_effects()
             self._hermes.interrupt_response(self._spoken)
-            logger.warning('Reply failed after %.3fs: %s; timings=%s',time.monotonic()-started,
-                           type(exc).__name__,{k:round(v,3) for k,v in self._turn_metrics.items()})
+            logger.warning('Reply failed after %.3fs: %s (%s); timings=%s',time.monotonic()-started,
+                           type(exc).__name__,str(exc)[:200],{k:round(v,3) for k,v in self._turn_metrics.items()})
             await self._broadcast_to_ui({'type':'notice','scope':'chat',
                                         'stream_id':self._stream_view['id'],'text':str(exc)[:250],'retry_text':text})
         finally:
@@ -591,6 +609,17 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 await self._set_status('idle' if not self._mic_enabled else 'listening')
                 await self._broadcast_settings()
 
+    def _attach_visual(self,requested):
+        """Attach fresh frames for the requested sources to this turn; return the vision status."""
+        frames,status=self._vision.request_context()
+        self._turn_images=[frame for frame in frames if frame['source'] in requested]
+        if any(frame['source']=='screen' for frame in self._turn_images) and hasattr(self._vision,'mark_screen_sent'):
+            self._vision.mark_screen_sent()
+        self._turn_vision={source:status.get(source,{}) for source in requested}
+        if 'camera' in requested:
+            self._turn_vision['identity']=status.get('identity',{})
+        return status
+
     def _purge_inputs(self,voice_only=False):
         keep=[]
         while not self._ui_input_queue.empty():
@@ -601,6 +630,11 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
     async def _run_model_action(self,user_text,action,name):
         """Run a model-requested action before any speech; a failure stops the reply."""
         if action=='look':
+            attached={f['source'] for f in self._turn_images}
+            if (not self._turn_sentences and not getattr(self,'_looked',False) and name not in attached
+                    and self._vision and getattr(self._vision,name+'_enabled',False)):
+                self._look_now=name
+                raise _LookNow()
             self._request_look(name);return
         if self._face_command_result is not None:
             return  # The local command parser already handled this message.

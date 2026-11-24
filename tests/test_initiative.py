@@ -288,3 +288,62 @@ async def test_turn_attaches_screen_only_when_changed(app):
     await app._run_turn({'text': 'terus?', 'source': 'text'})
     assert seen[0][0] == [frame] and sent == [1]
     assert not seen[1][0] and 'screen_unchanged' in seen[1][1]
+
+
+
+@pytest.mark.asyncio
+async def test_camera_every_turn_and_no_screen_when_only_chassie_is_open(app):
+    from types import SimpleNamespace
+    playback = playback_fixture(app); playback.first_release.set()
+    silent_tts(app, [])
+    camera = {'source': 'camera', 'image_url': 'data:image/jpeg;base64,AA==', 'captured_at': 0, 'title': ''}
+    screen = {'source': 'screen', 'image_url': 'data:image/jpeg;base64,AA==', 'captured_at': 0, 'title': ''}
+    status = {'camera': {'available': True}, 'screen': {'available': True}, 'identity': {}}
+    app._vision = SimpleNamespace(camera_enabled=True, screen_enabled=True, screen_always=True, camera_always=True,
+                                  screen_changed=lambda: True, screen_has_content=lambda: False,
+                                  mark_screen_sent=lambda: None,
+                                  request_context=lambda: ([camera, screen], status), status=lambda: status)
+    app._visual_guest_reason = Mock(return_value=None)
+    seen = []
+
+    async def stream(text, context='', mode='focus', images=None):
+        seen.append((images, json.loads(context)))
+        yield json.dumps(PAIR, ensure_ascii=False) + '\n'
+    app._hermes.stream_message = stream
+    await app._run_turn({'text': 'halo', 'source': 'text'})
+    assert seen[0][0] == [camera] and 'screen_unchanged' not in seen[0][1]
+
+
+@pytest.mark.asyncio
+async def test_model_looks_before_answering_and_turn_retries_with_the_photo(app):
+    from types import SimpleNamespace
+    playback = playback_fixture(app); playback.first_release.set()
+    spoken = []
+    silent_tts(app, spoken)
+    camera = {'source': 'camera', 'image_url': 'data:image/jpeg;base64,AA==', 'captured_at': 0, 'title': ''}
+    status = {'camera': {'available': True}, 'screen': {'available': False}, 'identity': {}}
+    app._vision = SimpleNamespace(camera_enabled=True, screen_enabled=False, screen_always=False,
+                                  request_context=lambda: ([camera], status), status=lambda: status)
+    app._visual_guest_reason = Mock(return_value=None)
+    seen = []
+
+    async def stream(text, context='', mode='focus', images=None):
+        seen.append(images)
+        if not images:
+            yield '{"action":"look","source":"camera"}\n'
+            yield json.dumps(PAIR, ensure_ascii=False) + '\n'  # Never spoken: the turn restarts.
+        else:
+            yield '{"action":"look","source":"camera"}\n'  # Already looked: becomes look-again.
+            yield json.dumps(PAIR, ensure_ascii=False) + '\n'
+    app._hermes.stream_message = stream
+    await app._run_turn({'text': 'gimana penampilanku?', 'source': 'text'})
+    assert seen == [None, [camera]] and spoken == ['こんにちは。']
+    app._hermes.discard_response.assert_called_once()
+    assert app._initiative.look['source'] == 'camera'
+
+
+def test_look_only_reply_without_trailing_newline_is_valid():
+    from bilingual import BilingualChunker
+    chunker = BilingualChunker('en')
+    assert chunker.feed('{"action":"look","source":"camera"}') == []
+    assert chunker.finish() == [('action', 'look', 'camera')]

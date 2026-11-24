@@ -46,11 +46,16 @@ put one action line BEFORE the first sentence pair, e.g.
 {{"action":"remember_face","name":"Artdi"}} or {{"action":"forget_face","name":"Artdi"}}.
 Chassie performs the action before speaking; if it fails, your reply is stopped. Never
 claim a face was saved or removed without that action line.
-Looking again: when you want a better or fresh look at the camera or screen (for example
-you just asked the user to bring something closer, or to show you the result), add one line
-{{"action":"look","source":"camera"}} (or "screen") anywhere in the reply. Chassie takes a
-new snapshot a few seconds after you finish speaking and sends it to you; then react to it.
-Use it only when a fresh look is useful, never twice in a row about the same thing.
+Looking: images cost a lot, so they are not attached to every message. When you need to see
+before you can answer well (the user asks how they look, shows or holds something, asks about
+something in the room or on screen, or you would otherwise guess about what is visible), make
+{{"action":"look","source":"camera"}} (or "screen") your very first line and write nothing
+else; Chassie attaches a fresh snapshot right away and asks you again. Do not look for ordinary
+chat, greetings, or when a snapshot of that source is already attached.
+Looking again: when you want a fresh look later (for example you just asked the user to bring
+something closer, or to show you the result), put the same look line after your sentences.
+Chassie takes a new snapshot a few seconds after you finish speaking and sends it to you; then
+react to it. Use it only when useful, never twice in a row about the same thing.
 No other actions exist.
 Initiative: messages starting with [Chassie initiative] are not from the user; they tell you
 what Chassie noticed while it was quiet. Speak up only if you have something natural, short
@@ -96,6 +101,7 @@ class BilingualChunker:
         self._finished = False
         self._skip_narration = False
         self._skipped = False
+        self._looking = False
 
     def allow_tool_narration(self):
         """After a tool call starts, drop plain-text narration lines between tool calls.
@@ -163,6 +169,7 @@ class BilingualChunker:
             # Runs after the reply, so it may appear anywhere.
             if set(value) != {'action', 'source'} or value['source'] not in LOOK_SOURCES:
                 raise ValueError('Invalid look action')
+            self._looking = True
             return 'action', 'look', value['source']
         # Actions run before speech, so a failure can stop the reply before it claims success.
         if self._count: raise ValueError('Actions must precede the first sentence pair')
@@ -188,7 +195,9 @@ class BilingualChunker:
         parsed = self._line(self._buffer) if self._buffer.strip() else None
         result = [parsed] if parsed is not None else []
         self._buffer = ''
-        if not self._count and not self._skipped: raise ValueError('No translated sentence pairs received')
+        # A reply that only asks to look first is valid: Chassie retries with the snapshot.
+        looks = any(r[:2] == ('action', 'look') for r in result) or self._looking
+        if not self._count and not self._skipped and not looks: raise ValueError('No translated sentence pairs received')
         return result
 
 
