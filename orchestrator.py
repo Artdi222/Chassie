@@ -505,7 +505,10 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                     reason=item.get('reason')
                     automatic=(reason in ('app','quiet')) if self._turn_initiative else 'screen' not in requested
                     if automatic:
-                        if self._vision.screen_changed(): requested.add('screen')
+                        has_content=getattr(self._vision,'screen_has_content',None)
+                        if has_content is not None and not await asyncio.to_thread(has_content):
+                            requested.discard('screen')  # Only Chassie is on screen: nothing to show.
+                        elif self._vision.screen_changed(): requested.add('screen')
                         else:
                             requested.discard('screen');self._screen_unchanged=True
                 if requested:

@@ -52,3 +52,26 @@ def active_application():
         except (OSError, subprocess.SubprocessError, ValueError):
             pass
     return {'available': False}
+
+
+def external_window_visible():
+    """False only when Hyprland shows no app window besides Chassie on any active workspace.
+
+    An empty desktop screenshot would contain just Chassie's own avatar and chat,
+    which the model then narrates. Unknown (other compositors, errors) is True.
+    """
+    if not (os.environ.get('HYPRLAND_INSTANCE_SIGNATURE') and shutil.which('hyprctl')):
+        return True
+    try:
+        monitors=json.loads(subprocess.check_output(['hyprctl','-j','monitors'],timeout=.5,stderr=subprocess.DEVNULL))
+        clients=json.loads(subprocess.check_output(['hyprctl','-j','clients'],timeout=.5,stderr=subprocess.DEVNULL))
+        active=set()
+        for monitor in monitors:
+            for key in ('activeWorkspace','specialWorkspace'):
+                workspace=monitor.get(key) or {}
+                if workspace.get('name'):active.add(workspace.get('id'))
+        return any(isinstance(w,dict) and not _is_overlay(w) and w.get('mapped') is True
+                   and not w.get('hidden',False) and (w.get('workspace') or {}).get('id') in active
+                   for w in clients)
+    except (OSError,subprocess.SubprocessError,ValueError,AttributeError,TypeError):
+        return True

@@ -267,6 +267,11 @@ class VisualContext:
                 return True
             return float(np.mean(np.abs(self._screen_thumb - self._sent_thumb))) >= threshold
 
+    def screen_has_content(self):
+        """False when only Chassie itself is on screen, so there is nothing worth sending."""
+        from app_context import external_window_visible
+        return external_window_visible()
+
     def mark_screen_sent(self):
         with self._lock:
             if self._screen_thumb is not None:
