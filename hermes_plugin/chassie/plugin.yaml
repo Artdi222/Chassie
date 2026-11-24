@@ -1,0 +1,3 @@
+name: chassie
+version: 2.0.0
+description: "Automatic vault recall and grounded user-statement capture, with optional pgvector search."

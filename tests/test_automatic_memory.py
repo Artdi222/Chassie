@@ -15,8 +15,7 @@ from test_orchestrator import app
 
 def test_vault_uses_hermes_notes_and_rejects_handwritten_mutations(tmp_path):
     home=tmp_path/'hermes';plugin=home/'plugins/chassie';plugin.mkdir(parents=True)
-    source=Path.home()/'.hermes/plugins/chassie/store.py'
-    if not source.exists():pytest.skip('Chassie memory plugin is not installed')
+    source=Path(__file__).parents[1]/'hermes_plugin/chassie/store.py'
     shutil.copyfile(source,plugin/'store.py')
     vault=tmp_path/'Memory';vault.mkdir();(vault/'handwritten.md').write_text('A handwritten note about my workspace.')
     (home/'chassie.json').write_text(json.dumps({'vault_path':str(vault)}))
