@@ -167,5 +167,23 @@ def test_physics_driven_rig_breathes_and_its_body_trails_the_head():
     assert written=={'ParamMouthOpenY':0.,'ParamAngleX':2.}  # Tian Muzi path unchanged.
 
 
+def test_frozen_cursor_after_leaving_the_avatar_releases_gaze_and_headpat(tmp_path):
+    # XWayland stops updating the cursor over native Wayland windows: the last spot
+    # beside (or even inside) the avatar must not be followed forever.
+    model=Mock();model.GetParamIds.return_value=[];model.HitPart.return_value=['head']
+    interaction=PointerInteraction(model,['head'],tmp_path)
+    for frame in range(12):interaction.update(150,80,300,500,now=1+frame/30,hovered=True)
+    assert interaction.headpat and interaction.tracking
+    # Pointer left: Qt reports no hover and the position never changes again.
+    for frame in range(90):interaction.update(150,80,300,500,now=1.5+frame/30,hovered=False)
+    assert not interaction.headpat and not interaction.tracking
+    model.RemoveExpression.assert_called_with(HEADPAT_ID)
+    assert model.Drag.call_args.args==pytest.approx((150,250),abs=.5)  # Gaze back to centre.
+    assert interaction.look==pytest.approx((0,0),abs=.01)
+    # A live cursor outside the window (moving) is still followed within the halo.
+    model.HitPart.side_effect=lambda x,y:['body'] if 0<=x<300 and 0<=y<500 else []
+    for frame in range(10):interaction.update(320+frame,250,300,500,now=5+frame/30,hovered=False)
+    assert interaction.tracking
+
 
 

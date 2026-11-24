@@ -106,7 +106,7 @@ class AvatarWindow(QOpenGLWidget):
                 cursor=self.mapFromGlobal(QCursor.pos())
                 self.pointer_interaction.update(cursor.x(),cursor.y(),self.width(),self.height(),
                     ratio=self.devicePixelRatioF(),now=time.monotonic(),dragging=self.drag_offset is not None,
-                    settings=self.selection.get('interaction'),look=self.state.gaze)
+                    settings=self.selection.get('interaction'),look=self.state.gaze,hovered=self.underMouse())
             now=time.monotonic()
             self.driver.frame(max(self.state.mouth_at(now),self.selection.get('mouth_preview',0)),
                               self.head_motion.step(self.state.status,now),

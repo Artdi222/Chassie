@@ -4,6 +4,10 @@ import math
 from avatar.interaction import interaction_settings
 
 HEADPAT_ID = '__chassie_headpat__'
+# Under XWayland the global cursor position stops updating once the pointer is over a
+# native Wayland window, so its last spot beside the avatar would be tracked forever.
+# Trust a position only while the pointer is over the avatar or has moved this recently.
+CURSOR_STALE_SECONDS = 1.0
 GAZE_RADIUS = 180  # Logical screen pixels; independent of display scaling.
 GAZE_SAMPLES = tuple((radius*math.cos(i*math.pi/8), radius*math.sin(i*math.pi/8))
                      for radius in (*range(32,GAZE_RADIUS,32),GAZE_RADIUS) for i in range(16))
@@ -19,6 +23,7 @@ class PointerInteraction:
         self.hover_since=None; self.headpat=False
         self.leave_since=None; self.anchor=None
         self.last=None; self.amount=0.; self.gaze=(0.,0.)
+        self.cursor=None; self.cursor_moved_at=None
         self.radius=GAZE_RADIUS;self.samples=GAZE_SAMPLES
         available=set(model.GetParamIds())
         aliases=aliases or {}
@@ -30,7 +35,7 @@ class PointerInteraction:
                           for key,value in values.items() if key in available]}))
         model.LoadExtraExpression(HEADPAT_ID,str(path))
 
-    def update(self,x,y,width,height,*,ratio=1,now,dragging=False,enabled=True,settings=None,look=None):
+    def update(self,x,y,width,height,*,ratio=1,now,dragging=False,enabled=True,settings=None,look=None,hovered=None):
         preferences=interaction_settings(settings)
         radius=preferences['gaze_radius']
         if radius!=self.radius:
@@ -39,7 +44,11 @@ class PointerInteraction:
                 for r in (*range(32,int(radius),32),radius) for i in range(16))
         dt=min(max(now-self.last,0),.1) if self.last is not None else 1/30
         self.last=now
-        allowed=enabled and not dragging
+        if (x,y)!=self.cursor:
+            self.cursor=(x,y); self.cursor_moved_at=now
+        # hovered=None keeps the old behaviour for callers that cannot tell.
+        fresh=hovered is None or hovered or now-self.cursor_moved_at<CURSOR_STALE_SECONDS
+        allowed=enabled and not dragging and fresh
         near=allowed and 0<=x<width and 0<=y<height
         parts=self.model.HitPart(x*ratio,y*ratio) if near else []
         self.tracking=bool(parts)
