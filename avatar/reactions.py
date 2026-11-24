@@ -23,11 +23,11 @@ REACTIONS = {
 # toggles: key1 dark face, key2 tears, key4 heart eyes, key5 >< eyes, key7 blush, key9 fang,
 # key13 cold sweat. Its Param46/48/49 are grass physics, so Tian Muzi's table must not apply.
 # DeepSeek-chan also uses the package's own toggles: key2 tears, key3 swirl eyes,
-# key6 smug eyes, key8 loading icon, Movement3 raised index finger, LeanInput lean.
+# key6 smug eyes, key8 loading icon, LeanInput lean. Hand poses are desktop/gestures.py.
 DEEPSEEK_REACTIONS = {
     'happy': {'ParamMouthForm':.7,'EyeSmile':.6,'MouthSmile_L':.5,'MouthSmile_R':.5},
     'sad': {'ParamMouthForm':-.4,'BrowInnerUp':.7,'ParamBrowLY':-.2,'ParamBrowRY':-.2,'key2':.8},
-    'thinking': {'ParamBrowLY':.2,'ParamBrowRY':-.15,'ParamMouthForm':.1,'MouthX':.3,'Movement3':1},
+    'thinking': {'ParamBrowLY':.2,'ParamBrowRY':-.15,'ParamMouthForm':.1,'MouthX':.3},
     'waiting': {'ParamBrowLY':.2,'ParamBrowRY':-.15,'ParamMouthForm':.1,'MouthX':.3,'key8':1},
     'curious': {'ParamBrowLY':.35,'ParamBrowRY':.35,'ParamMouthForm':.25,'LeanInput':-20},
     'surprised': {'ParamBrowLY':.65,'ParamBrowRY':.65,'ShockL':.5,'ShockR':.5,'ParamMouthForm':-.2},
@@ -51,7 +51,7 @@ DEEPSEEK_VARIANTS = {
     'teasing': [{'LEyeSquint':.9,'MouthSmile_L':.9,'MouthX':-.4,'ParamMouthForm':.35,'ParamBrowLY':.3},
                 {'key5':1,'key9':1,'ParamMouthForm':.6,'MouthSmile_L':.6,'MouthSmile_R':.6}],
     'curious': [{'ParamBrowLY':.5,'ParamBrowRY':.1,'MouthX':.35,'ParamMouthForm':.1},
-                {'ParamBrowLY':.3,'ParamBrowRY':.3,'Movement3':1,'ParamMouthForm':.2}],
+                {'ParamBrowLY':.3,'ParamBrowRY':.3,'ParamMouthForm':.2,'LeanInput':-8}],
     'thinking': [{'ParamBrowLY':.1,'ParamBrowRY':.3,'MouthX':-.45,'LEyeSquint':.4,'ParamMouthForm':-.05}],
     'shy': [{'key7':1,'EyeSmile':.55,'MouthSmile_L':.3,'MouthSmile_R':.3,'ParamMouthForm':.3,'LeanInput':10}],
     'excited': [{'ParamMouthForm':1,'key9':1,'ShockL':.3,'ShockR':.3,'ParamBrowLY':.5,'ParamBrowRY':.5,'LeanInput':-20}],

@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QLabel, QMenu, QMessageB
                                QPushButton, QStyle, QSystemTrayIcon, QVBoxLayout, QWidget)
 
 from desktop.motion import HeadMotion
+from desktop.attention import Attention, direction
 from desktop.model import prepare_entry, CatalogModelDriver
 # Load Qt's C++ runtime before the Live2D wheel. Importing _v3cpp first
 # interposes its std::filesystem symbols into Qt WebEngine and aborts when
@@ -39,6 +40,7 @@ class AvatarWindow(QOpenGLWidget):
         self.model_path, self.state, self.fps = model_path, state, fps
         self.model = self.driver = None
         self.pointer_interaction = None
+        self.attention = Attention()
         self.renderer_ready = False
         self.loaded_expressions = ()
         self.drag_offset = None
@@ -85,6 +87,19 @@ class AvatarWindow(QOpenGLWidget):
             self.timer.stop()
             QTimer.singleShot(0, lambda message=str(exc): self.failed.emit(message))
 
+    def attention_target(self):
+        """Look at a thought, the chat being typed in, the owner's face, or now and then the screen."""
+        centre = self.mapToGlobal(self.rect().center())
+        origin = (centre.x(), centre.y())
+        screen = self.screen().availableGeometry() if self.screen() else None
+        reach = max(screen.width(), screen.height()) / 2 if screen else 800
+        controls = getattr(self, 'studio_controls', None)
+        chat = controls.focused_chat_centre() if controls and hasattr(controls, 'focused_chat_centre') else None
+        return self.attention.look(
+            self.state.status, face=self.state.gaze, now=time.monotonic(),
+            chat=direction(origin, chat, reach) if chat else None,
+            screen=direction(origin, (screen.center().x(), screen.center().y()), reach) if screen else None)
+
     def resizeGL(self, width, height):
         if self.model:
             ratio = self.devicePixelRatioF()
@@ -106,7 +121,7 @@ class AvatarWindow(QOpenGLWidget):
                 cursor=self.mapFromGlobal(QCursor.pos())
                 self.pointer_interaction.update(cursor.x(),cursor.y(),self.width(),self.height(),
                     ratio=self.devicePixelRatioF(),now=time.monotonic(),dragging=self.drag_offset is not None,
-                    settings=self.selection.get('interaction'),look=self.state.gaze,hovered=self.underMouse())
+                    settings=self.selection.get('interaction'),look=self.attention_target(),hovered=self.underMouse())
             now=time.monotonic()
             self.driver.frame(max(self.state.mouth_at(now),self.selection.get('mouth_preview',0)),
                               self.head_motion.step(self.state.status,now,self.state.nod_at),

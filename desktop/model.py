@@ -60,11 +60,18 @@ class CatalogModelDriver:
             pass
         self.weights = {}
         self.wanted_reactions = set()
+        spec = getattr(entry, 'gestures', None)
+        self.gestures = None
+        if isinstance(spec, dict):
+            from desktop.gestures import GesturePlayer
+            self.gestures = GesturePlayer(entry.root, spec['gestures'], spec['emotions'], spec.get('rest'))
 
     def apply(self, selection, emotion, variant=0):
         from avatar.catalog import active_files
         wanted = set(active_files(self.entry, selection, emotion, variant))
         self.wanted_reactions = {name for name in wanted if name in self.reactions}
+        if self.gestures is not None:
+            self.gestures.want(emotion if selection.get('auto', True) else None, self.clock())
         for name in self.active - wanted: self.model.RemoveExpression(name)
         for name in wanted - self.active: self.model.AddExpression(name)
         self.active = wanted
@@ -94,6 +101,9 @@ class CatalogModelDriver:
         for param, value in values.items():
             self.model.SetParameterValue(param, value)
         self._blend_reactions(dt)
+        if self.gestures is not None:
+            for param, value in self.gestures.step(now).items():
+                self.model.SetParameterValue(param, value)
         ease = 1 - math.exp(-dt / BODY_FOLLOW_SECONDS)
         for source, target in (getattr(self.entry, 'body_follow', None) or {}).items():
             current = self.follow.get(target, 0.0)

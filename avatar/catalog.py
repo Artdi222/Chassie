@@ -17,6 +17,17 @@ PARAM_ALIASES = {'DeepSeek': {'ParamAngleX': 'AngleX', 'ParamAngleY': 'AngleY', 
 # Position*), so the torso, hips and hair follow the head instead of standing still.
 BODY_FOLLOW = {'DeepSeek': {'AngleX': 'PositionX', 'AngleY': 'PositionY', 'AngleZ': 'PositionZ'}}
 DEFAULT_MODEL = 'Model_4'  # Tian Muzi stays the default; other local packages are opt-in
+# Hand gestures from the package's own motion transitions (desktop/gestures.py):
+# {gesture: (out motion, back motion)} and {emotion: (gesture, chance)}.
+GESTURES = {'DeepSeek': {
+    'gestures': {'finger': ('Animation/竖手指切出来动画.motion3.json', 'Animation/竖手指切回默认.motion3.json'),
+                 'chest': ('Animation/默认手切举手.motion3.json', 'Animation/举手切默认手.motion3.json'),
+                 'grass': ('Animation/狗尾草切换出来.motion3.json', 'Animation/狗尾草切回默认手.motion3.json')},
+    'emotions': {'thinking': ('finger', .7), 'curious': ('finger', .3), 'love': ('chest', .8), 'shy': ('chest', .6),
+                 'concerned': ('chest', .5), 'sad': ('chest', .4), 'teasing': ('grass', .35), 'happy': ('grass', .12)},
+    'rest': {'Param56': 0.0},  # Every transition ends with this pose switch still on.
+}}
+
 NAMES = {'Model_4': 'Tian Muzi', 'DeepSeek': 'DeepSeek-chan'}
 LABELS = {
     '1 帽': ('Hat', 'accessory'), '2 手机': ('Phone', 'prop'),
@@ -88,6 +99,8 @@ class ModelEntry:
         self.aliases={k:v for k,v in PARAM_ALIASES.get(self.id,{}).items() if v in self.parameter_ids}
         self.body_follow={k:v for k,v in BODY_FOLLOW.get(self.id,{}).items()
                           if k in self.parameter_ids and v in self.parameter_ids}
+        spec=GESTURES.get(self.id)
+        self.gestures=spec if spec and all((self.root/f).is_file() for pair in spec['gestures'].values() for f in pair) else None
         self.generated=generated_reactions(self.parameter_ids,self.id)
         if self.generated:
             self.expressions.extend({'id':key,'name':Path(key).name.split('.')[0].title(),

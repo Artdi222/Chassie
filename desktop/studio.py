@@ -229,6 +229,13 @@ class StudioControls(QObject):
     def reset_frame(self):
         self.window.framing=Framing.for_model(self.window.entry.id);self.window.update();self.save_geometry()
 
+    def focused_chat_centre(self):
+        """Centre of the chat panel while the owner is using it (it has keyboard focus)."""
+        panel=self.panels.get('chat')
+        if panel is None or not panel.isVisible() or not panel.isActiveWindow(): return None
+        c=panel.geometry().center()
+        return (c.x(),c.y())
+
     def place_panel(self,name):
         screen=screens()[0];r=self.window.geometry()
         width=min(380 if name=='chat' else 650,screen.width-32)
