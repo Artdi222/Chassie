@@ -102,8 +102,8 @@ window.ChassiePointer=ChassiePointer;
 // Mirrors desktop/motion.py: attentive nods while the user talks, a tilt while
 // thinking, a gentle sway while speaking or idle. Additive degrees, eased.
 const HEAD_POSES={
-    listening:[4,-2,3,1.6,1.5,5], thinking:[-7,6,0,1,1,6],
-    speaking:[0,0,1.2,.9,1.8,3.2], idle:[0,0,0,1,1.2,8],
+    listening:[4,-2,3,1.6,.5,5], thinking:[-7,6,0,1,1,6],
+    speaking:[0,0,1.5,.9,.4,3.2], idle:[0,0,0,1,1.2,8],
 };
 function headTarget(status,t){
     const [tilt,baseY,nod,nodPeriod,sway,swayPeriod]=HEAD_POSES[status]||HEAD_POSES.idle;

@@ -1,16 +1,17 @@
 """Small procedural head motion layered on the SDK's own blink and breathing.
 
 listening (the user is talking): slow attentive nods and a slight tilt.
-thinking: head tilted, eyes drifting up. speaking: gentle sway. idle: very slow sway.
+thinking: head tilted, eyes drifting up. speaking: faces the owner with small nods, almost no sway.
+idle: very slow sway.
 Values are additive offsets in degrees, eased between states so changes never snap.
 """
 import math
 
 POSES = {
     #            tilt Z, base Y, nod amp, nod period, sway amp, sway period
-    'listening': (4.0, -2.0, 3.0, 1.6, 1.5, 5.0),
+    'listening': (4.0, -2.0, 3.0, 1.6, 0.5, 5.0),
     'thinking':  (-7.0, 6.0, 0.0, 1.0, 1.0, 6.0),
-    'speaking':  (0.0, 0.0, 1.2, 0.9, 1.8, 3.2),
+    'speaking':  (0.0, 0.0, 1.5, 0.9, 0.4, 3.2),
     'idle':      (0.0, 0.0, 0.0, 1.0, 1.2, 8.0),  # Stands upright; barely moves.
 }
 

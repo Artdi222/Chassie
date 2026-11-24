@@ -186,4 +186,19 @@ def test_frozen_cursor_after_leaving_the_avatar_releases_gaze_and_headpat(tmp_pa
     assert interaction.tracking
 
 
+def test_breath_sway_settles_while_speaking():
+    from desktop.model import CatalogModelDriver
+    t=[0.]
+    model=Mock();written={}
+    model.SetParameterValue.side_effect=lambda k,v:written.__setitem__(k,v)
+    entry=Mock(aliases={'ParamAngleX':'AngleX','ParamAngleY':'AngleY','ParamAngleZ':'AngleZ'},body_follow={})
+    driver=CatalogModelDriver(model,entry,clock=lambda:t[0])
+    def peak(status):
+        values=[]
+        for _ in range(400):
+            t[0]+=.05;driver.frame(0.,{},status=status);values.append(abs(written['AngleX']))
+        return max(values[-130:])
+    idle,speaking=peak('idle'),peak('speaking')
+    assert idle>6 and speaking<idle*.25
+
 

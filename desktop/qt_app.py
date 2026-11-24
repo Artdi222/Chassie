@@ -110,7 +110,8 @@ class AvatarWindow(QOpenGLWidget):
             now=time.monotonic()
             self.driver.frame(max(self.state.mouth_at(now),self.selection.get('mouth_preview',0)),
                               self.head_motion.step(self.state.status,now),
-                              self.pointer_interaction.look if self.pointer_interaction else None)
+                              self.pointer_interaction.look if self.pointer_interaction else None,
+                              self.state.status)
             if not self.renderer_ready:
                 self.renderer_ready = True
                 self.readiness_changed.emit(True)

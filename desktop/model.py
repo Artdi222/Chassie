@@ -29,6 +29,9 @@ def prepare_entry(entry, cache_dir):
 # Physics-driven rigs overwrite those outputs, so replay the same sway on their inputs.
 BREATH = {'ParamAngleX': (7.5, 6.5345), 'ParamAngleY': (4.0, 3.5345), 'ParamAngleZ': (5.0, 5.5345)}
 BODY_FOLLOW_SECONDS = .35  # VTS-like smoothing so the body trails the head.
+# In conversation she holds still and faces the owner; the idle sway returns afterwards.
+FOCUSED = {'speaking': .15, 'listening': .25}
+FOCUS_SECONDS = .6
 
 
 class CatalogModelDriver:
@@ -38,6 +41,7 @@ class CatalogModelDriver:
         self.clock = clock
         self.follow = {}
         self.last = None
+        self.sway = 1.0  # Eased breath sway scale: 1 idle, small while in conversation.
 
     def apply(self, selection, emotion):
         from avatar.catalog import active_files
@@ -46,7 +50,7 @@ class CatalogModelDriver:
         for name in wanted - self.active: self.model.AddExpression(name)
         self.active = wanted
 
-    def frame(self, mouth, pose=None, look=None):
+    def frame(self, mouth, pose=None, look=None, status=None):
         self.model.SetParameterValue('ParamMouthOpenY', mouth)
         # Parameters persist between frames in live2d-py, so an additive offset would
         # accumulate until the head pins at ±30°. Set the absolute pose each frame;
@@ -56,9 +60,12 @@ class CatalogModelDriver:
         now = self.clock()
         dt = min(max(now - self.last, 0.0), .1) if self.last is not None else 1 / 30
         self.last = now
+        self.sway += (FOCUSED.get(status, 1.0) - self.sway) * (1 - math.exp(-dt / FOCUS_SECONDS))
         if 'ParamAngleX' in aliases:
             for param, (amplitude, period) in BREATH.items():
-                pose[param] = pose.get(param, 0.0) + amplitude * math.sin(2 * math.pi * now / period)
+                # Keep a little vertical breathing; the side-to-side sway nearly stops.
+                scale = .5 + .5 * self.sway if param == 'ParamAngleY' else self.sway
+                pose[param] = pose.get(param, 0.0) + scale * amplitude * math.sin(2 * math.pi * now / period)
         if look and 'ParamAngleX' in aliases:
             # The SDK's Drag() writes ParamAngle*, which this rig's physics overwrites;
             # turn the head through the rig's own tracking inputs instead.
