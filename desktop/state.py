@@ -22,6 +22,26 @@ def bottom_right(screen: Rect, width: int = 360, height: int = 480, margin: int 
                 screen.y + max(0, screen.height - height - margin), width, height)
 
 
+MIN_WINDOW = (200, 260)
+
+
+def scaled_window(rect: Rect, factor: float, screen: Rect, margin: int = 8) -> Rect:
+    """Scale the avatar window about its bottom-right corner, kept within the screen.
+
+    The upper bound is the screen itself (the model fills whatever space it gets),
+    so the avatar can be as large as the display allows.
+    """
+    aspect = rect.height / rect.width if rect.width else 4 / 3
+    max_w, max_h = screen.width - 2 * margin, screen.height - 2 * margin
+    width = max(MIN_WINDOW[0], round(rect.width * factor))
+    width = min(width, max_w, round(max_h / aspect))
+    height = max(MIN_WINDOW[1], round(width * aspect))
+    right, bottom = rect.x + rect.width, rect.y + rect.height
+    x = min(max(screen.x + margin, right - width), screen.x + screen.width - margin - width)
+    y = min(max(screen.y + margin, bottom - height), screen.y + screen.height - margin - height)
+    return Rect(x, y, width, height)
+
+
 def fit_to_screens(rect: Rect, screens: list[Rect]) -> Rect:
     if not screens:
         raise ValueError("No display available for overlay")
@@ -100,7 +120,7 @@ class Framing:
         return cls(*MODEL_FRAMING.get(model_id, (2.4, -1.65)))
 
     def adjust(self, zoom: float = 0, vertical: float = 0):
-        return Framing(max(1.0, min(4.0, self.zoom + zoom)),
+        return Framing(max(1.0, min(6.0, self.zoom + zoom)),
                        max(-2.5, min(1.5, self.vertical + vertical)))
 
     @classmethod

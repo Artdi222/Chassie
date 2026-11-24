@@ -55,7 +55,7 @@ def test_waist_up_framing_is_default_and_adjustments_are_bounded():
     assert framing.zoom > 2 and framing.vertical < 0
     assert Framing.from_settings({}) == framing
     assert Framing.from_settings({'zoom': float('nan'), 'vertical': 'bad'}) == framing
-    assert framing.adjust(zoom=20).zoom == 4
+    assert framing.adjust(zoom=20).zoom == 6
     assert framing.adjust(zoom=-20).zoom == 1
     assert framing.adjust(vertical=-10).vertical == -2.5
     assert Framing.from_settings({'zoom': 1, 'vertical': 0}) == Framing(1, 0)
@@ -75,3 +75,17 @@ def test_left_arc_keeps_five_separate_targets_on_screen():
             assert 0<=r.y and r.y+r.height<=screen.height
             for other in bubbles[i+1:]:
                 assert r.y+r.height<=other.y or r.x+r.width<=other.x or other.x+other.width<=r.x
+
+
+def test_avatar_window_scales_about_its_corner_up_to_the_screen():
+    from desktop.state import Rect, scaled_window, Framing
+    screen=Rect(0,0,1920,1032);start=Rect(1544,544,360,480)
+    bigger=scaled_window(start,1.15,screen)
+    assert bigger.width>start.width and bigger.height>start.height
+    assert (bigger.x+bigger.width,bigger.y+bigger.height)==(start.x+start.width,start.y+start.height)
+    huge=start
+    for _ in range(20):huge=scaled_window(huge,1.15,screen)
+    assert huge.y>=8 and huge.y+huge.height<=1024 and huge.height>=1000  # Up to the screen height.
+    tiny=scaled_window(start,.01,screen)
+    assert (tiny.width,tiny.height)>=(200,260)
+    assert Framing(5.9,-1).adjust(zoom=1).zoom==6.0

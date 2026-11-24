@@ -11,7 +11,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QToolButton, QAbstractButton, QSystemTrayIcon, QMenu)
 
-from desktop.state import Rect, bottom_right, fit_to_screens, Framing, left_arc
+from desktop.state import Rect, bottom_right, fit_to_screens, Framing, left_arc, scaled_window
 
 ICON_PATHS = {
     'chat':'<path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/><path d="M7 10h8m-8 4h5"/>',
@@ -205,7 +205,8 @@ class StudioControls(QObject):
             self.panels[name]=FloatingPanel(titles[name],self.base_url+'/?panel='+name,self.window,transparent=name=='chat')
             if name in ('settings','models'):
                 row=QHBoxLayout();row.setContentsMargins(12,6,12,10)
-                actions=[('Zoom −',lambda:self.adjust_frame(zoom=-.15)),('Zoom +',lambda:self.adjust_frame(zoom=.15)),
+                actions=[('Size −',lambda:self.resize_window(1/1.15)),('Size +',lambda:self.resize_window(1.15)),
+                         ('Zoom −',lambda:self.adjust_frame(zoom=-.15)),('Zoom +',lambda:self.adjust_frame(zoom=.15)),
                          ('Move up',lambda:self.adjust_frame(vertical=.15)),('Move down',lambda:self.adjust_frame(vertical=-.15)),
                          ('Reset',self.reset_frame)]
                 if name=='settings':actions.append(('Click through',self.click_through))
@@ -213,6 +214,14 @@ class StudioControls(QObject):
                     b=QPushButton(label);b.clicked.connect(callback);row.addWidget(b)
                 self.panels[name].layout().insertLayout(1,row)
         self.place_panel(name);self.panels[name].show();self.panels[name].raise_();self.panels[name].activateWindow()
+
+    def resize_window(self,factor):
+        """Grow or shrink the avatar's space, keeping its bottom-right corner where the owner put it."""
+        r=self.window.geometry();screen=self.window.screen().availableGeometry()
+        rect=scaled_window(Rect(r.x(),r.y(),r.width(),r.height()),factor,
+                           Rect(screen.x(),screen.y(),screen.width(),screen.height()))
+        self.window.setGeometry(rect.x,rect.y,rect.width,rect.height)
+        self.reposition();self.save_geometry()
 
     def adjust_frame(self,**values):
         self.window.framing=self.window.framing.adjust(**values);self.window.update();self.save_geometry()
