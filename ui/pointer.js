@@ -102,7 +102,7 @@ window.ChassiePointer=ChassiePointer;
 // Mirrors desktop/motion.py: attentive nods while the user talks, a tilt while
 // thinking, a gentle sway while speaking or idle. Additive degrees, eased.
 const HEAD_POSES={
-    listening:[4,-2,3,1.6,.5,5], thinking:[-7,6,0,1,1,6],
+    listening:[4,-2,1,1.6,.5,5], thinking:[-7,6,0,1,1,6],
     speaking:[0,0,1.5,.9,.4,3.2], idle:[0,0,0,1,1.2,8],
 };
 function headTarget(status,t){
@@ -111,18 +111,23 @@ function headTarget(status,t){
             ParamAngleY:baseY-nod*Math.max(0,Math.sin(2*Math.PI*t/nodPeriod)),
             ParamAngleX:sway*.6*Math.sin(2*Math.PI*t/(swayPeriod*1.7))};
 }
+// One soft nod per backchannel cue (desktop/motion.py nod_offset).
+function nodOffset(since){return since===null||since<0||since>=.55?0:-7*Math.sin(Math.PI*since/.55)**2;}
 class ChassieHeadMotion {
-    constructor(){this.current={ParamAngleX:0,ParamAngleY:0,ParamAngleZ:0};this.last=null;
+    constructor(){this.current={ParamAngleX:0,ParamAngleY:0,ParamAngleZ:0};this.last=null;this.nodAt=null;
         this.reduced=matchMedia('(prefers-reduced-motion: reduce)');}
+    nod(){this.nodAt=performance.now()/1000;}
     apply(core,status){
         if(this.reduced.matches)return;
         const now=performance.now()/1000,dt=this.last===null?1/30:Math.min(Math.max(now-this.last,0),.1);this.last=now;
         const target=headTarget(status,now),ease=1-Math.exp(-dt/.35);
         for(const id of Object.keys(this.current)) {
             this.current[id]+=(target[id]-this.current[id])*ease;
-            if(core._model.parameters.ids.includes(id))core.addParameterValueById(id,this.current[id]);
+            const extra=id==='ParamAngleY'?nodOffset(this.nodAt===null?null:now-this.nodAt):0;
+            if(core._model.parameters.ids.includes(id))core.addParameterValueById(id,this.current[id]+extra);
         }
     }
 }
 window.ChassieHeadMotion=ChassieHeadMotion;
 window.chassieHeadTarget=headTarget;
+window.chassieNodOffset=nodOffset;

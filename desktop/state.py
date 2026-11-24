@@ -75,8 +75,12 @@ class OverlayState:
     status: str = 'disconnected'
     mic_enabled: bool | None = None
     gaze: tuple | None = None  # Owner's face position in the camera, [-1, 1] each axis.
+    nod_at: float | None = None  # Last backchannel cue: nod while the owner talks.
 
     def receive(self, message: dict, now: float) -> bool:
+        if message.get('type') == 'backchannel':
+            self.nod_at = now
+            return True
         if message.get('type') == 'settings':
             if isinstance(message.get('mic_enabled'), bool):
                 self.mic_enabled = message['mic_enabled']

@@ -42,6 +42,10 @@ class SpeechEvent:
     speaker: dict | None = None
 
 class SpeechSegmenter:
+    # A short gap after real speech is where a listener nods ("mm"), before the utterance ends.
+    PAUSE_SECONDS=.3
+    PAUSE_AFTER_SPEECH=1.0
+
     def __init__(self, *, sample_rate=16000,silence_duration=.8,min_speech_duration=.09,
                  max_speech_duration=15,pre_roll=.18):
         self.sample_rate=sample_rate
@@ -53,6 +57,7 @@ class SpeechSegmenter:
         self._started=None
         self._last_voice=None
         self._voiced=0
+        self._paused=False
 
     def feed(self,frame,speech,now):
         events=[]
@@ -64,12 +69,16 @@ class SpeechSegmenter:
             self._frames=list(self._pre); self._pre.clear()
             events.append(('speech_start',now))
         self._frames.append(frame)
-        if speech: self._last_voice=now; self._voiced+=duration
+        if speech: self._last_voice=now; self._voiced+=duration; self._paused=False
+        elif (not self._paused and self._last_voice is not None and self._voiced>=self.PAUSE_AFTER_SPEECH
+              and self.PAUSE_SECONDS<=now-self._last_voice<self.silence_duration):
+            self._paused=True
+            events.append(('speech_pause',now))
         elapsed=sum(map(len,self._frames))/(2*self.sample_rate)
         if (not speech and self._last_voice is not None and now-self._last_voice>=self.silence_duration) or elapsed>=self.maximum:
             if self._voiced>=self.minimum:
                 events.append(('utterance',Utterance(b''.join(self._frames),self._started,now+duration)))
-            self._frames=[]; self._started=None; self._last_voice=None; self._voiced=0
+            self._frames=[]; self._started=None; self._last_voice=None; self._voiced=0; self._paused=False
         return events
 
 class STTEngine:
@@ -178,10 +187,10 @@ class STTEngine:
                 self.dropped_utterances+=1; return False
             return True
 
-    def _publish_start(self,epoch,now):
+    def _publish_start(self,epoch,now,kind='speech_start'):
         with self._lock:
             if self._muted or epoch!=self._epoch: return
-            try: self._output_queue.put_nowait(SpeechEvent('speech_start',epoch,now,now))
+            try: self._output_queue.put_nowait(SpeechEvent(kind,epoch,now,now))
             except queue.Full: pass
 
     def _capture_loop(self):
@@ -218,7 +227,7 @@ class STTEngine:
                         break
                     frame=bytes(data); now=time.monotonic()
                     for kind,value in segmenter.feed(frame,vad.is_speech(frame,self._rate),now):
-                        if kind=='speech_start': self._publish_start(epoch,value)
+                        if kind in ('speech_start','speech_pause'): self._publish_start(epoch,value,kind)
                         else:
                             with self._lock:
                                 if self._muted or epoch!=self._epoch: continue

@@ -234,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(d.type==='model_catalog'){studio.models=d.models;renderControls();loadModel();}
         if(d.type==='model_state'){studio.selection=d;renderControls();loadModel();}
         if(d.type==='avatar_state'){avatarEvent={...d,received:performance.now()};}
+        if(d.type==='backchannel'&&headMotion)headMotion.nod();
         if(d.type==='subtitle'&&d.generation>=subtitleGeneration){subtitleGeneration=d.generation;$('subtitle').textContent=d.text;$('stage-hint').hidden=!!d.text;}
         if(d.type==='settings'){$('studio-mic').disabled=false;$('studio-mic').querySelector('span').textContent=d.mic_enabled?'Microphone on':'Microphone off';}
         if(d.type==='notice'){$('model-notice').textContent=d.text;}

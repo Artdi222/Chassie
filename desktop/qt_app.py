@@ -109,7 +109,7 @@ class AvatarWindow(QOpenGLWidget):
                     settings=self.selection.get('interaction'),look=self.state.gaze,hovered=self.underMouse())
             now=time.monotonic()
             self.driver.frame(max(self.state.mouth_at(now),self.selection.get('mouth_preview',0)),
-                              self.head_motion.step(self.state.status,now),
+                              self.head_motion.step(self.state.status,now,self.state.nod_at),
                               self.pointer_interaction.look if self.pointer_interaction else None,
                               self.state.status)
             if not self.renderer_ready:

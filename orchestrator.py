@@ -133,6 +133,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._mic_enabled=not text_mode
         self._voice_started=False;self._voice_starting=False;self._voice_start_task=None
         self._capture_paused=False
+        self._last_backchannel=0.0
         # Full duplex only when echo_cancel.enable() routed audio through PipeWire AEC.
         self._barge_in=config.get('conversation',{}).get('barge_in') is True
         self._speaking_since=0.0
@@ -840,6 +841,13 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             # The grace period ignores residual echo while the canceller adapts to a new reply.
             logger.info('Barge-in: user started speaking; stopping the reply')
             await self._cancel_turn(keep_voice=True)
+            return
+        if event.kind=='speech_pause':
+            # Nod along while the owner talks, at most every 1.6 s; never over Chassie's own speech.
+            now=time.monotonic()
+            if self._current_status=='listening' and now-self._last_backchannel>=1.6:
+                self._last_backchannel=now
+                await self._broadcast_to_ui({'type':'backchannel'})
             return
         if event.kind=='speech_start':
             self._note_activity(user=True)
