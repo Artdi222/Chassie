@@ -5,6 +5,9 @@ import json
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from speech_prosody import apply_contour  # noqa: E402
+
 # Only Mochiko-san talk styles from official VVM 0.16.4 (15.vvm).
 MOCHIKO_STYLES = {20, 77, 78, 79, 80}
 
@@ -33,6 +36,16 @@ def main():
             if type(speed) not in (int, float) or not 0.5 <= speed <= 2.0:
                 raise ValueError('Invalid speech speed')
             query.speed_scale = float(speed)
+            prosody = request.get('prosody')
+            if prosody is not None:
+                pitch, intonation, tempo = prosody['pitch'], prosody['intonation'], prosody['speed']
+                if not (all(type(v) in (int, float) for v in (pitch, intonation, tempo))
+                        and -.1 <= pitch <= .1 and .5 <= intonation <= 2 and .8 <= tempo <= 1.2):
+                    raise ValueError('Invalid prosody')
+                query.pitch_scale = float(pitch)
+                query.intonation_scale = float(intonation)
+                query.speed_scale = float(speed) * float(tempo)
+                apply_contour(query.accent_phrases, prosody.get('shape'), float(prosody.get('emphasis', 0)))
             moras = [m for phrase in query.accent_phrases
                      for m in [*phrase.moras, *([phrase.pause_mora] if phrase.pause_mora else [])]]
             duration = query.pre_phoneme_length + query.post_phoneme_length + sum(

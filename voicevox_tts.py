@@ -8,8 +8,10 @@ import sys
 from pathlib import Path
 from bilingual import JAPANESE
 from speech_polish import clean_speech
+from speech_prosody import ProsodyPlanner
 
-# Keep the user's preferred Normal delivery independent of avatar emotions.
+# One Normal style always (switching styles sounded like another person); per-sentence
+# prosody in speech_prosody.py makes the delivery follow each line instead.
 NORMAL_STYLE = 20
 # Short, medium and long sentences: ONNX Runtime reaches full speed after a few passes.
 WARMUP_PHRASES = ('こんにちは。', '今日もよろしくお願いします。', 'お疲れ様、今日は何をして過ごしていたの？ゆっくり聞かせてね。')
@@ -29,6 +31,9 @@ class VoicevoxTTS:
         self._process = None
         self._warmed = False
         self._lock = asyncio.Lock()
+        # Same Normal style always; only pitch, range, tempo and contour follow each sentence.
+        self.lively = cfg.get('lively_prosody', True) is not False
+        self.prosody = ProsodyPlanner()
         if type(self.threads) is not int or not 1 <= self.threads <= 8:
             raise ValueError('VOICEVOX cpu_threads must be between 1 and 8')
 
@@ -72,8 +77,11 @@ class VoicevoxTTS:
 
     async def _request(self, text, emotion):
         await self._ensure_process()
-        request = json.dumps({'text': clean_speech(text), 'style': NORMAL_STYLE,
-                              'speed': self.speed}, ensure_ascii=False)
+        payload = {'text': clean_speech(text), 'style': NORMAL_STYLE, 'speed': self.speed}
+        if self.lively and emotion is not None:
+            # The shape comes from the original text: cleaning turns "…" into a comma.
+            payload['prosody'] = self.prosody.plan(text, emotion)
+        request = json.dumps(payload, ensure_ascii=False)
         self._process.stdin.write((request + '\n').encode('utf-8'))
         await self._process.stdin.drain()
         line = await self._process.stdout.readline()
@@ -99,7 +107,7 @@ class VoicevoxTTS:
             async with self._lock:
                 if self._warmed: return
                 try:
-                    await asyncio.wait_for(self._request(phrase, 'neutral'), timeout=self.timeout)
+                    await asyncio.wait_for(self._request(phrase, None), timeout=self.timeout)
                 except BaseException:
                     await self._cleanup()
                     raise
