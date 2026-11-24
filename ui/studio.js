@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const m = entry(), s = studio.selection;
         const items = m?.expressions.filter(x => kinds.includes(x.kind)) || [];
         if (!items.length) { const p = document.createElement('p'); p.textContent = 'No built-in presets for this category.'; container.append(p); return; }
-        if (!multiple) container.append(button('Default', !s[field], () => control({[field]: null, ...(field === 'expression' ? {auto: false} : {})})));
+        if (!multiple) container.append(button('Default', !s[field], () => control({[field]: null, ...(field === 'expression' ? {auto: true} : {})})));
         items.forEach(x => {
             const selected = multiple ? s[field].includes(x.id) : s[field] === x.id;
             container.append(button(x.name, selected, () => {
@@ -151,7 +151,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!s.auto) ids.push(s.expression);
         else if(m.expressions.some(x=>x.generated)) {
             const aliases={};
-            const mood={thinking:'thinking',listening:'curious',idle:'neutral',disconnected:'neutral'}[avatarEvent.status] || avatarEvent.emotion;
+            let mood={thinking:'waiting',listening:'curious',idle:'neutral',disconnected:'neutral'}[avatarEvent.status] || avatarEvent.emotion;
+            if(mood==='waiting' && !m.expressions.some(x=>x.generated && x.original==='waiting')) mood='thinking';
             ids.push(...m.expressions.filter(x=>x.generated && x.original===(aliases[mood]||mood)).map(x=>x.id));
         }
         const core=avatar.internalModel.coreModel;

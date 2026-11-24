@@ -98,7 +98,7 @@ class AvatarWindow(QOpenGLWidget):
             if self.entry:
                 emotion=self.state.emotion
                 if self.entry.generated:
-                    emotion={'thinking':'thinking','listening':'curious','idle':'neutral','disconnected':'neutral'}.get(self.state.status,emotion)
+                    emotion={'thinking':'waiting','listening':'curious','idle':'neutral','disconnected':'neutral'}.get(self.state.status,emotion)
                 self.driver.apply(self.selection,emotion)
             self.model.SetScale(self.framing.zoom)
             self.model.SetOffset(0.0, self.framing.vertical)

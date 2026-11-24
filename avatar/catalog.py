@@ -227,5 +227,5 @@ def active_files(entry, selection, emotion='neutral'):
     names = [selection.get('outfit'), selection.get('prop'), *selection.get('accessories', []), *selection.get('effects', [])]
     if not selection.get('auto', True):
         names.append(selection.get('expression'))
-    elif entry.generated:names.append(expression_id(emotion))
+    elif entry.generated:names.append(expression_id(emotion,entry.generated))
     return [x for x in names if x]

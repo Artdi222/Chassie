@@ -82,7 +82,7 @@ def test_reaction_tables_are_per_model_and_only_use_real_parameters():
     from avatar.reactions import generated_reactions, MODEL_REACTIONS, DEEPSEEK_REACTIONS
     from emotion_parser import VALID_EMOTIONS
     for table in MODEL_REACTIONS.values():
-        assert set(table)==VALID_EMOTIONS-{'neutral'}
+        assert set(table)-{'waiting'}==VALID_EMOTIONS-{'neutral'}
     # DeepSeek-chan's Param46/48/49 are grass physics, never facial reactions.
     assert not {'Param46','Param48','Param49'}&{k for v in DEEPSEEK_REACTIONS.values() for k in v}
     assert generated_reactions({'ParamMouthForm'},'Unknown')=={}
@@ -99,10 +99,18 @@ def test_default_selection_prefers_tian_muzi(tmp_path):
 def test_local_deepseek_package_reacts_automatically(tmp_path):
     entry=ModelCatalog().get('DeepSeek')
     assert entry.public()['name']=='DeepSeek-chan' and entry.public()['mouth']
-    assert len(entry.generated)==15
+    assert len(entry.generated)==16
     for value in entry.generated.values():
         assert value['Parameters'] and all(p['Id'] in entry.parameter_ids for p in value['Parameters'])
     assert active_files(entry,{'auto':True},'love')==['__chassie__/love.exp3.json']
+    assert active_files(entry,{'auto':True},'waiting')==['__chassie__/waiting.exp3.json']
     native=prepare_entry(entry,tmp_path)
     refs=json.loads(native.read_text())['FileReferences']
     assert all((native.parent/e['File']).is_file() for e in refs['Expressions'])
+
+
+def test_waiting_falls_back_to_thinking_for_models_without_it():
+    from avatar.reactions import expression_id, generated_reactions
+    table=generated_reactions({'ParamMouthForm','ParamBrowLY'},'Model_4')
+    assert expression_id('waiting',table)=='__chassie__/thinking.exp3.json'
+
