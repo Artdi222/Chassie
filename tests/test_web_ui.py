@@ -107,7 +107,7 @@ async def test_browser_controls_and_guest_privacy(app):
             assert await page.locator('.message-bubble.assistant').count()==1
             assert await page.locator('.message-bubble.assistant .bubble-meta').inner_text()=='Chassie • Interrupted'
             await app._broadcast_to_ui({'type':'history_cleared'})
-            await page.get_by_text('Conversation history cleared.',exact=True).wait_for()
+            await page.get_by_text('New conversation started. Earlier chats are kept in History.',exact=True).wait_for()
             assert await page.locator('.message-bubble.assistant').count()==0
             await page.screenshot(path=str(artifacts/'controls-desktop.png'),full_page=True)
             await page.locator('#sidebar-close').click()

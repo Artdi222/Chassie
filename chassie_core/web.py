@@ -34,6 +34,7 @@ class WebMixin:
                     await ws.send_json({'type':'avatar_inventory','capabilities':self._avatar_capabilities()})
                     active_stream_id=self._stream_view['id'] if self._stream_view and not self._stream_view['done'] else None
                     await ws.send_json(self._history_snapshot())
+                    await ws.send_json(self._sessions_message())
                     if self._automatic_memory and self._vault and getattr(self._vault,'store',True) is None:
                         await ws.send_json({'type':'notice','text':'Memory is off: '+str(self._vault.error)})
                     self._ui_sockets.add(ws)

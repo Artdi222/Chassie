@@ -360,6 +360,8 @@ class HermesBridge:
         prefix=1 if self._current_system_prompt() else 0
         excess=len(self._messages)-prefix-self._max_turns*2
         if excess>0:
+            # Older turns leave the model's window but stay in the saved session.
+            self._archive.extend(self._messages[prefix:prefix+excess])
             del self._messages[prefix:prefix+excess]
             if self._pending: self._pending=(self._pending[0],self._pending[1]-excess)
 
@@ -403,9 +405,27 @@ class HermesBridge:
                 for m in self._messages]
 
     def clear_history(self):
+        """Start a new conversation; the old one keeps its session id and file."""
         self._revision+=1
         self._pending=None
         self._messages=[{'role':'system','content':self._current_system_prompt()}] if self._current_system_prompt() else []
+        self._archive=[]
+        self.session_id=None  # Assigned when the first exchange is saved.
+
+    def session_messages(self):
+        """The whole conversation for saving: trimmed turns plus the model's current window."""
+        return [dict(m) for m in self._archive+self._messages if m['role'] in ('user','assistant')]
+
+    def load_session(self,session_id,messages):
+        """Continue a saved conversation: the latest turns go back into the model's window."""
+        self.clear_history()
+        messages=[{'role':m['role'],'content':m['content']} for m in messages if m.get('role') in ('user','assistant')]
+        keep=self._max_turns*2
+        cut=max(0,len(messages)-keep)
+        if cut and messages[cut]['role']=='assistant': cut+=1  # Never start the window mid-exchange.
+        self._archive=messages[:cut]
+        self._messages.extend(messages[cut:])
+        self.session_id=session_id
 
     async def health_check(self):
         try:

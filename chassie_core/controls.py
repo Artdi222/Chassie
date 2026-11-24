@@ -93,7 +93,24 @@ class ControlsMixin:
                 self._save_speech_settings()
             elif kind in ('stop','clear_history'):
                 await self._cancel_turn(clear=kind=='clear_history')
-                if kind=='clear_history': await self._broadcast_to_ui({'type':'history_cleared'})
+                if kind=='clear_history':
+                    await self._broadcast_to_ui({'type':'history_cleared'})
+                    await self._broadcast_to_ui(self._sessions_message())
+            elif kind=='list_sessions':
+                await self._broadcast_to_ui(self._sessions_message())
+            elif kind in ('open_session','delete_session'):
+                if not self._personal_scope(): raise ValueError('Chat history is only available when you are alone with Chassie')
+                session_id=data.get('session_id')
+                if kind=='open_session':
+                    await self._cancel_turn()
+                    self._open_session(session_id)
+                    await self._broadcast_to_ui(self._history_snapshot())
+                else:
+                    if session_id==self._hermes.session_id:
+                        await self._cancel_turn(clear=True)
+                        await self._broadcast_to_ui({'type':'history_cleared'})
+                    self._sessions.delete(session_id)
+                await self._broadcast_to_ui(self._sessions_message())
             elif kind=='resume_topic':
                 topic=self._pending_topic
                 if topic:

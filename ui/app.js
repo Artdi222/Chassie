@@ -136,6 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
             case "history_cleared":
                 clearChatDisplay();
                 break;
+            case "sessions":
+                renderSessions(data);
+                break;
             default:
                 console.warn("Unknown message type received:", data);
         }
@@ -161,7 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <p>Type below or turn on the microphone.</p>
             </div>
         `;
-        if (showNotice) appendSystemAlert("Conversation history cleared.");
+        if (showNotice) appendSystemAlert("New conversation started. Earlier chats are kept in History.");
     }
 
     // Update pipeline status layout
@@ -340,6 +343,70 @@ document.addEventListener("DOMContentLoaded", () => {
 
         chatInput.value = "";
     });
+
+    // Previous chats: continue an earlier conversation or start a new one.
+    const sessionsToggle=document.getElementById("sessions-toggle"),sessionList=document.getElementById("session-list");
+    const sessionTitle=document.getElementById("session-title");
+    let sessionState={items:[],current:null,available:true};
+    function sessionDate(value){
+        const date=new Date(value);if(Number.isNaN(date.getTime()))return "";
+        const today=new Date(),time=date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+        const yesterday=new Date(today);yesterday.setDate(today.getDate()-1);
+        if(date.toDateString()===today.toDateString())return "Today "+time;
+        if(date.toDateString()===yesterday.toDateString())return "Yesterday "+time;
+        return date.toLocaleDateString([], {day:"numeric",month:"short"})+" "+time;
+    }
+    function sessionMeta(item){
+        const turns=Math.max(1,Math.ceil(item.count/2));
+        return sessionDate(item.updated)+" · "+turns+(turns===1?" exchange":" exchanges");
+    }
+    function renderSessions(data){
+        sessionState=data;
+        const current=data.items.find(item=>item.id===data.current);
+        sessionTitle.textContent=current?current.title:"New chat";
+        sessionList.replaceChildren();
+        if(!data.available){
+            const note=document.createElement("p");note.className="session-empty";
+            note.textContent="Chat history is hidden while someone else is here.";sessionList.append(note);return;
+        }
+        if(!data.items.length){
+            const note=document.createElement("p");note.className="session-empty";
+            note.textContent="No earlier chats yet. They appear here after your first message.";sessionList.append(note);return;
+        }
+        for(const item of data.items){
+            const row=document.createElement("div");row.className="session-item";
+            if(item.id===data.current)row.setAttribute("aria-current","true");
+            const open=document.createElement("button");open.type="button";open.className="session-open";
+            const title=document.createElement("strong");title.textContent=item.title;
+            const meta=document.createElement("span");meta.textContent=sessionMeta(item);
+            open.append(title,meta);
+            open.addEventListener("click",()=>{
+                if(item.id!==sessionState.current)sendControl({type:"open_session",session_id:item.id});
+                closeSessions();
+            });
+            const remove=document.createElement("button");remove.type="button";remove.className="session-delete";
+            remove.title="Delete this chat";remove.setAttribute("aria-label","Delete chat: "+item.title);
+            remove.innerHTML='<svg class="icon"><use href="icons.svg#close"/></svg>';
+            remove.addEventListener("click",()=>{
+                if(remove.dataset.confirm){sendControl({type:"delete_session",session_id:item.id});return;}
+                // Two clicks to delete, without a blocking browser dialog.
+                remove.dataset.confirm="1";remove.title="Click again to delete";meta.textContent="Click × again to delete this chat";
+                setTimeout(()=>{delete remove.dataset.confirm;remove.title="Delete this chat";meta.textContent=sessionMeta(item);},3000);
+            });
+            row.append(open,remove);sessionList.append(row);
+        }
+    }
+    function closeSessions(){sessionList.hidden=true;sessionsToggle.setAttribute("aria-expanded","false");}
+    sessionsToggle.addEventListener("click",()=>{
+        const opening=sessionList.hidden;
+        sessionList.hidden=!opening;sessionsToggle.setAttribute("aria-expanded",String(opening));
+        if(opening){
+            sessionList.style.setProperty("--session-top",(sessionsToggle.offsetTop+sessionsToggle.offsetHeight+6)+"px");
+            sendControl({type:"list_sessions"});
+        }
+    });
+    document.getElementById("new-chat").addEventListener("click",()=>{closeSessions();sendControl({type:"clear_history"});});
+    document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!sessionList.hidden){closeSessions();sessionsToggle.focus();}});
 
     // Clear History Button Action
     clearBtn.addEventListener("click", () => {

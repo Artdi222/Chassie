@@ -36,6 +36,8 @@ from bilingual import BilingualChunker, LANGUAGES, split_first_clause
 from avatar import load_manifest
 from avatar.manifest import DEFAULT_MANIFEST
 from avatar.catalog import ModelCatalog, ModelSelection
+from chassie_core.sessions import SessionStore, new_session_id
+from chassie_core.initiative import PREFIX as INITIATIVE_PREFIX
 from face_identity import face_command
 from visual_context import VisualContext
 from visual_requests import requested_visual_sources
@@ -137,6 +139,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._input_mode=config.get('conversation',{}).get('input_mode','review')
         if self._input_mode not in ('review','hands_free'): raise ValueError('Invalid input mode')
         self._speech_settings_path=selection_path.with_name('speech-settings.json')
+        self._sessions=SessionStore(selection_path.with_name('sessions'))
         self._translation_language=config.get('tts',{}).get('translation_language','en')
         try:saved=json.loads(self._speech_settings_path.read_text())
         except (OSError,ValueError):saved={}
@@ -162,6 +165,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
     async def start(self):
         self._running=True
         await self._hermes.connect()
+        self._resume_latest_session()
         self._tts.load_model()
         self._audio_player.start(loop=asyncio.get_running_loop(),avatar=self._avatar,analyzer=self._audio_analyzer)
         # Start web controls before expensive device/model loading.
@@ -604,6 +608,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         finally:
             for task in tasks: task.cancel()
             await asyncio.gather(*tasks,return_exceptions=True)
+            self._save_session()
             self._turn_images=[]
             self._turn_vision=None
             self._turn_app=None
@@ -702,6 +707,38 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 logger.warning('Daily reflection postponed: %s',exc)
             await asyncio.sleep(1800)
 
+    def _personal_scope(self):
+        return self._session_context.context_for_request(self._memory).scope=='personal'
+
+    def _save_session(self):
+        """Write the owner's conversation to disk; guests' conversations are never saved."""
+        messages=self._hermes.session_messages() if hasattr(self._hermes,'session_messages') else None
+        if not isinstance(messages,list) or not messages or not self._personal_scope(): return
+        if self._hermes.session_id is None: self._hermes.session_id=new_session_id()
+        try: self._sessions.save(self._hermes.session_id,messages,skip_title=lambda text:INITIATIVE_PREFIX in text)
+        except (OSError,ValueError) as exc: logger.warning('Chat session not saved: %s',type(exc).__name__)
+
+    def _open_session(self,session_id):
+        data=self._sessions.load(session_id)
+        self._hermes.load_session(data['id'],data['messages'])
+        self._pending_topic=None;self._stream_view=None
+
+    def _resume_latest_session(self):
+        """Reopening Chassie continues the last conversation instead of starting blank."""
+        if not self._personal_scope(): return
+        latest=self._sessions.latest()
+        if latest is None or not hasattr(self._hermes,'load_session'): return
+        try:
+            self._open_session(latest)
+            logger.info('Continued chat session %s',latest)
+        except (OSError,ValueError) as exc: logger.warning('Could not continue the last chat: %s',type(exc).__name__)
+
+    def _sessions_message(self):
+        items=self._sessions.list() if self._personal_scope() else []
+        current=getattr(self._hermes,'session_id',None)
+        return {'type':'sessions','items':items,'current':current if isinstance(current,str) else None,
+                'available':self._personal_scope()}
+
     async def _save_turn_memories(self,text):
         """Save the memory lines Chassie chose to write this turn to the Obsidian vault.
 
@@ -759,6 +796,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             try: await task
             except asyncio.CancelledError: pass
         self._hermes.interrupt_response(self._spoken)
+        self._save_session()  # Keep what was said before a new chat or a guest clears the window.
         if clear:
             self._hermes.clear_history();self._pending_topic=None
             self._stream_view=None
