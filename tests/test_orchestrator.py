@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock,Mock
 
 import pytest
 from orchestrator import Orchestrator
-from stt_engine import SpeechEvent
+from speech.stt_engine import SpeechEvent
 
 @pytest.fixture
 def app(tmp_path):
@@ -338,7 +338,7 @@ async def test_barge_in_stops_reply_but_keeps_the_interrupting_utterance(app):
 
 
 def test_echo_cancel_routes_only_chassie_and_falls_back(monkeypatch):
-    import echo_cancel
+    from speech import echo_cancel
     calls=[]
     def pactl(*args,timeout=5):
         calls.append(args)

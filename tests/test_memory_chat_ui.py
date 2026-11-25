@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 from aiohttp import web
 from playwright.async_api import async_playwright
-from voice_identity import VoiceIdentity
+from speech.voice_identity import VoiceIdentity
 from test_orchestrator import app
 
 

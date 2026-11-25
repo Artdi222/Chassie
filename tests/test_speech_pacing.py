@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from speech_pacing import SpeechPacing
+from speech.speech_pacing import SpeechPacing
 
 
 def test_sentence_pause_accounts_for_existing_silence_and_synthesis_wait():

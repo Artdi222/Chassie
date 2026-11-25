@@ -7,7 +7,7 @@ import re
 
 import numpy as np
 
-from speech_polish import normalize_loudness
+from speech.speech_polish import normalize_loudness
 
 logger=logging.getLogger('tts')
 
@@ -40,7 +40,7 @@ class TTSEngine:
         cfg=config['tts']
         if cfg.get('engine','voicevox')!='voicevox': raise ValueError('Unknown TTS engine; only VOICEVOX is supported')
         self.engine='voicevox'
-        from voicevox_tts import VoicevoxTTS
+        from speech.voicevox_tts import VoicevoxTTS
         self._voicevox=VoicevoxTTS(config)
         self._sample_rate=cfg['sample_rate']
         self._max_samples=int(cfg.get('max_audio_seconds',60)*self._sample_rate)

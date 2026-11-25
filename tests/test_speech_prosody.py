@@ -1,6 +1,6 @@
 import random
 
-from speech_prosody import ProsodyPlanner, apply_contour
+from speech.speech_prosody import ProsodyPlanner, apply_contour
 
 
 def test_plan_follows_emotion_and_sentence_shape():
@@ -36,8 +36,8 @@ def test_contour_falls_emphasises_and_rises_for_questions():
 
 
 def test_mouth_keyframes_open_per_vowel_and_close_on_lips_and_pauses():
-    from speech_prosody import mouth_keyframes
-    from audio_player import keyframe_mouth
+    from speech.speech_prosody import mouth_keyframes
+    from speech.audio_player import keyframe_mouth
     query = {'speed_scale': 1.0, 'pre_phoneme_length': .1, 'accent_phrases': [
         {'moras': [{'consonant': 'm', 'consonant_length': .06, 'vowel': 'a', 'vowel_length': .15},
                    {'consonant': None, 'consonant_length': None, 'vowel': 'i', 'vowel_length': .1}],

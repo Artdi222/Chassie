@@ -10,7 +10,7 @@ from test_orchestrator import app, playback_fixture
 
 @pytest.mark.asyncio
 async def test_stop_during_sentence_pause_discards_prefetched_audio(app, monkeypatch):
-    from speech_pacing import SpeechPacing
+    from speech.speech_pacing import SpeechPacing
     playback = playback_fixture(app); playback.first_release.set()
     between = asyncio.Event()
     original = SpeechPacing.delay

@@ -7,8 +7,8 @@ import json
 import sys
 from pathlib import Path
 from bilingual import JAPANESE
-from speech_polish import clean_speech
-from speech_prosody import ProsodyPlanner
+from speech.speech_polish import clean_speech
+from speech.speech_prosody import ProsodyPlanner
 
 # One Normal style always (switching styles sounded like another person); per-sentence
 # prosody in speech_prosody.py makes the delivery follow each line instead.
@@ -21,7 +21,7 @@ class VoicevoxTTS:
     def __init__(self, config):
         cfg = config['tts']
         self.root = Path(cfg.get('voicevox_dir', '.chassie/voicevox')).expanduser()
-        if not self.root.is_absolute(): self.root = Path(__file__).parent / self.root
+        if not self.root.is_absolute(): self.root = Path(__file__).resolve().parents[1] / self.root
         self.threads = cfg.get('cpu_threads', 2)
         self.sample_rate = cfg['sample_rate']
         self.speed = cfg.get('speed_scale', 1.0)

@@ -6,7 +6,7 @@ import pytest
 import desktop_grant
 from bilingual import BilingualChunker
 from hermes_bridge import ToolProgress
-from speech_chunker import SpeechChunker
+from speech.speech_chunker import SpeechChunker
 from tests.test_hermes_stream import STOP, bridge, delta, server
 
 

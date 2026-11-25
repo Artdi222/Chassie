@@ -1,7 +1,7 @@
 import asyncio
 from unittest.mock import AsyncMock, Mock
 import pytest
-from voicevox_tts import VoicevoxTTS
+from speech.voicevox_tts import VoicevoxTTS
 from emotion_parser import VALID_EMOTIONS
 
 CONFIG={'tts':{'engine':'voicevox','sample_rate':24000,'timeout':0.02}}

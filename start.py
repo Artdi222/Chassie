@@ -189,7 +189,7 @@ async def main():
     await run_startup_checks(config)
 
     # Full-duplex voice when PipeWire echo cancellation is available
-    import echo_cancel
+    from speech import echo_cancel
     echo_cancel.enable(config)
 
     # Create orchestrator

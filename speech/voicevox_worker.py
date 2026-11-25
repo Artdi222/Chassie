@@ -5,8 +5,8 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-from speech_prosody import apply_contour, mouth_keyframes  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from speech.speech_prosody import apply_contour, mouth_keyframes  # noqa: E402
 
 # Only Mochiko-san talk styles from official VVM 0.16.4 (15.vvm).
 MOCHIKO_STYLES = {20, 77, 78, 79, 80}

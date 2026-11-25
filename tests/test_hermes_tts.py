@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from hermes_bridge import HermesBridge
-from tts_engine import TTSEngine, sentence_chunks
+from speech.tts_engine import TTSEngine, sentence_chunks
 
 CONFIG={'hermes':{'gateway_url':'http://localhost:8642','endpoint':'/v1/chat/completions',
  'health_endpoint':'/health','timeout':1,'model':'test','system_prompt':'Use English.'},

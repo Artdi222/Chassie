@@ -6,9 +6,9 @@ import time
 import numpy as np
 import pytest
 
-from audio_player import AudioPlayer
-from audio_analyzer import AudioAnalyzer
-from stt_engine import STTEngine, SpeechSegmenter
+from speech.audio_player import AudioPlayer
+from speech.audio_analyzer import AudioAnalyzer
+from speech.stt_engine import STTEngine, SpeechSegmenter
 
 CONFIG = {'audio': {'sample_rate':16000,'output_sample_rate':24000},
           'stt': {'model':'base','device':'cpu','silence_duration':0.12,'min_speech_duration':0.06}}
@@ -319,7 +319,7 @@ async def test_host_stop_that_drops_tail_cannot_cut_off_sentence():
 
 
 def test_gpu_speech_model_falls_back_to_cpu_when_cuda_fails_on_first_encode(monkeypatch):
-    import stt_engine
+    from speech import stt_engine
     monkeypatch.setattr(stt_engine, 'preload_cuda_libraries', lambda: None)
     calls = []
     class Model:

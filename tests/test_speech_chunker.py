@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from speech_chunker import SpeechChunker
+from speech.speech_chunker import SpeechChunker
 
 
 def parse(parts, max_chars=350):

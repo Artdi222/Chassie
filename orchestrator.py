@@ -13,13 +13,13 @@ from uuid import uuid4
 
 from aiohttp import web
 
-from audio_analyzer import AudioAnalyzer
-from audio_player import AudioPlayer
+from speech.audio_analyzer import AudioAnalyzer
+from speech.audio_player import AudioPlayer
 from companion import MemoryStore, SessionContext
 from companion.vault import VaultMemory
 from companion import reflection
 from companion.reflection import NOTE_DIR as DIARY_DIR
-from voice_identity import VoiceIdentity
+from speech.voice_identity import VoiceIdentity
 from hermes_bridge import HermesBridge, ToolProgress
 import desktop_grant
 
@@ -28,10 +28,10 @@ TOOL_FILLERS={'en':('ちょっと調べてみるね。','Let me check that for y
               'id':('ちょっと調べてみるね。','Bentar, aku cek dulu ya.')}
 # Said when the first sentence is slow, so a pause never feels like Chassie froze.
 THINKING_FILLERS={'en':('えっとね…','Hmm...'),'id':('えっとね…','Hmm...')}
-from stt_engine import STTEngine
-from tts_engine import TTSEngine
-from speech_chunker import SpeechChunker
-from speech_pacing import SpeechPacing
+from speech.stt_engine import STTEngine
+from speech.tts_engine import TTSEngine
+from speech.speech_chunker import SpeechChunker
+from speech.speech_pacing import SpeechPacing
 from bilingual import BilingualChunker, LANGUAGES, display_translation, split_first_clause
 from avatar import load_manifest
 from avatar.manifest import DEFAULT_MANIFEST

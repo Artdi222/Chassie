@@ -8,8 +8,8 @@ import pytest
 
 from companion import MemoryStore
 from companion.vault import VaultMemory
-from stt_engine import SpeechEvent
-from voice_identity import VoiceIdentity, match_voice
+from speech.stt_engine import SpeechEvent
+from speech.voice_identity import VoiceIdentity, match_voice
 from test_orchestrator import app
 
 

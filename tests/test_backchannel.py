@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from desktop.motion import HeadMotion, nod_offset
-from stt_engine import SpeechEvent, SpeechSegmenter
+from speech.stt_engine import SpeechEvent, SpeechSegmenter
 from test_orchestrator import app
 
 FRAME = b'\0' * 960  # 30 ms at 16 kHz.
