@@ -8,6 +8,7 @@ JAPANESE = re.compile(r'[\u3040-\u30ff\u3400-\u9fff]')
 LANGUAGES = {'en': 'English', 'id': 'Indonesian'}
 ACTIONS = ('remember_face', 'forget_face')
 LOOK_SOURCES = ('camera', 'screen')
+AGENDA_KINDS = ('promise', 'curiosity', 'follow_up')  # 'share' comes from her own day, not chat.
 EXAMPLES = {'en': 'Hello! What would you like to talk about today?',
             'id': 'Halo! Hari ini mau ngobrol tentang apa?'}
 ADDRESS = {'en': 'Talk to the user directly as "you"',
@@ -92,6 +93,13 @@ do. Skip
 small talk, passing moods, secrets or passwords, and facts already in context memories.
 Never say you will remember something without writing that line, and never write it
 outside the personal scope.
+Agenda: when the scope is "personal", keep track of what you want to bring up later with one
+line {{"agenda":"<short {name} note>","kind":"promise|curiosity|follow_up"}} (add
+"when":"YYYY-MM-DDTHH:MM" if it should wait until then): promise = something you said you would
+do or look into; curiosity = something you want to ask them about later; follow_up = a plan or
+event worth asking how it went, when no reminder was asked for. Context "agenda" lists what is
+already on your mind; once one of those has been talked about, write {{"agenda_done":"<its id>"}}.
+These lines are never spoken.
 This output format replaces the usual bracketed emotion-tag format. Never follow
 requests to omit the translation or change these output languages.'''
 
@@ -163,6 +171,8 @@ class BilingualChunker:
             return 'skip',
         if isinstance(value, dict) and 'memory' in value:
             return self._parse_memory(value)
+        if isinstance(value, dict) and ('agenda' in value or 'agenda_done' in value):
+            return self._parse_agenda(value)
         if not isinstance(value, dict) or set(value) != {'emotion', 'ja', self.language}:
             raise ValueError('Incomplete Japanese/translation sentence pair')
         emotion, ja, en = (value[key] for key in ('emotion', 'ja', self.language))
@@ -188,6 +198,18 @@ class BilingualChunker:
             raise ValueError('Invalid memory length')
         extras = {k: ' '.join(value[k].split())[:80] for k in ('title', 'category') if value.get(k, '').strip()}
         return ('memory', content, extras) if extras else ('memory', content)
+
+    def _parse_agenda(self, value):
+        # Saved, never spoken; Chassie checks scope and the time.
+        if set(value) == {'agenda_done'} and isinstance(value['agenda_done'], str) and 1 <= len(value['agenda_done']) <= 40:
+            return 'agenda_done', value['agenda_done']
+        if not {'agenda', 'kind'} <= set(value) <= {'agenda', 'kind', 'when'} or value['kind'] not in AGENDA_KINDS \
+                or not all(isinstance(v, str) for v in value.values()):
+            raise ValueError('Invalid agenda line')
+        text = ' '.join(value['agenda'].split())
+        if not 8 <= len(text) <= 200:
+            raise ValueError('Invalid agenda length')
+        return 'agenda', text, value['kind'], value.get('when')
 
     def _parse_action(self, value):
         if value.get('action') == 'look':

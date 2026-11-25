@@ -370,3 +370,62 @@ async def test_opening_hello_is_queued_once_and_skipped_if_the_owner_speaks_firs
     app._init_initiative()
     app._note_activity(user=True)
     assert app._initiative.greeted
+
+
+ITEM = {'id': 'a1', 'text': 'Ask how the exam went', 'kind': 'follow_up'}
+
+
+def test_agenda_item_is_raised_sooner_than_a_plain_check_in():
+    quiet = MODES['normal']['quiet']
+    state = InitiativeState(last_activity=0)
+    assert observe(state, quiet / 2 - 1, agenda_item=ITEM) is None
+    assert observe(state, quiet / 2, agenda_item=ITEM) == ('agenda', ITEM, set())
+    assert observe(state, quiet, agenda_item=ITEM)[0] == 'agenda'
+    assert ITEM['text'] in initiative_text('agenda', ITEM, DAY)
+
+
+def test_learned_acceptance_moves_check_ins_within_bounds():
+    quiet = MODES['normal']['quiet']
+    state = InitiativeState(last_activity=0)
+    ignored, welcome, hopeless = (lambda r: .125), (lambda r: 1.0), (lambda r: .01)
+    assert observe(state, quiet * 4 - 1, acceptance=ignored) is None
+    assert observe(state, quiet * 4, acceptance=ignored)[0] == 'quiet'
+    assert observe(state, quiet / 2, acceptance=welcome)[0] == 'quiet'
+    assert observe(state, quiet * 4, acceptance=hopeless)[0] == 'quiet'  # Capped at four times.
+    app_state = InitiativeState(last_activity=80, app='Krita', app_since=0)
+    assert observe(app_state, 103, acceptance=welcome)[:2] == ('app', 'Krita')
+    assert observe(app_state, 103) is None  # Untrained: the app needs 45 s of quiet.
+
+
+def spoken_initiative(app, reply):
+    playback = playback_fixture(app)
+    playback.first_release.set()
+    silent_tts(app, [])
+    app._hermes._stream_timeout = 1
+    async def stream(*a, **kw):
+        yield reply
+    app._hermes.stream_message = stream
+    app._hermes.discard_response = Mock()
+    app._hermes.complete_response = Mock()
+
+
+@pytest.mark.asyncio
+async def test_spoken_initiatives_log_raised_and_answered_but_skips_log_nothing(app):
+    spoken_initiative(app, '{"skip":true}\n')
+    await app._run_turn({'text': PREFIX + 'quiet', 'source': 'initiative', 'visual': [], 'reason': 'quiet'})
+    assert app._signals._entries() == []
+    spoken_initiative(app, json.dumps(PAIR, ensure_ascii=False) + '\n')
+    await app._run_turn({'text': PREFIX + 'quiet', 'source': 'initiative', 'visual': [], 'reason': 'quiet'})
+    app._note_activity(user=True)
+    app._note_activity(user=True)  # Only the first reply counts.
+    assert [(e['event'], e['reason']) for e in app._signals._entries()] == [('raised', 'quiet'), ('answered', 'quiet')]
+
+
+@pytest.mark.asyncio
+async def test_agenda_initiative_counts_an_attempt(app):
+    app._broadcast_to_ui = AsyncMock()
+    item = app._agenda.add('Ask how the exam went', 'follow_up', source='chat')
+    await app._start_initiative('agenda', item, set())
+    assert app._agenda.open()[0]['attempts'] == 1
+    queued = app._ui_input_queue.get_nowait()
+    assert queued['reason'] == 'agenda' and 'Ask how the exam went' in queued['text']

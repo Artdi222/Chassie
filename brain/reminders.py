@@ -30,28 +30,38 @@ def parse_time(value, now=None):
     return at
 
 
+def read_json_list(path):
+    try:
+        items = json.loads(Path(path).read_text(encoding='utf-8'))
+        return items if isinstance(items, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def write_json_list(path, items):
+    """Atomic, owner-only write: a crash never leaves a half-written file."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd, tmp = tempfile.mkstemp(prefix='.' + path.name, dir=path.parent)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, 'w', encoding='utf-8') as file:
+            json.dump(items, file, ensure_ascii=False, indent=1)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
 class ReminderStore:
     def __init__(self, path):
         self.path = Path(path)
 
     def _read(self):
-        try:
-            items = json.loads(self.path.read_text(encoding='utf-8'))
-            return items if isinstance(items, list) else []
-        except (OSError, ValueError):
-            return []
+        return read_json_list(self.path)
 
     def _write(self, items):
-        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        fd, tmp = tempfile.mkstemp(prefix='.' + self.path.name, dir=self.path.parent)
-        try:
-            os.fchmod(fd, 0o600)
-            with os.fdopen(fd, 'w', encoding='utf-8') as file:
-                json.dump(items, file, ensure_ascii=False, indent=1)
-            os.replace(tmp, self.path)
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+        write_json_list(self.path, items)
 
     def add(self, text, at, repeat=None):
         text = ' '.join(str(text).split())

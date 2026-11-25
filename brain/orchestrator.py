@@ -37,6 +37,7 @@ from avatar.manifest import DEFAULT_MANIFEST
 from avatar.catalog import ModelCatalog, ModelSelection
 from brain.sessions import SessionStore, new_session_id
 from brain.reminders import ReminderStore, parse_time
+from brain.agenda import AgendaStore, SignalLog
 from brain.initiative import PREFIX as INITIATIVE_PREFIX
 from vision.face_identity import face_command
 from vision.visual_context import VisualContext
@@ -146,6 +147,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._speech_settings_path=selection_path.with_name('speech-settings.json')
         self._sessions=SessionStore(selection_path.with_name('sessions'))
         self._reminders=ReminderStore(selection_path.with_name('reminders.json'))
+        self._agenda=AgendaStore(selection_path.with_name('agenda.json'))
+        self._signals=SignalLog(selection_path.with_name('signals.jsonl'))
         self._summary_tasks=set()
         self._translation_language=config.get('tts',{}).get('translation_language','en')
         try:saved=json.loads(self._speech_settings_path.read_text())
@@ -299,6 +302,10 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 'bring it up only if it fits, as something you remember.'}
         if context.scope=='personal':
             payload['profile_id']=self._session_context.owner_profile_id
+            items=self._agenda.top(2)
+            if items: payload['agenda']={'items':[{k:i[k] for k in ('id','text','kind')} for i in items],
+                'note':'On your mind: bring one up only if it fits the conversation naturally, never list '
+                       'them. Once one has been talked about, write {"agenda_done":"<id>"}.'}
         if self._speaker and self._speaker.last and time.monotonic()-self._speaker.last['at']<30:
             match=self._speaker.last.get('match')
             payload['speaker_observation']={'name':match['name'] if match else None,
@@ -347,6 +354,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         while True:
             encoded=json.dumps(payload,ensure_ascii=False)
             if len(encoded)<=10000: return encoded
+            if payload.pop('agenda',None): continue
             if payload['memories']: payload['memories'].pop(0)
             elif payload['shared_notes']: payload['shared_notes'].pop(0)
             else: raise ValueError('Conversation context metadata exceeds budget')
@@ -434,6 +442,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         kind=sentence[0]
         if kind=='memory': await self._save_memory(sentence[1],sentence[2] if len(sentence)>2 else {})
         elif kind=='action': await self._run_model_action(text,*sentence[1:])
+        elif kind in ('agenda','agenda_done'): self._apply_agenda(*sentence)
         elif kind=='skip': self._turn_skipped=True
         else: await put(sentence)
 
@@ -606,6 +615,10 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             else:
                 self._hermes.complete_response()
                 self._log_transcript(text)
+                if self._turn_initiative and item.get('reason') not in (None,'look','reminder','opened'):
+                    # Only spoken initiatives count; closing the app leaves this one unanswered.
+                    self._signals.add('raised',item['reason'])
+                    self._initiative.pending_signal=(item['reason'],time.monotonic())
             if not self._turn_initiative: self._previous_user_text=text[-300:]
             self._pending_topic=None
             completed=True
@@ -723,18 +736,34 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 busy=(self._turn_task and not self._turn_task.done()) or self._current_status not in ('idle','listening')
                 days=[] if busy else reflection.pending_days(self._transcripts,self._vault.path)
                 if days:
-                    day=days[0]
-                    reply=await self._hermes.complete_once(reflection.system_prompt(self._translation_language),
-                        f'Date: {day.isoformat()}\n\n'+reflection.transcript_text(self._transcripts,day))
-                    summary,loops=reflection.parse_reflection(reply)
-                    path=reflection.write_note(self._vault.path,day,summary,loops,self._translation_language)
-                    logger.info('Daily reflection written: %s (%d open loop(s))',path.name,len(loops))
+                    await self._reflect_day(days[0])
                     continue
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 logger.warning('Daily reflection postponed: %s',exc)
             await asyncio.sleep(1800)
+
+    async def _reflect_day(self,day):
+        """Write one day's diary; its open loops become follow-ups on her agenda for a week."""
+        reply=await self._hermes.complete_once(reflection.system_prompt(self._translation_language),
+            f'Date: {day.isoformat()}\n\n'+reflection.transcript_text(self._transcripts,day))
+        summary,loops=reflection.parse_reflection(reply)
+        path=reflection.write_note(self._vault.path,day,summary,loops,self._translation_language)
+        start=datetime.datetime.combine(day+datetime.timedelta(days=1),datetime.time())
+        for loop in loops:
+            try: self._agenda.add(loop,'follow_up',source=f'diary:{day.isoformat()}',earliest=start,
+                                  expires=start+datetime.timedelta(days=7))
+            except ValueError: pass  # A loop too short or long to be a useful follow-up.
+        logger.info('Daily reflection written: %s (%d open loop(s))',path.name,len(loops))
+
+    def _apply_agenda(self,kind,*fields):
+        """Owner-only: the model adds what it wants to bring up later, or closes what was talked about."""
+        if not self._personal_scope(): return
+        if kind=='agenda_done': self._agenda.resolve(fields[0]);return
+        text,item_kind,when=fields
+        try: self._agenda.add(text,item_kind,source='chat',earliest=parse_time(when) if when else None)
+        except (ValueError,TypeError) as exc: logger.warning('Agenda item not added: %s',exc)
 
     def _personal_scope(self):
         return self._session_context.context_for_request(self._memory).scope=='personal'

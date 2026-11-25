@@ -49,13 +49,20 @@ class InitiativeState:
     events:list=field(default_factory=list)
     last_face_seen:float|None=None
     last_wait_log:float=-1e9
+    pending_signal:tuple|None=None  # (reason, time) of the last spoken initiative, until answered
 
 
-def decide(state,now,*,owner_alone,face_visible,camera_on,mic_on,clock_time,screen_on=False):
+def decide(state,now,*,owner_alone,face_visible,camera_on,mic_on,clock_time,screen_on=False,
+           agenda_item=None,acceptance=None):
     """Return (reason, detail, sources) for the next initiative, or None.
 
-    Pure: callers pass observations; only `state` fields are read here.
+    Pure: callers pass observations; only `state` fields are read here. `acceptance(reason)`
+    is how often the owner answered that kind of initiative at this hour (0.5 = unknown):
+    well-received ones come sooner, ignored ones later, within half to four times the wait.
     """
+    def wait(reason,base):
+        share=acceptance(reason) if acceptance else .5
+        return base*min(4.,max(.5,.5/max(share,1e-6)))
     settings=MODES.get(state.mode)
     if not owner_alone:return None
     if state.look and state.look['due'] is not None and now>=state.look['due']:
@@ -80,16 +87,23 @@ def decide(state,now,*,owner_alone,face_visible,camera_on,mic_on,clock_time,scre
     if 0<=clock_time.hour<4 and state.late_night_day!=clock_time.date().isoformat() and quiet>=60:
         return 'late_night',clock_time.strftime('%H:%M'),set()
     if (state.app and state.app!=state.app_mentioned and now-state.app_since>=APP_STABLE_SECONDS
-            and quiet>=45):
+            and quiet>=wait('app',45)):
         return 'app',state.app,set(screen)
+    # Something on her mind comes up sooner than a plain check-in.
+    if agenda_item and quiet>=wait('agenda',settings['quiet'])/2:
+        return 'agenda',agenda_item,set(screen)
     # Back off while check-ins go unanswered so an empty room is not talked to.
-    if quiet>=settings['quiet']*(2**min(state.unanswered,3)):
+    if quiet>=wait('quiet',settings['quiet'])*(2**min(state.unanswered,3)):
         return 'quiet',int(quiet//60),set(screen)
     return None
 
 
 def initiative_text(reason,detail,now_local):
     clock=now_local.strftime('%H:%M')
+    if reason=='agenda':
+        return (f'{PREFIX}Local time {clock}. Something on your mind to bring up: "{detail["text"]}" '
+                f'({detail["kind"]}). Bring it up naturally in your own words, as a question or a short '
+                'remark; skip if it no longer fits.')
     texts={
         'look':f'Fresh {detail} snapshot you asked to see is attached. React to what you see now.',
         'returned':'The owner just came back in front of the camera after being away for a while. '
@@ -128,6 +142,9 @@ class InitiativeMixin:
         if state.look and state.look['due'] is None and not user:
             # The delay starts when Chassie finishes speaking, giving the user time to act.
             state.look['due']=state.last_activity+LOOK_DELAY
+        if user and state.pending_signal:
+            reason,since=state.pending_signal;state.pending_signal=None
+            if state.last_activity-since<=600:self._signals.add('answered',reason)  # They answered her.
         if user:
             state.greeted=True  # They spoke first; no opening hello now.
             state.unanswered=0
@@ -200,7 +217,9 @@ class InitiativeMixin:
                 choice=decide(state,now,owner_alone=self._owner_alone(),face_visible=visible,
                               camera_on=bool(self._vision and self._vision.camera_enabled),
                               mic_on=self._mic_enabled,clock_time=datetime.datetime.now(),
-                              screen_on=bool(self._vision and getattr(self._vision,'screen_enabled',False)))
+                              screen_on=bool(self._vision and getattr(self._vision,'screen_enabled',False)),
+                              agenda_item=self._agenda.best() if self._owner_alone() else None,
+                              acceptance=lambda reason:self._signals.acceptance(reason,datetime.datetime.now().hour))
                 if choice:await self._start_initiative(*choice)
                 else:self._log_wait(now,visible)
             except asyncio.CancelledError:
@@ -242,6 +261,7 @@ class InitiativeMixin:
             if (self._turn_task and not self._turn_task.done()) or not self._ui_input_queue.empty():return
             self._ui_input_queue.put_nowait({'text':initiative_text(reason,detail,datetime.datetime.now()),
                                              'source':'initiative','visual':sorted(sources),'reason':reason})
+            if reason=='agenda':self._agenda.raised(detail['id'])  # Twice unresolved and it is dropped.
 
     async def _set_initiative_mode(self,mode):
         if mode not in MODES:raise ValueError('Choose normal, rare or off')
