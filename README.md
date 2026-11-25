@@ -11,7 +11,7 @@ sees you through the camera when it matters, and remembers what you tell her.
 
 ![Platform: Linux](https://img.shields.io/badge/platform-Linux%20x86__64-FCC624?logo=linux&logoColor=black)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
-![Brain: Hermes Agent + Claude](https://img.shields.io/badge/brain-Hermes%20Agent%20%2B%20Claude-d97757)
+![Brain: Hermes Agent](https://img.shields.io/badge/brain-Hermes%20Agent-d97757)
 ![Voice: VOICEVOX](https://img.shields.io/badge/voice-VOICEVOX-a3c972)
 
 </div>
@@ -19,7 +19,7 @@ sees you through the camera when it matters, and remembers what you tell her.
 ## Install her: 7 steps
 
 **Before you start:** a Linux PC (x86_64) with about 8 GB of RAM and 6 GB of free disk, a microphone, and
-an [Anthropic API key](https://console.anthropic.com/settings/keys) for Claude. A webcam and an NVIDIA graphics
+an account with an AI provider that Hermes supports (an API key). A webcam and an NVIDIA graphics
 card are optional: she works without them, a bit slower and without eyes.
 
 She was built on CachyOS with Hyprland. Other desktops work through X11 or XWayland.
@@ -55,17 +55,18 @@ You see: your prompt now ends in `Chassie`.
 
 - If you see `destination path 'Chassie' already exists` → she is downloaded already: `cd Chassie` and go on.
 
-### STEP 3 — Give her a brain: Hermes and Claude
+### STEP 3 — Give her a brain: Hermes and a language model
 
 Chassie thinks through [Hermes Agent](https://github.com/NousResearch/hermes-agent), which runs on your PC and
-talks to Claude. Install it and give it your Anthropic key:
+talks to the language model of your choice. Install it and connect your provider:
 
 ```bash
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 hermes setup model
 ```
 
-In `hermes setup model`, choose **Anthropic** and paste your API key.
+In `hermes setup model`, choose your provider (OpenRouter, OpenAI, Anthropic, Google, a local server, …), paste
+its API key and pick a model. Chassie uses whatever model Hermes is set up with. [Which model?](#which-model)
 
 You see: `hermes --help` lists commands such as `chat`, `model` and `gateway`.
 
@@ -87,7 +88,7 @@ EOF
 ```
 
 Her memory is a folder of Markdown notes (it opens nicely in [Obsidian](https://obsidian.md), but any folder
-works). Tell her memory plugin where it lives, and switch Hermes's memory to it:
+works; see [Her memory](#her-memory)). Tell her memory plugin where it lives, and switch Hermes's memory to it:
 
 ```bash
 mkdir -p ~/Documents/Chassie-Memory
@@ -205,7 +206,7 @@ model preview. To run only the web studio without the desktop avatar: `.venv/bin
   grass when she teases).
 
 **Eyes and memory**
-- Camera and screen are captured locally; a snapshot goes to Claude only when you ask or she decides to look.
+- Camera and screen are captured locally; a snapshot goes to the model only when you ask or she decides to look.
 - Face (YuNet + ArcFace) and voice (WeSpeaker) recognition run locally. Guest privacy mode pauses her personal
   memory when someone else is in the room.
 - She chooses what to remember: tidy Markdown notes per category in your memory folder
@@ -221,9 +222,91 @@ model preview. To run only the web studio without the desktop avatar: `.venv/bin
 | Memory | 8 GB RAM | She ran on a laptop with 7 GB usable |
 | Graphics | any OpenGL card; NVIDIA optional | With NVIDIA (4 GB is enough) her ears and memory search run on the GPU |
 | Disk | about 6 GB | Python packages, models in `.chassie/` |
-| Claude | an Anthropic API key | Claude Haiku 5.5 by default: a reply costs a fraction of a cent |
+| Language model | any provider Hermes supports | Fast, image-capable models work best: [Which model?](#which-model) |
 | Microphone | any | PipeWire echo cancellation lets you interrupt her |
 | Webcam | optional | Without it she cannot see you or recognise your face |
+
+## Which model?
+
+Any model Hermes can use works, as long as it can do three things:
+
+- **Follow her reply format.** Every reply is a few short JSON lines (Japanese speech, your subtitle, an emotion).
+  Current mid-size models from the big providers do this well; small local models often break it.
+- **Answer fast.** She speaks the first sentence as soon as it arrives, so a quick model feels like a conversation and
+  a slow one feels like waiting. Prefer "fast"/"mini"/"flash"-class models over the largest ones.
+- **Read images**, if you want her to see you or your screen. Without that, set `vision.camera_enabled` and
+  `vision.screen_enabled` to `false` in `config.local.yaml`, or give her a separate `hermes.vision_model`.
+
+She was developed with Claude Haiku 5.5. By default she uses Hermes's own model; to give her a different one than
+your other Hermes chats, set it in `config.local.yaml`:
+
+```yaml
+hermes:
+  provider: "openrouter"       # a provider name Hermes knows
+  text_model: "<model id>"
+  vision_model: "<model id>"   # must read images
+  reasoning_effort: "low"      # faster replies on models that think first
+```
+
+## Her personality
+
+She is always called Chassie, but who she is, is up to you. Two places shape her:
+
+1. **`companion.persona`** in `config.local.yaml`: a short description added to every reply she gives. This is the
+   main knob. Write it like a character note, in English:
+
+   ```yaml
+   companion:
+     persona: >-
+       Calm, gentle and a little shy, with a dry sense of humour. Loves rainy days and old
+       video games. Teases lightly, never mean. Keep replies short and spoken.
+   ```
+
+   Restart her (tray → **Quit Chassie**, then open her again) to apply it. Without your own, she uses the neutral
+   starter in `config.yaml`: warm, curious, a little playful.
+
+2. **`~/.hermes/SOUL.md`**: Hermes's own identity file, used for everything Hermes does (also its other chats).
+   Put deeper background here if you like: her story, values, how she sees herself. Keep it consistent with the
+   persona.
+
+What stays fixed: she speaks Japanese with subtitles, talks like a companion rather than an assistant, keeps replies
+short, and only mentions your screen or camera when something is worth it. Those rules live in the code
+(`brain/bilingual.py`, `brain/hermes_bridge.py`) because her voice and avatar depend on them.
+
+## Her memory
+
+Everything she remembers is plain files on your PC, in two places.
+
+**Your memory folder** (the `vault_path` from STEP 4, for example `~/Documents/Chassie-Memory`): what she knows
+about you, readable and editable by you.
+
+```
+Chassie-Memory/
+├── _generated/
+│   ├── chassie/
+│   │   ├── Memories.md                       index of everything below (generated)
+│   │   ├── People/2026-11-24 Coffee without sugar.md
+│   │   ├── Events/…   Plans/…   Technical/…   Learnings/…   Reflections/…
+│   └── chassie-daily/2026-11-24.md           her diary: the day, and what to ask about again
+└── (anything you write yourself)
+```
+
+- **She decides what to keep**: preferences, people in your life, plans, routines, important events, and whatever
+  you ask her to remember. Each memory is one small note with a date, category and tags.
+- **Your own notes count too.** Every `.md` file in the folder is searched when she needs context, so a note like
+  `People/Me.md` about yourself, or `Projects.md`, becomes something she knows.
+- **Fix or forget** by editing or deleting a note (or ask her: "forget that I…"). The index updates itself.
+- **Recall** is local: full-text search plus a small embedding model on your PC. Only the few notes that matter for
+  a message are sent to the model with it.
+- **Back it up** like any folder. It is a good fit for a private git repository or a synced folder.
+
+**`.chassie/` in her folder**: her working data. `sessions/` (your chats, so she continues where you left off),
+`reminders.json`, `transcripts/` (raw material for the diary), `memory.sqlite` (profiles and face/voice templates,
+never photos or recordings), and her avatar settings. Delete a file there to remove that data; delete the whole
+folder to start over (re-run the setup afterwards to download her models again).
+
+She only writes memories, chats and reminders when her owner is alone with her; conversations with guests are not
+saved.
 
 ## Settings
 
@@ -245,7 +328,7 @@ companion:
 
 | key | what it does |
 |---|---|
-| `hermes.text_model`, `hermes.vision_model` | Which Claude model she uses (her own, not Hermes's default) |
+| `hermes.provider`, `hermes.text_model`, `hermes.vision_model` | Give her her own model instead of Hermes's default (`null` follows Hermes) |
 | `hermes.reasoning_effort` | `low` keeps replies fast |
 | `stt.language` | The language you speak (`null` auto-detects; locking it is more accurate) |
 | `stt.model`, `stt.device` | Speech recognition size (`small`) and `cuda` or `cpu` |
@@ -253,10 +336,11 @@ companion:
 | `tts.speed_scale`, `tts.lively_prosody` | Voice tempo, and whether intonation follows each sentence |
 | `conversation.input_mode` | `review` (voice becomes a draft) or `hands_free` |
 | `conversation.barge_in` | Interrupt her by speaking |
+| `vision.camera_enabled`, `vision.screen_enabled` | Let her use the camera / see your screen at all |
 | `vision.camera_always` | `false`: she decides when to look; `true`: a photo with every message (costly) |
 | `vision.screen_always` | Attach your screen when it changed and other apps are open |
 | `initiative.mode` | `normal`, `rare` or `off` |
-| `companion.persona` | Her personality, added to every reply |
+| `companion.persona` | Her personality, added to every reply: [Her personality](#her-personality) |
 | `companion.guest_privacy` | `true` pauses personal memory while someone else is around |
 
 ## Updating her (keeps her memory)
@@ -277,8 +361,10 @@ Quit her first (tray → **Quit Chassie**), then start her again. Your `config.l
 | what you see | what to do |
 |---|---|
 | `[FAIL] Hermes gateway unreachable` in `.chassie/launcher.log` | Hermes is not running or the key does not match: `hermes gateway status`, then STEP 4. |
-| Every reply says `Hermes model provider authentication failed` | Hermes has no valid Anthropic key: `hermes setup model`. |
-| `Hermes model quota or rate limit reached (HTTP 429)` | Your Anthropic account is out of credit or rate-limited. Add credit, wait a minute. |
+| Every reply says `Hermes model provider authentication failed` | Hermes has no valid key for its provider: `hermes setup model`. |
+| `Hermes model quota or rate limit reached (HTTP 429)` | Your provider account is out of credit or rate-limited. Add credit, wait a minute. |
+| Replies fail with `did not contain valid Japanese speech` | The model does not follow her reply format: pick a stronger one ([Which model?](#which-model)). |
+| She says she cannot see, or replies fail when she looks | The model cannot read images: set an image-capable `hermes.vision_model`, or set `vision.camera_enabled` and `vision.screen_enabled` to `false`. |
 | She answers in text but you hear nothing | Run the setup again and type `yes` for VOICEVOX; check your speakers in your sound settings. |
 | `Voice input unavailable` | The microphone could not open: pick it in your sound settings, or set `audio.input_device` in `config.local.yaml`. |
 | `Chassie has no Live2D model yet` | Put a model in `model/` (STEP 6); its folder must contain a `.model3.json`. |
@@ -294,10 +380,10 @@ Every part writes to `.chassie/launcher.log`. When you ask for help, attach its 
 
 ## Privacy
 
-Everything runs on your PC except the Claude replies. Runtime data lives in `.chassie/` (git ignores it): `sessions/`
+Everything runs on your PC except the language model's replies (unless that runs locally too). Runtime data lives in `.chassie/` (git ignores it): `sessions/`
 (your chats), `reminders.json`, `transcripts/` (material for the daily diary), `memory.sqlite` (face and voice
 templates, never photos or recordings) and her avatar settings. Chats, memories and reminders are saved only when
-her owner is alone with her; conversations with guests are not written down. Claude receives text, plus a snapshot
+her owner is alone with her; conversations with guests are not written down. The model receives text, plus a snapshot
 only for a turn that needs one.
 
 ## How she is built
@@ -307,7 +393,7 @@ only for a turn that needs one.
  camera / screen ─▶ vision/ ────────────┼─▶ brain/ ───────┤
  desktop chat / web studio ─ WebSocket ─┘   │      ▲      └─▶ desktop/ avatar (Qt + live2d-py), ui/ (web)
                                             ▼      │
-                                brain/hermes_bridge ─▶ Hermes gateway ─▶ Claude
+                                brain/hermes_bridge ─▶ Hermes gateway ─▶ your language model
                                                          └─ hermes_plugin/chassie ─▶ memory folder
 ```
 
