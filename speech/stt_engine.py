@@ -58,6 +58,16 @@ class SpeechSegmenter:
         self._last_voice=None
         self._voiced=0
         self._paused=False
+        self._gaps=deque(maxlen=50)  # This speaker's mid-utterance pauses, across utterances.
+
+    def threshold(self):
+        """Silence that ends a turn: learned from how long this speaker pauses mid-sentence.
+
+        ponytail: silence only; speculative early transcription could end complete sentences sooner.
+        """
+        if len(self._gaps)<10: return self.silence_duration
+        gaps=sorted(self._gaps)
+        return max(.6,min(self.silence_duration,gaps[int(.9*(len(gaps)-1))]+.25))
 
     def feed(self,frame,speech,now):
         events=[]
@@ -69,13 +79,16 @@ class SpeechSegmenter:
             self._frames=list(self._pre); self._pre.clear()
             events.append(('speech_start',now))
         self._frames.append(frame)
-        if speech: self._last_voice=now; self._voiced+=duration; self._paused=False
+        if speech:
+            if self._last_voice is not None and now-self._last_voice-duration>=.15:
+                self._gaps.append(now-self._last_voice-duration)  # They paused and went on.
+            self._last_voice=now; self._voiced+=duration; self._paused=False
         elif (not self._paused and self._last_voice is not None and self._voiced>=self.PAUSE_AFTER_SPEECH
-              and self.PAUSE_SECONDS<=now-self._last_voice<self.silence_duration):
+              and self.PAUSE_SECONDS<=now-self._last_voice<self.threshold()):
             self._paused=True
             events.append(('speech_pause',now))
         elapsed=sum(map(len,self._frames))/(2*self.sample_rate)
-        if (not speech and self._last_voice is not None and now-self._last_voice>=self.silence_duration) or elapsed>=self.maximum:
+        if (not speech and self._last_voice is not None and now-self._last_voice>=self.threshold()) or elapsed>=self.maximum:
             if self._voiced>=self.minimum:
                 events.append(('utterance',Utterance(b''.join(self._frames),self._started,now+duration)))
             self._frames=[]; self._started=None; self._last_voice=None; self._voiced=0; self._paused=False

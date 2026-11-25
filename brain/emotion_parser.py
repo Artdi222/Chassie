@@ -100,3 +100,20 @@ def parse_multi_emotions(text: str) -> list[tuple[str, str]]:
 
     return segments
 
+
+
+# Instant, local read of a message so her face reacts before the model answers; first match wins.
+_QUICK = (
+    ('concerned', re.compile(r'\b(?:sedih|capek|cape|lelah|sakit|pusing|gagal|nangis|stres|stress|takut|'
+                             r'sad|tired|sick|exhausted|anxious|scared|failed)\b', re.I)),
+    ('happy', re.compile(r'\b(?:wkwk\w*|haha\w*|hehe\w*|lol|makasih|terima kasih|thanks?|thank you|seneng|'
+                         r'senang|yay|asik|asyik|berhasil|lulus|passed|finally)\b', re.I)),
+    ('surprised', re.compile(r'\b(?:wow|serius|beneran|astaga|hah|omg|seriously|no way)\b', re.I)),
+    ('curious', re.compile(r'\?\s*$|^\s*(?:apa|apakah|kenapa|mengapa|gimana|bagaimana|kapan|siapa|di ?mana|'
+                           r'why|how|what|when|who|where)\b', re.I)),
+)
+
+
+def quick_reaction(text):
+    """The emotion her face shows at once for this message, or None (keep the thinking pose)."""
+    return next((emotion for emotion, pattern in _QUICK if pattern.search(text or '')), None)

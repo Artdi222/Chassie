@@ -45,7 +45,7 @@ AIRI / OpenAmika / Neuro-sama lives in that conversation; this file is the sourc
 | 2 | Inner state: mood (valence/energy, decay to persona baseline), sulk, closeness → emotion hints, prosody, initiative thresholds | done 2026-11-25 |
 | 3 | Layered memory: fact metadata, ADD/UPDATE/SUPERSEDE/NOOP consolidation, core profile, wikilink entity hop, recency×importance×relevance scoring | later plan |
 | 4 | Light fiction: daily activity (+ optional real article → `share` agenda item) | done 2026-11-25 |
-| 5 | Adaptive endpointing + instant non-verbal face reaction | later plan |
+| 5 | Adaptive endpointing + instant non-verbal face reaction | done 2026-11-25 |
 
 ---
 
@@ -283,3 +283,24 @@ new and works through them 20 at a time (two model calls for the last batch, one
 
 **Skipped on purpose:** a day without a vault (the idle loop runs only with memory on), showing her
 day in the UI, the article link in speech.
+
+---
+
+## Phase 5: Turn-taking
+
+**Adaptive endpointing (`SpeechSegmenter`, `speech/stt_engine.py`):** the segmenter records each
+mid-utterance gap (silence ≥ 0.15 s followed by more speech, last 50). With 10 or more, the end-of-turn
+silence is `clamp(p90(gaps) + 0.25, 0.6, silence_duration)`; before that, `silence_duration` as
+configured. A speaker who pauses briefly gets answered sooner; one who thinks mid-sentence keeps
+the patience they need. The nod (`speech_pause`) uses the same threshold.
+Upgrade path (not built): transcribe speculatively at a short pause and end early when the text
+is complete (no trailing "terus/dan/tapi/soalnya/and/but/so").
+
+**Instant face reaction (`brain/emotion_parser.quick_reaction`):** when a user turn starts, before the
+model answers, a local keyword check picks `concerned` (sad/tired/sick words), `happy` (laughs, thanks,
+good news), `surprised` (wow/serius/beneran), or `curious` (a question), and the avatar shows it at
+once. No match: the existing thinking pose. No spoken filler (rejected 2026-11-25).
+
+**Tests:** `tests/test_turn_taking.py` — untrained uses the configured silence; short pausers get a
+shorter end (floor 0.6 s); long pausers keep theirs (cap = configured); reaction keywords in
+Indonesian and English; a user turn shows the reaction before the model is called.

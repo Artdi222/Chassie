@@ -32,6 +32,7 @@ from speech.tts_engine import TTSEngine
 from speech.speech_chunker import SpeechChunker
 from speech.speech_pacing import SpeechPacing
 from brain.bilingual import BilingualChunker, LANGUAGES, display_translation, split_first_clause
+from brain.emotion_parser import quick_reaction
 from avatar import load_manifest
 from avatar.manifest import DEFAULT_MANIFEST
 from avatar.catalog import ModelCatalog, ModelSelection
@@ -661,6 +662,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             if not self._turn_initiative:
                 await self._broadcast_to_ui({'type':'chat','role':'user','text':text})
             await self._set_status('thinking')
+            reaction=None if self._turn_initiative else quick_reaction(text)
+            if reaction: await self._avatar.trigger_emotion(reaction)  # Her face reacts before the model answers.
             command=None if self._turn_initiative else face_command(text)
             if command:
                 self._face_command_result=self._apply_face_command(*command)
