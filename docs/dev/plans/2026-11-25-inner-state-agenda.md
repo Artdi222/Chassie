@@ -44,7 +44,7 @@ AIRI / OpenAmika / Neuro-sama lives in that conversation; this file is the sourc
 | 1 | Agenda store + model agenda lines + agenda in context + agenda initiatives + learned timing | done 2026-11-25 |
 | 2 | Inner state: mood (valence/energy, decay to persona baseline), sulk, closeness → emotion hints, prosody, initiative thresholds | done 2026-11-25 |
 | 3 | Layered memory: fact metadata, ADD/UPDATE/SUPERSEDE/NOOP consolidation, core profile, wikilink entity hop, recency×importance×relevance scoring | later plan |
-| 4 | Light fiction: daily activity (+ optional real article → `share` agenda item) | later plan |
+| 4 | Light fiction: daily activity (+ optional real article → `share` agenda item) | done 2026-11-25 |
 | 5 | Adaptive endpointing + instant non-verbal face reaction | later plan |
 
 ---
@@ -258,3 +258,28 @@ owner's config; ask first).
 restart Hermes (`hermes gateway restart`) so both use the `index-v3` fingerprint; otherwise each
 re-indexes the vault the other just indexed. The first consolidation treats every existing fact as
 new and works through them 20 at a time (two model calls for the last batch, one for the others).
+
+---
+
+## Phase 4: Her day (light fiction) — `brain/day.py`, new
+
+- Once a day, while idle (`_reflection_loop`), one `complete_once` writes her day: four slots
+  `morning` (06–11), `afternoon` (11–17), `evening` (17–22), `night` (22–06), each one short
+  digital or mental activity (reading, music, watching along, thinking about something, sleepy at
+  night), drawn from her persona and the owner's interests (core profile excerpt). Saved to
+  `.chassie/her-day.json` `{date, slots, read}`; a new date means a new day.
+- When `companion.daily_read` is true (default), a second call asks Hermes, which has its web tools
+  on this route, to find one real recent article on one of those interests and reply
+  `{"title","url","gist"}` or `{"none":true}`. A valid one becomes a `share` agenda item
+  (priority .4, expires in two days; the url is kept in the item's source).
+- Context: `inner_state.doing` = the current slot's activity.
+- Prompt rules: her day is how she imagines it; only digital or mental things, never physical-world
+  claims (eating, going out); if asked whether it is real she admits it playfully; a `share` item
+  about an article is real and she may mention where she read it.
+
+**Interfaces:** `parse_day(reply) -> dict`, `parse_read(reply) -> dict | None`,
+`HerDay(path)` with `today(now=None) -> dict | None`, `save(slots, read=None, now=None)`,
+`doing(now=None) -> str | None`. Orchestrator `_plan_day()`.
+
+**Skipped on purpose:** a day without a vault (the idle loop runs only with memory on), showing her
+day in the UI, the article link in speech.

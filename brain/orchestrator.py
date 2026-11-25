@@ -39,6 +39,7 @@ from brain.sessions import SessionStore, new_session_id
 from brain.reminders import ReminderStore, parse_time
 from brain.agenda import AgendaStore, SignalLog
 from brain.mood import Mood
+from brain import day as her_day
 from brain.initiative import PREFIX as INITIATIVE_PREFIX
 from vision.face_identity import face_command
 from vision.visual_context import VisualContext
@@ -152,6 +153,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._agenda=AgendaStore(selection_path.with_name('agenda.json'))
         self._signals=SignalLog(selection_path.with_name('signals.jsonl'))
         self._mood=Mood(selection_path.with_name('inner-state.json'))
+        self._day=her_day.HerDay(selection_path.with_name('her-day.json'))
         self._summary_tasks=set()
         self._translation_language=config.get('tts',{}).get('translation_language','en')
         try:saved=json.loads(self._speech_settings_path.read_text())
@@ -300,6 +302,27 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             if len(result)>=limit: break
         return result
 
+    async def _plan_day(self):
+        """Once a day: what she imagines doing today, and (daily_read) one real article to share."""
+        if self._day.today() is not None: return
+        language=LANGUAGES.get(self._translation_language,'English')
+        profile=self._vault.path/consolidation.PROFILE_NOTE if getattr(self._vault,'path',None) else None
+        interests=('Her personality: '+' '.join(str(self._config.get('companion',{}).get('persona') or '').split())+'\n\nOwner profile:\n'
+                   +(profile.read_text(encoding='utf-8')[:1500] if profile and profile.is_file() else 'unknown yet'))
+        slots=her_day.parse_day(await self._hermes.complete_once(her_day.DAY_SYSTEM.replace('{language}',language),interests))
+        read=None
+        if self._config.get('companion',{}).get('daily_read',True) is not False:
+            try:
+                read=her_day.parse_read(await self._hermes.complete_once(
+                    her_day.READ_SYSTEM.replace('{language}',language),interests))
+            except (ValueError,RuntimeError) as exc: logger.info('No article today: %s',exc)
+        self._day.save(slots,read)
+        if read:
+            self._agenda.add(f"An article you read today: {read['title']} - {read['gist']}"[:200],'share',
+                             source='article:'+read['url'][:72],priority=.4,
+                             expires=datetime.datetime.now()+datetime.timedelta(days=2))
+        logger.info('Planned her day%s',' with an article to share' if read else '')
+
     async def _consolidate(self):
         """Tidy saved facts in the background (supersede, importance) and refresh the core profile."""
         def similar(fact,active):
@@ -339,7 +362,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                             else [{'content':m.content,'source':m.source} for m in context.memories[-8:]],
                  'shared_notes':list(context.shared_notes[-4:]),
                  'local_time':datetime.datetime.now().astimezone().strftime('%A %Y-%m-%d %H:%M %Z'),
-                 'inner_state':self._mood.describe()}
+                 'inner_state':{**self._mood.describe(),**({'doing':doing} if (doing:=self._day.doing()) else {})}}
         if context.scope=='personal':
             recap=self._previous_chat()
             if recap: payload['previous_chat']={**recap,'note':'Recap of the last earlier conversation; '
@@ -789,6 +812,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                     await self._reflect_day(days[0])
                     continue
                 if not busy and (await self._consolidate())['new']: continue  # Next batch at once.
+                if not busy and self._day.today() is None: await self._plan_day()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
