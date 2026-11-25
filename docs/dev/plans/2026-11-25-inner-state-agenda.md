@@ -215,3 +215,46 @@ day, prosody direction, clamping), feel-line parsing, a turn with a feel line ch
 the context carries `inner_state`, planner applies mood, `decide` restraint.
 
 Skipped on purpose: idle animation from mood, mood shown in the UI.
+
+---
+
+## Phase 3: Layered memory
+
+The plugin is symlinked into Hermes (`scripts/install_hermes_plugin.sh`), so the repo copy of
+`hermes_plugin/chassie/store.py` is live. Markdown stays the source of truth; metadata lives in each
+managed note's front-matter. No schema migration: the index fingerprint moves to `index-v3` once.
+
+**Plugin (`store.py`):**
+- `facts() -> list[dict]`: managed notes as `{id, path, title, content, date, importance (1-3, default 2),
+  superseded_by, edited}`. `edited` = the body no longer hashes to its id (the owner changed it).
+- `mark(identifier, *, superseded_by=None, importance=None)`: rewrite those front-matter keys of a
+  managed note only; values validated (`superseded_by` must be another managed id).
+- `refresh()`: a managed note with `superseded_by` is indexed with kind `superseded`.
+- `Memory log.md` in the managed folder is never indexed nor listed in `Memories.md`.
+
+**Consolidation (`memory/consolidation.py`), automatic, in `_reflection_loop` when idle:**
+- New = active managed facts not in `.chassie/consolidated.json`; at most 20 per run. For each, up to
+  4 similar active facts (semantic rank if loaded, else keyword search).
+- One `complete_once` call → `{"ops":[{"op":"supersede","old","by","why"},{"op":"importance","id","level"}]}`.
+  Applied only when every id is in the batch, `old != by`, and neither note is `edited`. Unsure → no op.
+- Before applying: zip the managed folder to `.chassie/memory-backups/<stamp>.zip` (keep 5).
+  Every supersede appends a line to `_generated/chassie/Memory log.md` (importance changes are not logged).
+- Then, after the last batch of new facts, a second call writes the core profile
+  `_generated/chassie-profile.md` (≤ 2000 chars; People, Routines, Likes and dislikes, Sensitive topics,
+  Humor and style) from active facts sorted by importance then recency.
+
+**Recall (`_vault_recall`):**
+- Rows of kind `superseded` never reach the model.
+- Always: owner note, core profile, latest diary, then the 6 active facts with the best
+  `importance × 0.5^(age_days/30)` (importance cached from `facts()` at warmup and after consolidation).
+- Query part unchanged (keyword + e5, RRF, top 3), then an entity hop: up to 2 notes whose file name is
+  linked (`[[X]]`) from what was found or named in the query, excluding the owner link and `Memories`.
+
+**Skipped on purpose:** merging two facts into a new one (supersede covers changed facts), showing
+superseded facts in `Memories.md`, `owner_name` for the plugin's hardcoded `[[Artdi]]` link (needs the
+owner's config; ask first).
+
+**Upgrade note:** Hermes and Chassie share `~/.hermes/chassie-state/index.sqlite`. After pulling Phase 3,
+restart Hermes (`hermes gateway restart`) so both use the `index-v3` fingerprint; otherwise each
+re-indexes the vault the other just indexed. The first consolidation treats every existing fact as
+new and works through them 20 at a time (two model calls for the last batch, one for the others).

@@ -24,6 +24,8 @@ SECRET = re.compile(r'\b(?:api[_ -]?key|password|passwd|token|secret|kata sandi|
 CATEGORIES = {'people': 'People', 'events': 'Events', 'plans': 'Plans', 'technical': 'Technical',
               'learnings': 'Learnings', 'reflections': 'Reflections'}
 INDEX_NOTE = 'Memories.md'  # Generated overview of MANAGED_DIR; never indexed itself.
+LOG_NOTE = 'Memory log.md'  # What consolidation changed and why; never indexed itself.
+IMPORTANCE = (1, 2, 3)
 OWNER_LINK = '[[Artdi]]'
 _GUESS = [
     ('plans', re.compile(r'\b(?:akan|mau|ingin|berencana|rencana|besok|nanti|minggu depan|plan(?:s|ning)?|will|wants? to|going to|tomorrow|next week)\b', re.I)),
@@ -166,7 +168,7 @@ class VaultStore:
             dirs[:]=[d for d in dirs if not d.startswith('.') and d not in ('_daily','node_modules') and not (Path(root)/d).is_symlink()]
             for name in files:
                 p=Path(root)/name
-                if Path(root)==self.vault/MANAGED_DIR and name==INDEX_NOTE: continue
+                if Path(root)==self.vault/MANAGED_DIR and name in (INDEX_NOTE,LOG_NOTE): continue
                 if name.endswith('.md') and not name.startswith('.') and not p.is_symlink() and p.stat().st_size<=1_000_000:
                     found.append(p)
         return sorted(found)
@@ -179,7 +181,7 @@ class VaultStore:
             current=set()
             for path in self._files():
                 rel=path.relative_to(self.vault).as_posix(); current.add(rel)
-                text=path.read_text(encoding='utf-8'); fingerprint=digest('index-v2\0'+text)
+                text=path.read_text(encoding='utf-8'); fingerprint=digest('index-v3\0'+text)
                 if prior.get(rel)==fingerprint: continue
                 content=clean(text)
                 front=re.match(r'\A---\s*\n(.*?)\n---',text,re.S)
@@ -189,6 +191,7 @@ class VaultStore:
                     if dated: note_date=dated[1]
                 if note_date: content='[Note date: '+note_date+']\n'+content
                 kind='user_statement' if rel.startswith(MANAGED_DIR+'/') else 'vault_note'
+                if kind=='user_statement' and front_value(text,'superseded_by'): kind='superseded'  # Kept, never recalled.
                 updated=dt.datetime.fromtimestamp(path.stat().st_mtime,dt.timezone.utc).isoformat()
                 chunks=[]
                 for index,start in enumerate(range(0,len(content),1400)):
@@ -296,7 +299,7 @@ class VaultStore:
         root=self.vault/MANAGED_DIR
         groups={}
         for path in sorted(root.rglob('*.md')):
-            if path.parent==root and path.name==INDEX_NOTE: continue
+            if path.parent==root and path.name in (INDEX_NOTE,LOG_NOTE): continue
             text=path.read_text(encoding='utf-8')
             category=front_value(text,'category') or 'people'
             heading=re.search(r'(?m)^# (.+)$',text)
@@ -326,6 +329,46 @@ class VaultStore:
             with self.db() as db:
                 db.execute('INSERT OR IGNORE INTO turns VALUES(?,?,?,?)',(key,session,dt.datetime.now(dt.timezone.utc).isoformat(),'[]'))
         return results
+
+    def facts(self):
+        """Every saved fact with its metadata; edited = the owner changed the text after it was saved."""
+        root=self.vault/MANAGED_DIR
+        result=[]
+        for path in sorted(root.rglob('*.md')) if root.is_dir() else []:
+            if path.parent==root and path.name in (INDEX_NOTE,LOG_NOTE): continue
+            text=path.read_text(encoding='utf-8')
+            body=clean(text)
+            heading=re.match(r'#\s+(.+)\n*',body)
+            content=body[heading.end():].strip() if heading else body
+            key=front_value(text,'id') or path.stem
+            level=front_value(text,'importance')
+            result.append({'id':key,'path':path.relative_to(self.vault).as_posix(),
+                           'title':heading[1].strip() if heading else path.stem,'content':content,
+                           'date':front_value(text,'date') or '','importance':int(level) if level in ('1','2','3') else 2,
+                           'superseded_by':front_value(text,'superseded_by'),
+                           'edited':digest(re.sub(r'\s+',' ',content).lower())[:24]!=key})
+        return result
+
+    def mark(self,identifier,*,superseded_by=None,importance=None):
+        """Set consolidation metadata on a saved fact; its text is never changed."""
+        changes={}
+        if importance is not None:
+            if importance not in IMPORTANCE: raise ValueError('Importance must be 1, 2 or 3')
+            changes['importance']=str(importance)
+        if superseded_by is not None:
+            if superseded_by==identifier or not re.fullmatch(r'[a-f0-9]{24}',str(superseded_by)) or not self._find(superseded_by):
+                raise ValueError('superseded_by must be another saved memory')
+            changes['superseded_by']=superseded_by
+        p=self._managed_path(identifier)
+        with self.lock():
+            text=p.read_text(encoding='utf-8')
+            front=re.match(r'\A---\s*\n(.*?)\n---',text,re.S)
+            if not front: raise ValueError('Saved memory has no front matter')
+            lines=[line for line in front[1].split('\n') if line.split(':',1)[0] not in changes]
+            lines+=[f'{key}: {value}' for key,value in changes.items()]
+            atomic_write(p,'---\n'+'\n'.join(lines)+'\n---'+text[front.end():])
+        self.refresh()
+        return {'id':identifier,**changes}
 
     def _managed_path(self, identifier):
         if not re.fullmatch(r'[a-f0-9]{24}',str(identifier)): raise ValueError('Use a memory ID returned by search or list')

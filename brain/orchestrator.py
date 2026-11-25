@@ -17,7 +17,7 @@ from speech.audio_analyzer import AudioAnalyzer
 from speech.audio_player import AudioPlayer
 from memory import MemoryStore, SessionContext
 from memory.vault import VaultMemory
-from memory import reflection
+from memory import reflection, consolidation
 from memory.reflection import NOTE_DIR as DIARY_DIR
 from speech.voice_identity import VoiceIdentity
 from brain.hermes_bridge import HermesBridge, ToolProgress
@@ -106,6 +106,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._look_now=None;self._looked=False  # Model-chosen look before answering (once per turn)
         self._previous_user_text=''
         self._semantic=None
+        self._fact_importance={}  # Saved fact path -> importance 1-3, from consolidation
         self._transcripts=Path(config.get('companion',{}).get('memory_path',str(ROOT/'.chassie/memory.sqlite'))).parent/'transcripts'
         self._face_command_result=None
         self._session_context=SessionContext()
@@ -241,25 +242,33 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
     def _vault_recall(self,query):
         """Owner-only Obsidian recall done locally: Hermes no longer forwards Chassie's memory key.
 
-        Always: the owner's profile note, the latest diary note (open loops to follow up)
-        and the newest facts Chassie saved. Then up to three other notes ranked by keyword
-        and local semantic similarity (reciprocal rank fusion), one chunk per note.
+        Always: the owner's note, Chassie's core profile of them, the latest diary note (open
+        loops to follow up) and the six saved facts that matter most now (importance, fading over
+        about a month). Then up to three notes ranked by keyword and local semantic similarity
+        (reciprocal rank fusion), and up to two notes they link to or the query names.
+        Superseded facts never reach the model.
         """
         if not (self._automatic_memory and self._vault): return []
         try:
-            rows=self._vault.call('list',400)
+            rows=[r for r in self._vault.call('list',400) if r.get('kind')!='superseded']
             owner=self._owner_name(None)
             found=[]
             if owner:
                 found+=[r for r in rows if r['path'].casefold()==f'people/{owner}.md'.casefold()][:1]
+            found+=[r for r in rows if r['path']==consolidation.PROFILE_NOTE][:1]
             diaries=sorted((r for r in rows if r['path'].startswith(DIARY_DIR+'/')),key=lambda r:r['path'],reverse=True)
             if diaries and diaries[0]['path'][len(DIARY_DIR)+1:len(DIARY_DIR)+11]>=(datetime.date.today()-datetime.timedelta(days=3)).isoformat():
                 found.append(diaries[0])
-            found+=sorted((r for r in rows if r.get('kind')=='user_statement'),
-                          key=lambda r:r.get('updated',''),reverse=True)[:6]
+            now=datetime.datetime.now(datetime.timezone.utc)
+            def weight(row):
+                try: age=(now-datetime.datetime.fromisoformat(row.get('updated',''))).total_seconds()/86400
+                except (ValueError,TypeError): age=0
+                return self._fact_importance.get(row['path'],2)*.5**(max(age,0)/30)
+            facts=sorted((r for r in rows if r.get('kind')=='user_statement'),key=lambda r:r.get('updated',''),reverse=True)
+            found+=sorted(facts,key=weight,reverse=True)[:6]  # Stable: newest first among equals.
             if query:
                 taken={r['path'] for r in found};fused={};best={}
-                lists=[self._vault.call('search',query,10)]
+                lists=[[r for r in self._vault.call('search',query,10) if r.get('kind')!='superseded']]
                 if self._semantic is not None:
                     # Only chunks that clearly stand out; keyword hits still rank alongside (RRF).
                     lists.append([r for score,r in self._semantic.rank(query,rows,10) if score>=SEMANTIC_MIN])
@@ -268,13 +277,45 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                         if r['path'] in taken: continue
                         fused[r['path']]=fused.get(r['path'],0)+1/(60+position)
                         best.setdefault(r['path'],r)
-                found+=[best[p] for p in sorted(fused,key=fused.get,reverse=True)[:3]]
+                hits=[best[p] for p in sorted(fused,key=fused.get,reverse=True)[:3]]
+                found+=hits+self._linked_notes(query,hits,rows,taken|set(fused))
         except (ValueError,AttributeError,TypeError,KeyError,OSError) as exc:
             if not getattr(self,'_vault_warned',False):
                 self._vault_warned=True
                 logger.warning('Memory recall unavailable: %s',exc)
             return []
         return [{'content':str(r.get('content',''))[:600],'source':'obsidian:'+str(r.get('path',''))} for r in found]
+
+    def _linked_notes(self,query,hits,rows,taken,limit=2):
+        """One hop through the vault's own graph: notes linked from the hits, then notes the query names."""
+        notes={}
+        for r in rows: notes.setdefault(Path(r['path']).stem.casefold(),r)
+        skip={(self._owner_name('') or '').casefold(),'memories'}
+        names=[m.split('|')[0].strip().casefold() for r in hits for m in re.findall(r'\[\[([^\]]+)\]\]',r.get('content',''))]
+        names+=[stem for stem in notes if len(stem)>=3 and re.search(r'(?<!\w)'+re.escape(stem)+r'(?!\w)',query,re.I)]
+        result=[]
+        for name in names:
+            r=notes.get(name)
+            if r and name not in skip and r['path'] not in taken and r not in result: result.append(r)
+            if len(result)>=limit: break
+        return result
+
+    async def _consolidate(self):
+        """Tidy saved facts in the background (supersede, importance) and refresh the core profile."""
+        def similar(fact,active):
+            ids={f['path']:f['id'] for f in active}
+            if self._semantic is not None:
+                rows=[r for r in self._vault.call('list',400) if r['path'] in ids]
+                ranked=[r for _,r in self._semantic.rank(fact['content'],rows,consolidation.SIMILAR+1)]
+            else: ranked=self._vault.call('search',fact['content'],consolidation.SIMILAR+4)
+            return [ids[r['path']] for r in ranked if r['path'] in ids]
+        # ponytail: store calls run on the loop; fine while idle with a few hundred notes.
+        summary=await consolidation.consolidate(self._vault.call,self._hermes.complete_once,
+            state_dir=self._transcripts.parent,vault_path=self._vault.path,similar=similar,
+            language=LANGUAGES.get(self._translation_language,'English'))
+        self._fact_importance={f['path']:f['importance'] for f in self._vault.call('facts')}
+        if summary['new']: logger.info('Memory consolidated: %s',summary)
+        return summary
 
     def _owner_name(self,default='Owner'):
         return next((p.name for p in self._memory.list_profiles()
@@ -732,6 +773,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             rows=await asyncio.to_thread(self._vault.call,'list',400)
             added=await asyncio.to_thread(index.sync,rows)
             self._semantic=index
+            self._fact_importance={f['path']:f['importance'] for f in await asyncio.to_thread(self._vault.call,'facts')}
             logger.info('Semantic memory indexed %d new chunk(s) on %s',added,'GPU' if index.on_gpu else 'CPU')
         except Exception as exc:
             logger.warning('Semantic memory off, keyword recall only: %s',exc)
@@ -746,6 +788,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 if days:
                     await self._reflect_day(days[0])
                     continue
+                if not busy and (await self._consolidate())['new']: continue  # Next batch at once.
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
