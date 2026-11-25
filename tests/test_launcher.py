@@ -4,8 +4,14 @@ from unittest.mock import Mock
 import launch
 
 
+def with_model(root):
+    (root/'model/Some').mkdir(parents=True)
+    (root/'model/Some/Some.model3.json').write_text('{}')
+
+
 def test_launcher_starts_and_cleans_up_only_its_own_backend(tmp_path, monkeypatch):
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
+    with_model(tmp_path)
     monkeypatch.setattr(launch,'ROOT',tmp_path)
     monkeypatch.setattr(launch,'status',Mock(side_effect=[None,{'application':'chassie','protocol':2}]))
     child=Mock();child.poll.return_value=None
@@ -21,6 +27,7 @@ def test_launcher_starts_and_cleans_up_only_its_own_backend(tmp_path, monkeypatc
 
 def test_launcher_preserves_an_existing_compatible_backend(tmp_path, monkeypatch):
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
+    with_model(tmp_path)
     monkeypatch.setattr(launch,'ROOT',tmp_path)
     monkeypatch.setattr(launch,'status',lambda _: {'application':'chassie','protocol':2})
     popen=Mock();monkeypatch.setattr(launch.subprocess,'Popen',popen)
@@ -58,3 +65,14 @@ def test_activation_restores_hidden_qt_window_twice(tmp_path):
                           env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=15)
     assert result.returncode==0,result.stdout.decode(errors='replace')[-3000:]
     assert b'DESKTOP_RESTORED_TWICE' in result.stdout
+
+
+def test_launcher_explains_a_missing_model_instead_of_starting(tmp_path, monkeypatch):
+    from PySide6 import QtWidgets
+    (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
+    monkeypatch.setattr(launch,'ROOT',tmp_path)
+    popen=Mock();monkeypatch.setattr(launch.subprocess,'Popen',popen)
+    shown=Mock();monkeypatch.setattr(QtWidgets.QMessageBox,'critical',shown)
+    assert launch.main()==1
+    popen.assert_not_called()
+    assert 'no Live2D model yet' in shown.call_args.args[2] and 'model/README.md' in shown.call_args.args[2]
