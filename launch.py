@@ -22,8 +22,8 @@ def status(port):
 
 
 def main():
-    import yaml
-    config = yaml.safe_load((ROOT/'config.yaml').read_text())
+    from brain.config import load_config
+    config = load_config(ROOT)
     port = config.get('ui', {}).get('port', 8000)
     data_dir=ROOT/'.chassie';data_dir.mkdir(exist_ok=True)
     lock=(data_dir/'launcher.lock').open('a')

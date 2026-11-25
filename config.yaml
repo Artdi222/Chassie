@@ -1,3 +1,6 @@
+# Defaults for everyone. Put personal overrides in config.local.yaml (git-ignored):
+# any key there replaces the same key here.
+
 hermes:
   gateway_url: "http://localhost:8642"
   endpoint: "/v1/chat/completions"
@@ -11,7 +14,7 @@ hermes:
   text_model: "claude-haiku-5-5"
   vision_model: "claude-haiku-5-5"  # Haiku also reads camera and screen snapshots
   personal_memory_session_key: "chassie-owner-memory"  # Only sent for a selected personal profile
-  personal_memory_profile_id: "85fe4caec29b444db4f0d39d8c403f77"  # Existing local Artdi profile
+  personal_memory_profile_id: null  # Owner profile id; null uses the only profile once you create one
   reasoning_effort: "low"  # Low reasoning keeps replies fast; null inherits Hermes/CLI settings
   api_key_env: "CHASSIE_HERMES_API_KEY"
   api_key_file: ".chassie/hermes-api-key"  # Local secret; excluded from source control
@@ -42,7 +45,7 @@ stt:
   model: "small"  # GPU: ~0.9 s per 5 s of audio, ~430 MB VRAM; large-v3-turbo exceeds this laptop's RAM
   device: "cuda"  # Falls back to cpu_model on CPU if CUDA/cuBLAS/cuDNN are unavailable
   cpu_model: "base"
-  language: "id"  # Locked to Indonesian; null lets Whisper auto-detect (often misreads short Indonesian as English)
+  language: null  # null auto-detects; set "en", "id", ... to lock the language you speak (more accurate)
   compute_type: "int8_float16"
   cpu_threads: 2
   beam_size: 3
@@ -54,6 +57,7 @@ stt:
 tts:
   engine: "voicevox"  # Only supported engine
   voicevox_dir: ".chassie/voicevox"
+  translation_language: "en"  # Subtitle language: "en" (English) or "id" (Indonesian); the UI setting overrides
   speed_scale: 1.0  # VOICEVOX speaking tempo (1.0 = normal)
   cpu_threads: 6  # VOICEVOX: warm sentence ~0.7–1.3 s at 6 threads vs 1.6–3.1 s at 2 (Ryzen 5 7535HS)
   timeout: 30

@@ -57,16 +57,12 @@ def setup_logging(config: dict):
 
 
 def load_config() -> dict:
-    """Load config.yaml from the project directory."""
-    config_path = Path(__file__).parent / "config.yaml"
-    if not config_path.exists():
+    """Load config.yaml (and config.local.yaml overrides) from the project directory."""
+    if not (Path(__file__).parent / "config.yaml").exists():
         print("[ERROR] config.yaml not found. Please create it in the project directory.")
         sys.exit(1)
-
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    return config
+    from brain.config import load_config as load
+    return load(Path(__file__).parent)
 
 
 def check_python_version():
