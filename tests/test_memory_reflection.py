@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from companion import reflection
+from memory import reflection
 from test_orchestrator import app  # noqa: F401  (fixture)
 
 DAY = dt.date(2026, 11, 18)

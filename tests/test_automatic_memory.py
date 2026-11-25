@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, Mock
 import numpy as np
 import pytest
 
-from companion import MemoryStore
-from companion.vault import VaultMemory
+from memory import MemoryStore
+from memory.vault import VaultMemory
 from speech.stt_engine import SpeechEvent
 from speech.voice_identity import VoiceIdentity, match_voice
 from test_orchestrator import app

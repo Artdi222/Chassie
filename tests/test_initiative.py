@@ -251,7 +251,7 @@ def test_missed_face_frames_do_not_count_as_away(app):
 def test_screen_is_sent_only_when_it_changed(tmp_path):
     import cv2
     from vision.visual_context import VisualContext
-    from companion import MemoryStore
+    from memory import MemoryStore
     vision = VisualContext({'vision': {'screen_enabled': True, 'screen_always': True}}, MemoryStore(str(tmp_path / 'm.sqlite')))
     assert not vision.screen_changed()  # Nothing captured yet.
     page = np.full((36, 64), 40, np.float32)

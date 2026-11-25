@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from companion import MemoryStore, SessionContext
+from memory import MemoryStore, SessionContext
 
 
 def test_explicit_consent_and_persistent_edit_delete(tmp_path):

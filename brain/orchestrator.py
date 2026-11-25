@@ -15,10 +15,10 @@ from aiohttp import web
 
 from speech.audio_analyzer import AudioAnalyzer
 from speech.audio_player import AudioPlayer
-from companion import MemoryStore, SessionContext
-from companion.vault import VaultMemory
-from companion import reflection
-from companion.reflection import NOTE_DIR as DIARY_DIR
+from memory import MemoryStore, SessionContext
+from memory.vault import VaultMemory
+from memory import reflection
+from memory.reflection import NOTE_DIR as DIARY_DIR
 from speech.voice_identity import VoiceIdentity
 from brain.hermes_bridge import HermesBridge, ToolProgress
 from brain import desktop_grant
@@ -697,7 +697,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
     async def _memory_warmup(self):
         """Load the semantic model and embed the vault off the event loop."""
         try:
-            from companion.semantic import SemanticIndex
+            from memory.semantic import SemanticIndex
             cache=self._transcripts.parent/'semantic-cache.npz'
             index=await asyncio.to_thread(SemanticIndex,cache_path=cache)
             rows=await asyncio.to_thread(self._vault.call,'list',400)

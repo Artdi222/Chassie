@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from aiohttp import web
 
-from companion.memory import MemoryStore
+from memory.store import MemoryStore
 from vision.face_identity import FaceIdentity, face_command, match_template
 from vision.visual_context import VisualContext, encode_frame, capture_screen
 from brain.hermes_bridge import HermesBridge

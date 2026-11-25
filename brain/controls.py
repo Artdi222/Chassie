@@ -5,7 +5,7 @@ from dataclasses import asdict
 import json
 import logging
 from uuid import uuid4
-from companion.memory import bounded_text
+from memory.store import bounded_text
 from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
 

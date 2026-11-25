@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import threading
 
-from .memory import Memory, bounded_text
+from .store import Memory, bounded_text
 
 
 @dataclass(frozen=True)
