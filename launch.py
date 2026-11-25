@@ -36,6 +36,9 @@ def main():
     backend=None
     log=(data_dir/'launcher.log').open('a',buffering=1)
     try:
+        if not any((ROOT/'model').rglob('*.model3.json')):
+            raise RuntimeError('Chassie has no Live2D model yet. Put a model folder inside model/ '
+                               '(see model/README.md), then open Chassie again.')
         existing=status(port)
         if existing is not None and (existing.get('application')!='chassie' or existing.get('protocol')!=2):
             raise RuntimeError(f'Port {port} is occupied by an older backend or another application. Stop it before opening Chassie.')
@@ -49,7 +52,9 @@ def main():
             else:raise RuntimeError('Chassie backend did not start within 20 seconds. See .chassie/launcher.log.')
         env=os.environ.copy()
         if sys.platform.startswith('linux'):env['QT_QPA_PLATFORM']='xcb'
-        return subprocess.call([sys.executable,'-m','desktop','--endpoint',f'ws://127.0.0.1:{port}/ws'],cwd=ROOT,env=env,stdout=log,stderr=log)
+        code=subprocess.call([sys.executable,'-m','desktop','--endpoint',f'ws://127.0.0.1:{port}/ws'],cwd=ROOT,env=env,stdout=log,stderr=log)
+        if code>0:raise RuntimeError("Chassie's avatar could not start or stopped unexpectedly. See .chassie/launcher.log.")
+        return code
     except Exception as exc:
         print(str(exc),file=log)
         from PySide6.QtWidgets import QApplication,QMessageBox

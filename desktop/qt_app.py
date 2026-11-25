@@ -405,7 +405,7 @@ def run(args):
     from avatar.catalog import ModelCatalog, ModelSelection
     from desktop.studio import StudioControls
     catalog = ModelCatalog(args.model_dir)
-    if not catalog.models: raise ValueError('No valid Live2D model packages found')
+    if not catalog.models: raise ValueError('No Live2D model found: put one inside model/ (see model/README.md)')
     selection = ModelSelection(catalog,Path(__file__).resolve().parents[1]/'.chassie/model-selection.json')
     selected = catalog.get(selection.state['model_id'])
     prepared = prepare_entry(selected,args.cache_dir)

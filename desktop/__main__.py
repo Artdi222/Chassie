@@ -38,7 +38,7 @@ def main():
         from desktop.qt_app import run
         return run(args)
     except (ImportError, OSError, ValueError, RuntimeError) as exc:
-        print(f'Overlay could not start: {exc}. See docs/overlay.md.', file=sys.stderr)
+        print(f'Overlay could not start: {exc}', file=sys.stderr)
         return 2
 
 
