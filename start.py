@@ -147,7 +147,7 @@ async def run_startup_checks(config: dict):
         print(f"  [OK] Hermes gateway reachable at {config['hermes']['gateway_url']}")
     else:
         print(f"  [FAIL] Hermes gateway unreachable at {config['hermes']['gateway_url']}")
-        print("         Controls remain available. See docs/hermes-setup.md for API setup.")
+        print("         Controls remain available. Set up Hermes: README.md, step 5.")
 
     # Webcam
     if config["face_tracker"]["enabled"]:
