@@ -76,7 +76,7 @@ class SessionStore:
             text = ' '.join(str(message['content']).split())
             if message['role'] == 'user' and text and not (skip and skip(text)):
                 return text if len(text) <= TITLE_LENGTH else text[:TITLE_LENGTH - 1].rstrip() + '…'
-        return 'Obrolan'
+        return 'Chat'
 
     def load(self, session_id):
         data = json.loads(self._path(session_id).read_text(encoding='utf-8'))
@@ -89,7 +89,7 @@ class SessionStore:
         for path in self.directory.glob('*.json'):
             try:
                 data = json.loads(path.read_text(encoding='utf-8'))
-                sessions.append({'id': data['id'], 'title': data.get('title') or 'Obrolan',
+                sessions.append({'id': data['id'], 'title': data.get('title') or 'Chat',
                                  'updated': data.get('updated', ''), 'count': len(data.get('messages', [])),
                                  'summary': data.get('summary'),
                                  'needs_summary': len(data.get('messages', [])) >= 4

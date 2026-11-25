@@ -718,10 +718,10 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 days=[] if busy else reflection.pending_days(self._transcripts,self._vault.path)
                 if days:
                     day=days[0]
-                    reply=await self._hermes.complete_once(reflection.SYSTEM,
+                    reply=await self._hermes.complete_once(reflection.system_prompt(self._translation_language),
                         f'Date: {day.isoformat()}\n\n'+reflection.transcript_text(self._transcripts,day))
                     summary,loops=reflection.parse_reflection(reply)
-                    path=reflection.write_note(self._vault.path,day,summary,loops)
+                    path=reflection.write_note(self._vault.path,day,summary,loops,self._translation_language)
                     logger.info('Daily reflection written: %s (%d open loop(s))',path.name,len(loops))
                     continue
             except asyncio.CancelledError:
@@ -759,7 +759,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 self._summarize_later(item['id'])
         except (OSError,ValueError) as exc: logger.warning('Could not continue the last chat: %s',type(exc).__name__)
 
-    SUMMARY_SYSTEM=('Summarize this chat between Artdi and his companion Chassie in Indonesian, in one or two '
+    SUMMARY_SYSTEM=('Summarize this chat between the owner and their companion Chassie in {language}, in one or two '
                     'short sentences: what they talked about and anything left open. Refer to them by name in '
                     'the third person. Plain text only.')
 
@@ -776,7 +776,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             if len(messages)<4 or data.get('summary_count')==len(data['messages']): return
             lines=[('Artdi: ' if m['role']=='user' else 'Chassie: ')
                    +(display_translation(m['content']) if m['role']=='assistant' else m['content'])[:600] for m in messages[-60:]]
-            summary=await self._hermes.complete_once(self.SUMMARY_SYSTEM,'\n'.join(lines))
+            summary=await self._hermes.complete_once(self.SUMMARY_SYSTEM.format(language=LANGUAGES.get(self._translation_language,'English')),'\n'.join(lines))
             self._sessions.set_summary(session_id,summary,len(data['messages']))
             logger.info('Chat session %s summarized',session_id)
             await self._broadcast_to_ui(self._sessions_message())

@@ -303,8 +303,8 @@ class VaultStore:
             created=front_value(text,'date') or ''
             groups.setdefault(CATEGORIES.get(category,'People'),[]).append((created,path.stem,heading[1] if heading else path.stem))
         lines=['---','tags: [index, chassie-memory]',f'updated: {dt.date.today().isoformat()}','---','',
-               '# Ingatan Chassie','','Hal-hal yang Chassie simpan sendiri dari obrolan, dikelompokkan per kategori. '
-               'Catatan ini dibuat otomatis; ubah atau hapus catatan aslinya, bukan daftar ini.','']
+               "# Chassie's memories",'','What Chassie chose to keep from your chats, grouped by category. '
+               'This list is generated: edit or delete the notes themselves, not this list.','']
         for folder in CATEGORIES.values():
             items=groups.get(folder)
             if not items: continue
