@@ -243,8 +243,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         if not (self._automatic_memory and self._vault): return []
         try:
             rows=self._vault.call('list',400)
-            owner=next((p.name for p in self._memory.list_profiles()
-                        if p.id==self._session_context.owner_profile_id),None)
+            owner=self._owner_name(None)
             found=[]
             if owner:
                 found+=[r for r in rows if r['path'].casefold()==f'people/{owner}.md'.casefold()][:1]
@@ -271,6 +270,10 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 logger.warning('Memory recall unavailable: %s',exc)
             return []
         return [{'content':str(r.get('content',''))[:600],'source':'obsidian:'+str(r.get('path',''))} for r in found]
+
+    def _owner_name(self,default='Owner'):
+        return next((p.name for p in self._memory.list_profiles()
+                     if p.id==self._session_context.owner_profile_id),default)
 
     def _others_in_view(self):
         if self._guest_privacy or not (self._vision and getattr(self._vision,'camera_enabled',False)): return None
@@ -777,7 +780,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             data=self._sessions.load(session_id)
             messages=[m for m in data['messages'] if not (m['role']=='user' and INITIATIVE_PREFIX in m['content'])]
             if len(messages)<4 or data.get('summary_count')==len(data['messages']): return
-            lines=[('Artdi: ' if m['role']=='user' else 'Chassie: ')
+            owner=self._owner_name()
+            lines=[(owner+': ' if m['role']=='user' else 'Chassie: ')
                    +(display_translation(m['content']) if m['role']=='assistant' else m['content'])[:600] for m in messages[-60:]]
             summary=await self._hermes.complete_once(self.SUMMARY_SYSTEM.format(language=LANGUAGES.get(self._translation_language,'English')),'\n'.join(lines))
             self._sessions.set_summary(session_id,summary,len(data['messages']))
@@ -824,7 +828,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             owner=self._session_context.owner_profile_id
             profile=next((p for p in self._memory.list_profiles() if p.id==owner),None)
             if profile is None:
-                raise ValueError('Select your owner profile in Settings first, or say the name, e.g. "ingat wajahku sebagai Artdi".')
+                raise ValueError('Select your owner profile in Settings first, or say the name, e.g. "ingat wajahku sebagai Alex".')
             if self._vision and self._vision.status().get('identity',{}).get('face_count')!=1:
                 raise ValueError('Face not saved. Make sure only your face is in front of the camera, then repeat.')
             name=profile.name

@@ -92,3 +92,16 @@ async def test_left_session_is_summarized_and_recalled_in_the_next_chat(app):
     assert 'local_time' in context
     listing = app._sessions_message()
     assert listing['items'][0]['summary'] and listing['items'][0]['needs_summary'] is False
+
+
+@pytest.mark.asyncio
+async def test_session_recap_labels_the_owner_by_their_own_name(app):
+    make_owner(app)  # Profile "Owner"
+    app._broadcast_to_ui = AsyncMock()
+    app._hermes = HermesBridge(CONFIG)
+    app._hermes.complete_once = AsyncMock(return_value='Owner talked about guitar.')
+    for n in range(2): app._hermes._messages.extend(exchange(n))
+    app._save_session()
+    await app._summarize(app._hermes.session_id)
+    transcript = app._hermes.complete_once.call_args.args[1]
+    assert transcript.startswith('Owner: pesan 0') and 'Artdi' not in transcript
