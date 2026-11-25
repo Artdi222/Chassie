@@ -103,3 +103,13 @@ async def test_onboarding_imports_a_model_and_completes(app, tmp_path):
                 assert 'Welcome to Chassie' in await r.text()
     finally:
         await runner.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_desktop_placement_buttons_are_relayed_to_the_overlay(app):
+    from unittest.mock import AsyncMock
+    app._broadcast_to_ui = AsyncMock()
+    await app.handle_control({'type': 'avatar_window', 'action': 'zoom_in'})
+    app._broadcast_to_ui.assert_any_await({'type': 'avatar_window', 'action': 'zoom_in'})
+    with pytest.raises(ValueError):
+        await app.handle_control({'type': 'avatar_window', 'action': 'delete_everything'})

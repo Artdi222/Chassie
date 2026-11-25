@@ -23,9 +23,15 @@ def checked_exec(self):
             if actions:
                 name=actions.pop(0)
                 print('CLICK',name,flush=True)
+                button=controls.bubbles[name]
+                controls.show_hint(button)
+                assert controls.hint.isVisible() and controls.hint.text(),'Hover hint missing'
+                assert not controls.hint.geometry().intersects(button.geometry()),'Hint covers its bubble'
+                outcome.setdefault('hints',{})[name]=controls.hint.text()
+                controls.show_hint(None)
                 QTest.mouseClick(controls.bubbles[name],Qt.MouseButton.LeftButton)
                 assert controls.isVisible(),'Menu unexpectedly dismissed'
-                if name!='stop':
+                if name not in ('stop','mic'):
                     panel=controls.panels[name]
                     assert panel.isVisible()
                     assert panel.parentWidget() is avatar
@@ -49,7 +55,8 @@ def checked_exec(self):
                     outcome['compositor'][key]=value
                 outcome['transient_above_avatar']=all(b.windowHandle().transientParent() is avatar.windowHandle() for b in controls.bubbles.values())
                 assert outcome['transient_above_avatar']
-                avatar.hide();assert not controls.isVisible()
+                controls.show_hint(controls.bubbles['chat'])
+                avatar.hide();assert not controls.isVisible() and not controls.hint.isVisible()
                 avatar.show();controls.show()
                 assert all(b.isVisible() for b in controls.bubbles.values())
                 print(json.dumps(outcome),flush=True);app.quit()

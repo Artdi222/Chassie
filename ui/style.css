@@ -370,3 +370,21 @@ html.embedded-chat,body.embedded{background:transparent}
 @media(max-width:480px){.settings-tabs{overflow-x:auto}.settings-tabs [role=tab]{padding:8px 10px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .model-detail>.section-line:first-child{margin-top:22px}
+
+/* Desktop placement (only in the desktop panels, where a window exists to move) */
+.desktop-only{display:none!important}
+.embedded .desktop-only{display:block!important}
+.embedded .setting-row.desktop-only{display:flex!important}
+.placement{background:var(--inset);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px 16px;margin-bottom:22px}
+.placement .panel-section{margin:0}
+.steppers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.stepper{display:flex;flex-direction:column;gap:6px}
+.stepper>span{font-size:12px;font-weight:500;color:var(--ink-2)}
+.seg{display:flex;background:var(--surface);border:1px solid var(--line-2);border-radius:999px;padding:3px;box-shadow:var(--shadow-1)}
+.seg button{flex:1;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:var(--ink-2);transition:background .15s,color .15s}
+.seg button:hover{background:var(--accent-wash);color:var(--accent-strong)}
+.seg button:active{background:#e3dafa}
+.seg button+button{margin-left:2px}
+.seg .icon{width:17px;height:17px}
+.setting-row .action-btn{margin:0;white-space:nowrap}
+@media(max-width:420px){.steppers{grid-template-columns:1fr}}

@@ -17,7 +17,8 @@ ICON_PATHS = {
     'chat':'<path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/><path d="M7 10h8m-8 4h5"/>',
     'settings':'<path d="M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1Z"/><circle cx="12" cy="12" r="3"/>',
     'models':'<circle cx="12" cy="12" r="9"/><path d="M8 9v1m8-1v1m-8 5q4 4 8 0"/>',
-    'wardrobe':'<path d="m8 3-6 4 3 5 3-2v11h8V10l3 2 3-5-6-4q-4 4-8 0Z"/>',
+    'mic':'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0m-7 7v3"/>',
+    'mic_off':'<path d="M15 9.5V6a3 3 0 0 0-5.6-1.5M9 9v2a3 3 0 0 0 4.7 2.5M5 11a7 7 0 0 0 11.5 5.4M19 11a7 7 0 0 1-.4 2.3M12 18v3M4 4l16 16"/>',
     'stop':'<rect x="6" y="6" width="12" height="12" rx="3"/>',
     'web':'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M7 6.5h.1m3 0h.1"/>',
 }
@@ -42,14 +43,18 @@ class FloatingPanel(QWidget):
         if transparent:
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         background='transparent' if transparent else '#ffffff'
-        self.setStyleSheet(f'QWidget{{background:{background};color:#2f293d;font-size:14px;}} QPushButton{{border:0;padding:7px 12px;background:#f0ebf6;border-radius:8px;}}')
+        self.setStyleSheet(f'QWidget{{background:{background};color:#1e1a27;font-size:14px;}}'
+                           'QLabel#panelTitle{font-size:13px;font-weight:600;color:#5c5669;}'
+                           'QPushButton#panelClose{border:0;border-radius:14px;min-width:28px;max-width:28px;min-height:28px;max-height:28px;'
+                           'background:transparent;color:#5c5669;font-size:15px;}'
+                           'QPushButton#panelClose:hover{background:#efebf8;color:#1e1a27;}')
         self.drag = None
         layout=QVBoxLayout(self);layout.setContentsMargins(1,1,1,1);layout.setSpacing(0)
         if not transparent:
-            bar=QHBoxLayout();bar.setContentsMargins(16,10,10,10)
-            label=QLabel(title);bar.addWidget(label)
-            bar.addStretch()
-            close=QPushButton('Close');close.clicked.connect(self.hide);bar.addWidget(close)
+            bar=QHBoxLayout();bar.setContentsMargins(20,10,10,0)  # Drag the panel by this strip.
+            bar.addStretch()  # The page shows the title; this strip is for dragging and closing.
+            close=QPushButton('✕');close.setObjectName('panelClose');close.setToolTip('Close');close.setAccessibleName('Close')
+            close.setCursor(Qt.CursorShape.PointingHandCursor);close.clicked.connect(self.hide);bar.addWidget(close)
             layout.addLayout(bar)
         else:
             self.close_shortcut=QShortcut(QKeySequence('Escape'),self)
@@ -87,6 +92,7 @@ class BubbleButton(QAbstractButton):
         self.setIcon(icon(name));self.setIconSize(QSize(20,20))
         self.setToolTip(title);self.setAccessibleName(title)
         self.setMouseTracking(True)
+        self.on_hover=None
         self.winId()
         self.windowHandle().setTransientParent(owner.windowHandle())
 
@@ -104,8 +110,44 @@ class BubbleButton(QAbstractButton):
         painter.drawEllipse(self.rect().adjusted(1,1,-1,-1))
         self.icon().paint(painter,QRect(12,12,20,20))
 
-    def enterEvent(self,event):self.update()
-    def leaveEvent(self,event):self.update()
+    def enterEvent(self,event):
+        self.update()
+        if self.on_hover:self.on_hover(self)
+    def leaveEvent(self,event):
+        self.update()
+        if self.on_hover:self.on_hover(None)
+
+
+class BubbleHint(QLabel):
+    """What a bubble does, shown beside it while hovered; never takes the mouse."""
+    def __init__(self):
+        super().__init__(None)
+        self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
+                            | Qt.WindowType.WindowTransparentForInput)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setWindowTitle('Chassie hint')
+        # Stylesheet backgrounds are skipped on translucent top-level windows: paint the pill.
+        self.setStyleSheet('QLabel{background:transparent;color:#f3f1f8;padding:6px 13px;font-size:13px;font-weight:500;}')
+
+    def paintEvent(self,event):
+        painter=QPainter(self)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        painter.fillRect(self.rect(),Qt.GlobalColor.transparent)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen);painter.setBrush(QColor(29,26,38,240))
+        radius=self.height()/2;painter.drawRoundedRect(self.rect(),radius,radius)
+        painter.end()
+        super().paintEvent(event)
+
+    def show_beside(self,button,text):
+        self.setText(text);self.adjustSize()
+        r=button.geometry();screen=button.screen().availableGeometry()
+        x=r.x()-self.width()-8
+        if x<screen.x()+4:x=r.right()+8  # Bubbles hug the screen edge: show on the other side.
+        self.move(x,r.center().y()-self.height()//2)
+        self.show();self.raise_()
 
 
 class StudioControls(QObject):
@@ -120,9 +162,12 @@ class StudioControls(QObject):
         self.settings_path=cache_dir/'window.json'
         self.bubbles={}
         window.winId()
-        for name,title in [('chat','Conversation'),('models','Models & expressions'),('wardrobe','Outfits & props'),('settings','Settings'),('stop','Stop reply')]:
+        self.hint=BubbleHint()
+        for name,title in [('chat','Conversation'),('mic','Microphone'),('models','Customize her look'),('settings','Settings'),('stop','Stop her reply')]:
             b=BubbleButton(name,title,window)
+            b.on_hover=self.show_hint
             b.clicked.connect(lambda checked=False,n=name:self.action(n));self.bubbles[name]=b
+        self.update_mic()
         self.status=QLabel('')
         self.subtitle=QLabel('',window,Qt.WindowType.Tool)
         self.subtitle.setWindowTitle('Chassie subtitle')
@@ -133,7 +178,7 @@ class StudioControls(QObject):
         self.subtitle.setFixedWidth(340)
         self.tray=QSystemTrayIcon(QIcon(str(Path(__file__).resolve().parents[1]/'ui/public/chassie-icon.png')),self);self.tray.setToolTip('Chassie')
         menu=QMenu();self.tray_menu=menu
-        for title,callback in [('Show controls',self.toggle),('Conversation',lambda:self.action('chat')),('Models & expressions',lambda:self.action('models')),('Settings',lambda:self.action('settings')),('Add a model…',lambda:self.action('models')),('Open web studio',self.open_web),('Show / hide model',lambda:window.setVisible(not window.isVisible())),('Click through avatar',self.click_through),('Stop reply',lambda:self.send({'type':'stop'})),('Quit Chassie',QApplication.instance().quit)]:
+        for title,callback in [('Show controls',self.toggle),('Conversation',lambda:self.action('chat')),('Customize',lambda:self.action('models')),('Settings',lambda:self.action('settings')),('Add a model…',lambda:self.action('models')),('Open web studio',self.open_web),('Show / hide model',lambda:window.setVisible(not window.isVisible())),('Click through avatar',self.click_through),('Stop reply',lambda:self.send({'type':'stop'})),('Quit Chassie',QApplication.instance().quit)]:
             action=QAction(title,menu);action.triggered.connect(callback);menu.addAction(action)
         self.tray.setContextMenu(menu);self.tray.activated.connect(lambda reason:self.toggle() if reason==QSystemTrayIcon.ActivationReason.Trigger else None);self.tray.show()
         window.installEventFilter(self)
@@ -171,6 +216,7 @@ class StudioControls(QObject):
     def isVisible(self):return any(b.isVisible() for b in self.bubbles.values())
 
     def setVisible(self,visible):
+        if not visible:self.hint.hide()
         for button in self.bubbles.values():
             if visible:button.windowHandle().setTransientParent(self.window.windowHandle())
             button.setVisible(visible)
@@ -195,24 +241,33 @@ class StudioControls(QObject):
         if 'chat' in self.panels and self.panels['chat'].isVisible():self.place_panel('chat')
         if self.subtitle.isVisible():self.place_subtitle()
 
+    def hint_text(self,name):
+        if name=='mic':
+            return {None:'Microphone unavailable',True:'Microphone on · click to mute',
+                    False:'Microphone off · click to talk'}[self.state.mic_enabled]
+        return self.bubbles[name].accessibleName()
+
+    def show_hint(self,button):
+        if button is None or not button.isVisible():self.hint.hide();return
+        self.hint.show_beside(button,self.hint_text(button.objectName()))
+
+    def update_mic(self):
+        """The mic bubble shows the live microphone state."""
+        b=self.bubbles['mic'];text=self.hint_text('mic')
+        b.setIcon(icon('mic_off' if self.state.mic_enabled is False else 'mic'));b.setToolTip(text);b.update()
+        if self.hint.isVisible() and b.underMouse():self.hint.show_beside(b,text)
+
     def action(self,name):
         if name=='stop':self.send({'type':'stop'});return
+        if name=='mic':
+            if self.state.mic_enabled is not None:self.send({'type':'set_mic','enabled':not self.state.mic_enabled})
+            return
         if name=='chat' and name in self.panels and self.panels[name].isVisible():
             self.panels[name].hide()
             return
         if name not in self.panels:
-            titles={'chat':'Conversation','models':'Customize','wardrobe':'Outfits & props','settings':'Settings'}
+            titles={'chat':'Conversation','models':'Customize','settings':'Settings'}
             self.panels[name]=FloatingPanel(titles[name],self.base_url+'/?panel='+name,self.window,transparent=name=='chat')
-            if name in ('settings','models'):
-                row=QHBoxLayout();row.setContentsMargins(12,6,12,10)
-                actions=[('Size −',lambda:self.resize_window(1/1.15)),('Size +',lambda:self.resize_window(1.15)),
-                         ('Zoom −',lambda:self.adjust_frame(zoom=-.15)),('Zoom +',lambda:self.adjust_frame(zoom=.15)),
-                         ('Move up',lambda:self.adjust_frame(vertical=.15)),('Move down',lambda:self.adjust_frame(vertical=-.15)),
-                         ('Reset',self.reset_frame)]
-                if name=='settings':actions.append(('Click through',self.click_through))
-                for label,callback in actions:
-                    b=QPushButton(label);b.clicked.connect(callback);row.addWidget(b)
-                self.panels[name].layout().insertLayout(1,row)
         self.place_panel(name);self.panels[name].show();self.panels[name].raise_();self.panels[name].activateWindow()
 
     def resize_window(self,factor):
@@ -257,7 +312,7 @@ class StudioControls(QObject):
         if self.window.entry:self.send({'type':'overlay_ready','ready':self.window.renderer_ready,'model_id':self.window.entry.id,'expressions':list(self.window.loaded_expressions)})
 
     def on_disconnected(self):
-        self.connected=False;self.state.disconnected();self.subtitle.hide();self.native_subtitle_generation=-1
+        self.connected=False;self.state.disconnected();self.subtitle.hide();self.native_subtitle_generation=-1;self.update_mic()
         if not self.retry.isActive():self.retry.start(2000)
 
     def send(self,data):
@@ -268,6 +323,7 @@ class StudioControls(QObject):
             data=json.loads(raw)
             if not isinstance(data,dict):return
             self.state.receive(data,time.monotonic())
+            if data.get('type')=='settings':self.update_mic()
             if data.get('type')=='model_catalog' and {m['id'] for m in data.get('models',[])}!=set(self.catalog.models):
                 self.catalog.reload()  # A model was added from the Customize panel.
             if data.get('type')=='model_state':
@@ -279,6 +335,11 @@ class StudioControls(QObject):
                     self.window.framing=Framing.from_settings(saved) if saved else Framing.for_model(data['model_id'])
                 self.window.select_entry(self.catalog.get(data['model_id']),data,self.cache_dir)
                 self.announce_renderer()
+            elif data.get('type')=='avatar_window':
+                {'smaller':lambda:self.resize_window(1/1.15),'larger':lambda:self.resize_window(1.15),
+                 'zoom_out':lambda:self.adjust_frame(zoom=-.15),'zoom_in':lambda:self.adjust_frame(zoom=.15),
+                 'frame_up':lambda:self.adjust_frame(vertical=.15),'frame_down':lambda:self.adjust_frame(vertical=-.15),
+                 'reset':self.reset_frame,'click_through':self.click_through}.get(data.get('action'),lambda:None)()
             elif data.get('type')=='subtitle' and data.get('generation',-1)>=self.native_subtitle_generation:
                 self.native_subtitle_generation=data['generation'];self.subtitle.setText(data.get('text',''))
                 self.subtitle.setVisible(bool(data.get('text')));self.place_subtitle()
@@ -307,6 +368,6 @@ class StudioControls(QObject):
         self.settings_path.write_text(json.dumps({'model_frames':self.model_frames,'x':r.x(),'y':r.y(),'width':r.width(),'height':r.height(),'zoom':self.window.framing.zoom,'vertical':self.window.framing.vertical}))
 
     def shutdown(self):
-        self.save_geometry();self.timer.stop();self.retry.stop();self.socket.blockSignals(True);self.socket.close();self.tray.hide();self.subtitle.close()
+        self.save_geometry();self.timer.stop();self.retry.stop();self.socket.blockSignals(True);self.socket.close();self.tray.hide();self.subtitle.close();self.hint.close()
         for panel in self.panels.values():panel.close()
         for button in self.bubbles.values():button.close()

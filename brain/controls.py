@@ -12,6 +12,8 @@ from brain.bilingual import LANGUAGES
 logger=logging.getLogger('orchestrator')
 
 
+AVATAR_WINDOW_ACTIONS=('smaller','larger','zoom_out','zoom_in','frame_up','frame_down','reset','click_through')
+
 class ControlsMixin:
     def _settings(self):
         faces={p['profile_id'] for p in self._memory.list_faces()}
@@ -205,6 +207,10 @@ class ControlsMixin:
                 await self._broadcast_to_ui({'type':'history_cleared'})
                 items=(await asyncio.to_thread(self._vault.list) if self._automatic_memory and kind in ('add_memory','edit_memory','delete_memory') else [])
                 await self._broadcast_to_ui({'type':'memories','items':items})
+            elif kind=='avatar_window':
+                # Placement buttons in the desktop panels; the overlay owns the window, so relay.
+                if data.get('action') not in AVATAR_WINDOW_ACTIONS: raise ValueError('Unknown avatar window action')
+                await self._broadcast_to_ui({'type':'avatar_window','action':data['action']})
             elif kind=='hello': pass
             else: raise ValueError('Unknown control')
             await self._broadcast_settings()

@@ -43,6 +43,14 @@ if not _G.chassie_bubbles_rule then
         border_size = 0, rounding = 0,
     })
 end
+if not _G.chassie_hint_rule then
+    _G.chassie_hint_rule = hl.window_rule({
+        name = "chassie-bubble-hint",
+        match = { class = "^chassie-overlay$", title = "^Chassie hint$" },
+        float = true, pin = true, no_blur = true, no_shadow = true,
+        border_size = 0, rounding = 0,
+    })
+end
 if not _G.chassie_chat_rule then
     _G.chassie_chat_rule = hl.window_rule({
         name = "chassie-floating-chat",

@@ -30,6 +30,7 @@ async def test_bubble_actions_stay_open_and_panels_are_above_avatar(app):
         Path('.test-artifacts/desktop-arc-check.log').write_bytes(output)
         assert process.returncode==0,output.decode(errors='replace')[-6000:]
         assert b'"transient_above_avatar": true' in output
+        assert b'"chat": "Conversation"' in output and b'"mic": "Microphone' in output
         assert b'"compositor_gaps_transparent": true' in output
     finally:
         if process and process.returncode is None:

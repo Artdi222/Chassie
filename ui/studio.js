@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('menu-toggle').onclick = () => showPanel('settings');
     $('sidebar-close').onclick = $('close-models').onclick = $('panel-backdrop').onclick = () => showPanel(null);
     $('open-models').onclick = () => showPanel('models');
+    document.querySelectorAll('[data-window]').forEach(b => b.onclick = () => send({type: 'avatar_window', action: b.dataset.window}));
     window.ChassieImporter?.mount($('model-import'), {compact: true, onInstalled: data => {
         // The backend broadcasts the new catalog; switch to the model that was just added.
         if (data.installed[0]) send({type: 'select_model', model_id: data.installed[0]});
