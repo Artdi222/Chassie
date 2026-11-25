@@ -23,3 +23,13 @@ def pytest_collection_modifyitems(session, config, items):
             pw.chromium.launch(args=['--no-sandbox']).close()
     except Exception as exc:
         pytest.exit(f'UI tests cannot start a browser ({type(exc).__name__}). Fix: {FIX}', returncode=4)
+
+
+# Live2D models are not shipped with the repo; tests that render the bundled-in-dev
+# Tian Muzi package run only where it has been installed locally under model/Model_4.
+HAS_TEST_MODEL = (Path(__file__).resolve().parents[1] / 'model' / 'Model_4').is_dir()
+
+
+def pytest_runtest_setup(item):
+    if item.get_closest_marker('requires_model') and not HAS_TEST_MODEL:
+        pytest.skip('needs a local Live2D model in model/Model_4 (models are not shipped)')

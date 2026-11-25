@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -10,6 +11,8 @@ from orchestrator import Orchestrator
 def app(tmp_path):
     stt = Mock(error=None, is_listening=Mock(return_value=False))
     config = {'audio': {'output_sample_rate': 24000}, 'companion': {'memory_path': str(tmp_path / 'memory.sqlite')}}
+    if (Path(__file__).resolve().parents[1] / 'model/Model_4').is_dir():
+        (tmp_path / 'model-selection.json').write_text('{"model_id":"Model_4"}')
     result = Orchestrator(config, text_mode=True, components={
         'stt': stt, 'hermes': Mock(get_history=Mock(return_value=[])),
         'tts': Mock(), 'player': Mock(), 'analyzer': Mock()})
@@ -30,6 +33,7 @@ async def test_no_renderer_does_not_advertise_or_accept_preview(app):
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_model
 async def test_overlay_ready_tracks_model_without_expression_files(app):
     socket = Mock(closed=False, send_json=AsyncMock())
     app._ui_sockets.add(socket)
@@ -61,6 +65,7 @@ async def receive_type(ws, kind):
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_model
 async def test_actual_websocket_registration_and_disconnect(app):
     runner = web.AppRunner(app._web_app)
     await runner.setup()

@@ -1,24 +1,21 @@
+# Python
 .venv/
 venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .test-artifacts/
+
+# Runtime data, secrets and downloaded assets (sessions, memory, voices, vision models)
 .chassie/
-vts_token.json
 
-venv/
-.venv/
-.chassie/
-__pycache__/
-.pytest_cache/
-.test-artifacts/
-vts_token.json
+# Personal settings layered over config.yaml
+config.local.yaml
 
-# DeepSeek-chan: free model, redistribution not allowed (see model/DeepSeek/TERMS.txt)
-model/DeepSeek/
+# Live2D models are not shipped: everyone brings their own (see model/README.md)
+model/*
+!model/README.md
+*.zip
 
-# Original model archives: the extracted files are what Chassie loads (GitHub limit is 100 MB)
-model/*/*.zip
-# Licensed model download that must not be redistributed
-/DeepSeek-chan*.zip
+# Editor settings
+.vscode/

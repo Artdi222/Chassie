@@ -16,7 +16,6 @@ PARAM_ALIASES = {'DeepSeek': {'ParamAngleX': 'AngleX', 'ParamAngleY': 'AngleY', 
 # VTS feeds these rigs' body physics from the face angles with smoothing (FaceAngle ->
 # Position*), so the torso, hips and hair follow the head instead of standing still.
 BODY_FOLLOW = {'DeepSeek': {'AngleX': 'PositionX', 'AngleY': 'PositionY', 'AngleZ': 'PositionZ'}}
-DEFAULT_MODEL = 'Model_4'  # Tian Muzi stays the default; other local packages are opt-in
 # Hand gestures from the package's own motion transitions (desktop/gestures.py):
 # {gesture: (out motion, back motion)} and {emotion: (gesture, chance)}.
 GESTURES = {'DeepSeek': {
@@ -178,7 +177,7 @@ class ModelSelection:
         self.catalog, self.path = catalog, Path(path) if path else None
         self.revision = 0
         self._interactions={}
-        default=DEFAULT_MODEL if DEFAULT_MODEL in catalog.models else next(iter(catalog.models), None)
+        default = next(iter(catalog.models), None)  # First installed package until one is chosen
         self.state = {'model_id': default, 'expression': None, 'outfit': None,
                       'accessories': [], 'prop': None, 'effects': [], 'auto': True, 'mouth_preview': 0.0,
                       'interaction':interaction_settings()}

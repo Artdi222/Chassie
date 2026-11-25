@@ -9,6 +9,7 @@ from desktop.model import prepare_entry
 from test_orchestrator import app
 
 
+@pytest.mark.requires_model
 def test_available_models_exclude_removed_model_and_model_four_assets_are_valid(tmp_path):
     catalog=ModelCatalog()
     assert not catalog.errors
@@ -31,6 +32,7 @@ def test_available_models_exclude_removed_model_and_model_four_assets_are_valid(
         assert all('costume_v0100' not in x['id'] for x in entry.expressions)
 
 
+@pytest.mark.requires_model
 def test_selection_validation_is_atomic_and_switch_clears_model_specific_options(tmp_path):
     c=ModelCatalog();selection=ModelSelection(c,tmp_path/'selection.json')
     selection.change({'model_id':'Model_4','auto':False,'expression':'__chassie__/sad.exp3.json'})
@@ -46,6 +48,7 @@ def test_selection_validation_is_atomic_and_switch_clears_model_specific_options
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_model
 async def test_model_routes_only_serve_catalogued_renderer_assets(app):
     runner=web.AppRunner(app._web_app);await runner.setup()
     site=web.TCPSite(runner,'127.0.0.1',0);await site.start()
@@ -66,6 +69,7 @@ async def test_model_routes_only_serve_catalogued_renderer_assets(app):
     finally:await runner.cleanup()
 
 
+@pytest.mark.requires_model
 def test_interaction_preferences_persist_per_model_and_validate_atomically(tmp_path):
     catalog=ModelCatalog();path=tmp_path/'selection.json'
     selection=ModelSelection(catalog,path)
@@ -91,9 +95,10 @@ def test_reaction_tables_are_per_model_and_only_use_real_parameters():
     assert {p['Id'] for p in happy['Parameters']}=={'ParamMouthForm','EyeSmile'}
 
 
-def test_default_selection_prefers_tian_muzi(tmp_path):
+def test_default_selection_is_first_installed_model_or_none(tmp_path):
+    assert ModelSelection(ModelCatalog(tmp_path/'empty'),tmp_path/'none.json').state['model_id'] is None
     c=ModelCatalog()
-    assert ModelSelection(c,tmp_path/'none.json').state['model_id']=='Model_4'
+    assert ModelSelection(c,tmp_path/'none.json').state['model_id']==next(iter(c.models),None)
 
 
 @pytest.mark.skipif('DeepSeek' not in ModelCatalog().models, reason='optional local DeepSeek-chan package')

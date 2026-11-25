@@ -12,6 +12,7 @@ from test_orchestrator import app
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'), reason='Requires live Hyprland/XWayland')
+@pytest.mark.requires_model
 async def test_bubble_actions_stay_open_and_panels_are_above_avatar(app):
     runner=web.AppRunner(app._web_app)
     await runner.setup()

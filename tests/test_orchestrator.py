@@ -1,3 +1,4 @@
+from pathlib import Path
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock,Mock
@@ -22,6 +23,9 @@ def app(tmp_path):
     face=Mock(get_context_string=Mock(return_value=''),get_observation=Mock(return_value={'available':False,'face_count':0,'expression':'unknown','observed_at':0,'identity_verified':False}))
     config={'audio':{'sample_rate':16000,'output_sample_rate':24000},'stt':{},'tts':{},'hermes':{},
             'companion':{'memory_path':str(tmp_path/'memory.sqlite')},'conversation':{'input_mode':'review'}}
+    if (Path(__file__).resolve().parents[1]/'model/Model_4').is_dir():
+        # Model tests are written against the local Tian Muzi package (see conftest.requires_model).
+        (tmp_path/'model-selection.json').write_text('{"model_id":"Model_4"}')
     result=Orchestrator(config,components={'stt':stt,'hermes':hermes,'player':player,'face':face,'tts':Mock(),'analyzer':Mock()})
     yield result
     result._memory.close()

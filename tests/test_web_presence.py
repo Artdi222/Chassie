@@ -8,6 +8,7 @@ from test_orchestrator import app  # noqa: F401  (fixture)
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_model
 async def test_web_avatar_follows_face_and_tilts_while_thinking(app):
     app._model_selection.change({'model_id': 'Model_4'}, persist=False)
     runner = web.AppRunner(app._web_app); await runner.setup()
