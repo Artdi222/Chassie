@@ -22,7 +22,7 @@ Only one VVM is downloaded and loaded (this official file also contains several 
 
 All replies use **Mochiko-san Normal (style 20)**, including happy, sad and thinking replies. Avatar expressions still follow each sentence independently. Speaking tempo is `tts.speed_scale: 1.0`; manual avatar expression selection remains independent of voice delivery.
 
-The bilingual prompt asks Hermes to write foreign names, app names, initialisms and filenames as spoken kana in the Japanese speech field. For example, `VS Code` is spoken as `ブイエス・コード`, and `bilingual.py` as `バイリンガル・ドット・パイ`. The English chat and subtitle translation preserves the original spelling. These are Japanese phonetic readings; pronunciation still depends on the model supplying the correct reading.
+The bilingual prompt asks Hermes to write foreign names, app names, initialisms and filenames as spoken kana in the Japanese speech field. For example, `VS Code` is spoken as `ブイエス・コード`, and `brain/bilingual.py` as `バイリンガル・ドット・パイ`. The English chat and subtitle translation preserves the original spelling. These are Japanese phonetic readings; pronunciation still depends on the model supplying the correct reading.
 
 ## Response and interruption behavior
 
