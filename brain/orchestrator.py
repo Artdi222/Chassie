@@ -374,7 +374,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         chunker=BilingualChunker(self._translation_language) if self._bilingual else SpeechChunker()
         first_pair=True
         self._turn_sentences=0
-        self._turn_memories=[]
+        self._turn_memories_saved=0
         self._turn_skipped=False
         async def put(sentence):
             nonlocal first_pair
@@ -429,7 +429,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
     async def _route(self,sentence,text,put):
         """Send one parsed line where it belongs: memory, action, silence, or speech."""
         kind=sentence[0]
-        if kind=='memory': self._turn_memories.append((sentence[1],sentence[2] if len(sentence)>2 else {}))
+        if kind=='memory': await self._save_memory(sentence[1],sentence[2] if len(sentence)>2 else {})
         elif kind=='action': await self._run_model_action(text,*sentence[1:])
         elif kind=='skip': self._turn_skipped=True
         else: await put(sentence)
@@ -606,7 +606,6 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             if not self._turn_initiative: self._previous_user_text=text[-300:]
             self._pending_topic=None
             completed=True
-            await self._save_turn_memories(text)
             self._turn_metrics['complete_seconds']=time.monotonic()-started
             logger.info('Streaming turn timings (seconds): %s',{k:round(v,3) for k,v in self._turn_metrics.items()})
         except asyncio.CancelledError:
@@ -802,24 +801,21 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 'available':self._personal_scope(),
                 'reminders':self._reminders.list() if self._personal_scope() else []}
 
-    async def _save_turn_memories(self,text):
-        """Save the memory lines Chassie chose to write this turn to the Obsidian vault.
+    async def _save_memory(self,content,extras):
+        """Save a memory line the moment it is parsed, so barge-in, Stop or closing cannot lose it.
 
-        Owner-only: scope is re-checked after the reply, so a guest who arrived mid-turn blocks it.
+        Owner-only, checked now: a guest who arrives mid-turn blocks the lines that follow.
         """
-        memories=getattr(self,'_turn_memories',[]);self._turn_memories=[]
-        if not (memories and self._automatic_memory and self._vault): return
+        if not (self._automatic_memory and self._vault) or self._turn_memories_saved>=3: return
         if self._session_context.context_for_request(self._memory).scope!='personal': return
-        saved=0
-        for content,extras in memories[:3]:
-            try:
-                # Title and category shape the Obsidian note; the plugin guesses them when absent.
-                result=await asyncio.to_thread(self._vault.call,'remember',content,session='chassie',
-                                               title=extras.get('title'),category=extras.get('category'))
-                saved+=bool(result.get('saved'))
-            except (ValueError,AttributeError) as exc:
-                logger.warning('Memory not saved: %s',exc)
-        if saved: logger.info('Saved %d memory note(s) to the vault',saved)
+        self._turn_memories_saved+=1
+        try:
+            # Title and category shape the Obsidian note; the plugin guesses them when absent.
+            result=await asyncio.to_thread(self._vault.call,'remember',content,session='chassie',
+                                           title=extras.get('title'),category=extras.get('category'))
+            if result.get('saved'): logger.info('Saved a memory note to the vault')
+        except (ValueError,AttributeError) as exc:
+            logger.warning('Memory not saved: %s',exc)
 
     def _apply_face_command(self,action,name):
         if not name:

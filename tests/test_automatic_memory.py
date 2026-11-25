@@ -10,7 +10,7 @@ from memory import MemoryStore
 from memory.vault import VaultMemory
 from speech.stt_engine import SpeechEvent
 from speech.voice_identity import VoiceIdentity, match_voice
-from test_orchestrator import app
+from test_orchestrator import app, playback_fixture  # noqa: F401
 
 
 def test_vault_uses_hermes_notes_and_rejects_handwritten_mutations(tmp_path):
@@ -192,3 +192,41 @@ async def test_default_keeps_personal_scope_when_others_appear_and_tells_the_mod
     context=json.loads(app._context_text())
     assert context['scope']=='personal'
     assert context['others_in_view']['count']==1 and context['others_in_view']['recognized']==['Friend']
+
+
+MEMORY_LINE='{"memory":"Owner is learning the guitar on weekends.","title":"Guitar lessons","category":"people"}\n'
+PAIR_LINE='{"emotion":"happy","ja":"いいね。","en":"Nice."}\n'
+
+
+def memory_turn_app(app):
+    owner=app._memory.create_profile('Owner',consent=True)
+    app._session_context.set_owner(owner.id)
+    app._automatic_memory=True;app._bilingual=True
+    app._vault=Mock(call=Mock(side_effect=lambda method,*a,**kw:[] if method in ('list','search') else {'saved':True}))
+    app._hermes._stream_timeout=1
+    playback_fixture(app).first_release.set()
+    async def synthesize(text,*,emotion):
+        yield np.ones(480)
+    app._tts.synthesize_stream=synthesize
+    async def stream(*a,**kw):
+        yield MEMORY_LINE+PAIR_LINE
+        raise RuntimeError('connection dropped mid-reply')  # Barge-in, Stop or closing look the same.
+    app._hermes.stream_message=stream
+    return app
+
+
+@pytest.mark.asyncio
+async def test_memory_line_is_saved_even_when_the_reply_never_finishes(app):
+    memory_turn_app(app)
+    await app._run_turn({'text':'aku lagi belajar gitar tiap weekend','source':'text'})
+    calls=[c for c in app._vault.call.call_args_list if c.args[:1]==('remember',)]
+    assert [c.args[1] for c in calls]==['Owner is learning the guitar on weekends.']
+    assert calls[0].kwargs['title']=='Guitar lessons'
+
+
+@pytest.mark.asyncio
+async def test_memory_line_is_not_saved_for_a_guest(app):
+    memory_turn_app(app)
+    app._session_context.mark_guest_present('camera-presence','Someone else is present')
+    await app._run_turn({'text':'aku lagi belajar gitar tiap weekend','source':'text'})
+    assert not [c for c in app._vault.call.call_args_list if c.args[:1]==('remember',)]
