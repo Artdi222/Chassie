@@ -140,6 +140,8 @@ class ControlsMixin:
                 await self._cancel_turn(clear=True)
                 person=next((p for p in self._memory.list_profiles() if p.name.casefold()==name.casefold()),None)
                 if person is None:person=self._memory.create_profile(name,consent=True)
+                if self._session_context.owner_profile_id is None and len(self._memory.list_profiles())==1:
+                    self._session_context.set_owner(person.id)  # The first person introduced is the owner
                 if face:self._memory.save_face(person.id,embedding,consent=True)
                 if voice:
                     self._speaker.enroll(person.id,consent=True)

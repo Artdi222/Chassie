@@ -90,6 +90,17 @@ async def test_introduction_requires_consent_and_never_selects_new_owner(app):
 
 
 @pytest.mark.asyncio
+async def test_first_person_introduced_becomes_the_owner(app):
+    app._broadcast_to_ui=AsyncMock();app._automatic_memory=True
+    app._vision=Mock(enrollment=Mock(return_value=[.1]*512))
+    await app.handle_control({'type':'enroll_person','name':'Alex','face':True,'consent':True})
+    alex=app._memory.list_profiles()[0]
+    assert app._session_context.owner_profile_id==alex.id
+    await app.handle_control({'type':'enroll_person','name':'Friend','face':True,'consent':True})
+    assert app._session_context.owner_profile_id==alex.id
+
+
+@pytest.mark.asyncio
 async def test_enrollment_speech_is_never_sent_as_chat_and_other_voice_pauses_memory(app):
     app._broadcast_to_ui=AsyncMock();app._automatic_memory=True;app._input_mode='hands_free';app._guest_privacy=True
     owner=app._memory.create_profile('Owner',consent=True);app._session_context.set_owner(owner.id)
