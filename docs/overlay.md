@@ -23,7 +23,7 @@ Use the existing Python 3.12 virtual environment. Install the optional Qt/OpenGL
 uv pip install --python .venv/bin/python -r requirements-overlay.txt
 ```
 
-Windows installs the pinned `live2d-py==0.7.0.4` dependency through that file. For Linux, obtain the CPython 3.12 x86_64 manylinux wheel for **v0.7.0.4** from the [official release](https://github.com/EasyLive2D/live2d-py/releases/tag/v0.7.0.4), then install the downloaded local wheel with `uv pip install --python .venv/bin/python /path/to/downloaded.whl`. The project virtual environment need not contain pip. Match Python and machine architecture; do not install a Windows wheel on Linux. The [project installation instructions](https://github.com/EasyLive2D/live2d-py/blob/main/README.en.md) distinguish release wheels from PyPI availability. Building the binding from source additionally requires the official Cubism SDK under its distribution terms.
+`requirements-overlay.txt` installs the pinned `live2d-py==0.7.0.4`: from PyPI on Windows, and on Linux x86_64 with Python 3.12 directly from the [official release wheel](https://github.com/EasyLive2D/live2d-py/releases/tag/v0.7.0.4) (`scripts/setup_linux.sh` does this). Other Linux architectures or Python versions need the matching wheel from that release, installed with `uv pip install --python .venv/bin/python <wheel>`. Building the binding from source additionally requires the official Cubism SDK under its distribution terms.
 
 ```bash
 .venv/bin/python -m desktop --check
