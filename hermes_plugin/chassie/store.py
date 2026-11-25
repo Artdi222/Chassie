@@ -26,7 +26,6 @@ CATEGORIES = {'people': 'People', 'events': 'Events', 'plans': 'Plans', 'technic
 INDEX_NOTE = 'Memories.md'  # Generated overview of MANAGED_DIR; never indexed itself.
 LOG_NOTE = 'Memory log.md'  # What consolidation changed and why; never indexed itself.
 IMPORTANCE = (1, 2, 3)
-OWNER_LINK = '[[Artdi]]'
 _GUESS = [
     ('plans', re.compile(r'\b(?:akan|mau|ingin|berencana|rencana|besok|nanti|minggu depan|plan(?:s|ning)?|will|wants? to|going to|tomorrow|next week)\b', re.I)),
     ('events', re.compile(r'\b(?:\d{4}-\d{2}-\d{2}|hari ini|kemarin|tadi|lulus|ujian|ulang tahun|pertama kali|passed|today|yesterday|exam|birthday|first time)\b', re.I)),
@@ -61,12 +60,13 @@ def front_value(text, key):
     return found[1].strip() if found else None
 
 
-def note_text(key, content, title, category, created, session, source):
+def note_text(key, content, title, category, created, session, source, owner=None):
     folder = CATEGORIES[category]
     return (f'---\nid: {key}\ntype: chassie-memory\ncategory: {category}\n'
             f'tags: [chassie-memory, {category}]\ndate: {created}\nsource: {source}\n'
             + (f'session: {session}\n' if session else '') + '---\n\n'
-            f'# {title}\n\n{content}\n\n## Terkait\n- {OWNER_LINK}\n- [[{INDEX_NOTE[:-3]}]] · {folder}\n')
+            f'# {title}\n\n{content}\n\n## Terkait\n' + (f'- [[{owner}]]\n' if owner else '')
+            + f'- [[{INDEX_NOTE[:-3]}]] · {folder}\n')
 
 
 def digest(text):
@@ -124,8 +124,10 @@ def atomic_write(path, text):
 
 
 class VaultStore:
-    def __init__(self, vault, state):
+    def __init__(self, vault, state, owner_name=None):
         self.vault=Path(vault).expanduser().resolve()
+        # Notes link to the owner's own note (chassie.json owner_name); no name, no link.
+        self.owner=re.sub(r'[\[\]|#^\n\r]+','',str(owner_name or '')).strip()[:80] or None
         self.state=Path(state).expanduser()
         self.state.mkdir(parents=True,exist_ok=True,mode=0o700)
         self.db_path=self.state/'index.sqlite'
@@ -280,7 +282,7 @@ class VaultStore:
             if not path.resolve().is_relative_to(self.vault) or path.is_symlink():
                 raise ValueError('Managed memory path must stay inside the vault')
             atomic_write(path,note_text(key,content,title,category,now.astimezone().date().isoformat(),session,
-                                        'direct_user' if automatic else 'memory_tool'))
+                                        'direct_user' if automatic else 'memory_tool',self.owner))
         self.refresh()
         return {'id':key,'saved':True,'source_file':path.relative_to(self.vault).as_posix()}
 

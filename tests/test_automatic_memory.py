@@ -18,7 +18,7 @@ def test_vault_uses_hermes_notes_and_rejects_handwritten_mutations(tmp_path):
     source=Path(__file__).parents[1]/'hermes_plugin/chassie/store.py'
     shutil.copyfile(source,plugin/'store.py')
     vault=tmp_path/'Memory';vault.mkdir();(vault/'handwritten.md').write_text('A handwritten note about my workspace.')
-    (home/'chassie.json').write_text(json.dumps({'vault_path':str(vault)}))
+    (home/'chassie.json').write_text(json.dumps({'vault_path':str(vault),'owner_name':'Alex'}))
     store=VaultMemory(home)
     assert store.status()['available']
     manual=next(row for row in store.list() if row['source']=='handwritten.md')
@@ -29,7 +29,7 @@ def test_vault_uses_hermes_notes_and_rejects_handwritten_mutations(tmp_path):
     # Saved as a readable note in its taxonomy folder, listed in the generated overview.
     assert managed['source']==saved['source_file'] and managed['source'].startswith('_generated/chassie/People/')
     note=(vault/managed['source']).read_text()
-    assert note.startswith('---\nid: '+saved['id']) and '\n# ' in note and '[[Artdi]]' in note
+    assert note.startswith('---\nid: '+saved['id']) and '\n# ' in note and '[[Alex]]' in note and 'Artdi' not in note
     assert managed['content']=='I prefer concise and clear explanations.'
     assert Path(managed['source']).stem in (vault/'_generated/chassie/Memories.md').read_text()
     updated=store.update(managed['id'],'I prefer short explanations in Indonesian.')

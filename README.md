@@ -93,9 +93,13 @@ works; see [Her memory](#her-memory)). Tell her memory plugin where it lives, an
 ```bash
 mkdir -p ~/Documents/Chassie-Memory
 cat > ~/.hermes/chassie.json <<EOF
-{"vault_path": "$HOME/Documents/Chassie-Memory", "private_api_session_keys": ["chassie-owner-memory"]}
+{"vault_path": "$HOME/Documents/Chassie-Memory", "owner_name": "Your Name",
+ "private_api_session_keys": ["chassie-owner-memory"]}
 EOF
 ```
+
+Put your own name in `owner_name`: every memory note she saves links to it, so in Obsidian they gather
+around your own note (`People/Your Name.md`). Leave it out and the notes link to no one.
 
 Open `~/.hermes/config.yaml`, find the `memory:` section and set `provider: chassie` in it. Then start Hermes as
 a background service:

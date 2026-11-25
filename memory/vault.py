@@ -17,7 +17,7 @@ class VaultMemory:
             source=self.home/'plugins/chassie/store.py'
             spec=importlib.util.spec_from_file_location('chassie_vault_store',source)
             module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-            self.store=module.VaultStore(self.path,self.home/'chassie-state')
+            self.store=module.VaultStore(self.path,self.home/'chassie-state',config.get('owner_name'))
         except (OSError,ValueError,KeyError,ImportError,sqlite3.Error) as exc:
             detail=str(exc) if isinstance(exc,FileNotFoundError) and str(exc).startswith('Obsidian') else type(exc).__name__
             self.error=f'Vault unavailable ({detail}). Check vault_path in ~/.hermes/chassie.json and the memory plugin in Hermes.'

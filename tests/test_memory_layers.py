@@ -178,3 +178,10 @@ def test_profile_waits_for_the_last_batch(tmp_path):
     assert run() == {'new': consolidation.BATCH, 'superseded': 0, 'profile': False}
     assert run() == {'new': 1, 'superseded': 0, 'profile': True}
     assert calls.count(consolidation.SYSTEM) == 2 and len(calls) == 3
+
+
+def test_notes_link_no_owner_until_one_is_configured(tmp_path):
+    memory = vault_memory(tmp_path)  # chassie.json without owner_name
+    saved = memory.call('remember', 'Owner plays the guitar on weekends.')
+    note = (memory.path / saved['source_file']).read_text()
+    assert '[[Memories]]' in note and 'Artdi' not in note and note.count('[[') == 1

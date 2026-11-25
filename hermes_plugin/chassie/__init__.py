@@ -35,7 +35,7 @@ class ChassieMemoryProvider(MemoryProvider):
     def initialize(self,session_id,**kwargs):
         self.home=Path(kwargs.get('hermes_home',self.home))
         self.config=self._config(self.home)
-        self.store=VaultStore(self.config['vault_path'],self.home/'chassie-state')
+        self.store=VaultStore(self.config['vault_path'],self.home/'chassie-state',self.config.get('owner_name'))
         self.remote=SemanticRecall(self.config)
         self._session=session_id
         self._identity=dict(kwargs)
