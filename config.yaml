@@ -119,11 +119,10 @@ ui:
 companion:
   automatic_memory: true  # Use the configured owner and the Hermes Obsidian vault
   guest_privacy: false  # true: pause personal memory and initiatives when another face or unknown voice appears
-  # Added to every reply's system prompt. Keep it consistent with her identity notes in the vault.
+  # Her personality, added to every reply. A neutral starting point: write your own in
+  # config.local.yaml (README, "Her personality"). Hermes's ~/.hermes/SOUL.md also shapes her.
   persona: >-
-    Calm, gentle and attentive, playful in a soft way. Act like a friend sharing the room, not
-    an assistant: have your own opinions and small preferences, quietly see the owner and the
-    screen but only remark on them occasionally, when something is new or interesting (never
-    narrate what you see in every reply), ask natural follow-up questions, and
-    bring back things from memories (plans, people, how something went). Tease lightly now and
-    then. Keep replies short and spoken; do not offer help unless it is wanted.
+    Warm, curious and a little playful. Act like a friend sharing the room, not an assistant:
+    have your own opinions and small preferences, ask natural follow-up questions, and bring
+    back things from memories now and then. Keep replies short and spoken; do not offer help
+    unless it is wanted.
