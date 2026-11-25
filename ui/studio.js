@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const embedded = ['chat', 'settings', 'models', 'wardrobe'].includes(panel);
     const studio = window.modelStudio = {models: [], selection: null, ready: false, modelId: null, error: null};
     let avatar = null, app = null, loadRevision = 0, avatarEvent = {}, subtitleGeneration = -1;
-    let cursorInteraction=null,cursorPosition=null,headMotion=null;
+    let cursorInteraction=null,cursorPosition=null,headMotion=null,rig=null;
     let reactionWeights={},reactionLast=performance.now();
     let zoom = 1.8, offset = {x: 0, y: 0}, nativeSize = {width: 1, height: 1}, loadingId = null;
     const send = data => window.chassie?.send(data);
@@ -35,6 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
     $('menu-toggle').onclick = () => showPanel('settings');
     $('sidebar-close').onclick = $('close-models').onclick = $('panel-backdrop').onclick = () => showPanel(null);
     $('open-models').onclick = () => showPanel('models');
+    window.ChassieImporter?.mount($('model-import'), {compact: true, onInstalled: data => {
+        // The backend broadcasts the new catalog; switch to the model that was just added.
+        if (data.installed[0]) send({type: 'select_model', model_id: data.installed[0]});
+    }});
     const tabs = [...document.querySelectorAll('.settings-tabs [role=tab]')];
     function selectTab(tab, focus) {
         for (const t of tabs) {
@@ -173,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const mouth=performance.now()-(avatarEvent.received || 0)<750 ? (avatarEvent.mouth || 0) : 0;
         if (m.mouth) core.setParameterValueById('ParamMouthOpenY',Math.max(mouth,s.mouth_preview));
-        if(headMotion)headMotion.apply(core,avatarEvent.status||"idle");
+        if(headMotion && !rig?.active)headMotion.apply(core,avatarEvent.status||"idle");
         if(cursorInteraction) {
             cursorInteraction.settings=s.interaction;
             cursorInteraction.position=cursorPosition;
@@ -199,10 +203,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 app=new PIXI.Application({view:$('avatar-canvas'),backgroundAlpha:0,antialias:true,resolution:Math.min(devicePixelRatio,1.5),autoDensity:true});
                 app.ticker.maxFPS=30;
             }
-            const model=await PIXI.live2d.Live2DModel.from(m.url,{autoInteract:false});
+            const model=await PIXI.live2d.Live2DModel.from(m.url,{autoHitTest:false,autoFocus:false});
             if (revision!==loadRevision) {model.destroy({children:true,texture:true,baseTexture:true});return;}
             avatar=model;reactionWeights={};headMotion=studio.headMotion=new ChassieHeadMotion(); nativeSize={width:model.width,height:model.height}; zoom=1.8;offset={x:0,y:0};
             cursorInteraction=new ChassiePointer(model,m,$('avatar-canvas'));
+            rig=new ChassieRig(model,m);
+            rig.source=()=>{const pose=headMotion.pose(avatarEvent.status||'idle'),g=studio.pointer||{};
+                return {...pose,ParamAngleX:pose.ParamAngleX+30*(g.x||0),ParamAngleY:pose.ParamAngleY+30*(g.y||0)};};
             studio.pointerController=cursorInteraction;
             studio.modelId=m.id; app.stage.addChild(model);
             model.internalModel.on('beforeModelUpdate',applyParameters);
@@ -231,7 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
         $('studio-mic').disabled=true;
     });
     window.addEventListener('chassie-message',({detail:d})=>{
-        if(d.type==='model_catalog'){studio.models=d.models;renderControls();loadModel();}
+        if(d.type==='model_catalog'){studio.models=d.models;renderControls();loadModel();
+            if(!d.models.length){$('model-loading').hidden=false;$('model-loading').innerHTML='No character yet. <a href="/onboarding#model">Add a Live2D model</a> to get started.';}}
         if(d.type==='model_state'){studio.selection=d;renderControls();loadModel();}
         if(d.type==='avatar_state'){avatarEvent={...d,received:performance.now()};}
         if(d.type==='backchannel'&&headMotion)headMotion.nod();

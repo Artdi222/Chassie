@@ -117,17 +117,47 @@ class ChassieHeadMotion {
     constructor(){this.current={ParamAngleX:0,ParamAngleY:0,ParamAngleZ:0};this.last=null;this.nodAt=null;
         this.reduced=matchMedia('(prefers-reduced-motion: reduce)');}
     nod(){this.nodAt=performance.now()/1000;}
-    apply(core,status){
-        if(this.reduced.matches)return;
+    // Eased head pose in degrees for this status (ParamAngleX/Y/Z), nod included.
+    pose(status){
+        if(this.reduced.matches)return {ParamAngleX:0,ParamAngleY:0,ParamAngleZ:0};
         const now=performance.now()/1000,dt=this.last===null?1/30:Math.min(Math.max(now-this.last,0),.1);this.last=now;
-        const target=headTarget(status,now),ease=1-Math.exp(-dt/.35);
+        const target=headTarget(status,now),ease=1-Math.exp(-dt/.35),out={};
         for(const id of Object.keys(this.current)) {
             this.current[id]+=(target[id]-this.current[id])*ease;
-            const extra=id==='ParamAngleY'?nodOffset(this.nodAt===null?null:now-this.nodAt):0;
-            if(core._model.parameters.ids.includes(id))core.addParameterValueById(id,this.current[id]+extra);
+            out[id]=this.current[id]+(id==='ParamAngleY'?nodOffset(this.nodAt===null?null:now-this.nodAt):0);
+        }
+        return out;
+    }
+    apply(core,status){
+        if(this.reduced.matches)return;
+        for(const [id,value] of Object.entries(this.pose(status)))
+            if(core._model.parameters.ids.includes(id))core.addParameterValueById(id,value);
+    }
+}
+
+// VTube Studio-style rigs (catalog 'aliases', e.g. ParamAngleX -> AngleX) drive the head
+// through tracking inputs and let physics write ParamAngle*, so anything written to
+// ParamAngle* earlier is overwritten. Mirror desktop/model.py: feed the head pose, a slow
+// breathing sway and the gaze into the rig's own inputs before physics runs, so the head,
+// hair and body all follow.
+const RIG_BREATH={ParamAngleX:[7.5,6.5345],ParamAngleY:[4,3.5345],ParamAngleZ:[5,5.5345]};
+class ChassieRig {
+    constructor(model,metadata){
+        this.aliases=Object.fromEntries(Object.entries(metadata?.aliases||{}).filter(([p])=>p.startsWith('ParamAngle')));
+        this.active=Object.keys(this.aliases).length>0;
+        this.source=null;  // () => {ParamAngleX, ParamAngleY, ParamAngleZ} in degrees
+        this.reduced=matchMedia('(prefers-reduced-motion: reduce)');
+        if(this.active)model.internalModel.on('afterMotionUpdate',()=>this.feed(model.internalModel.coreModel));
+    }
+    feed(core){
+        const pose=this.source?.()||{},t=performance.now()/1000,still=this.reduced.matches;
+        for(const [param,alias] of Object.entries(this.aliases)) {
+            const [amplitude,period]=RIG_BREATH[param]||[0,1];
+            core.setParameterValueById(alias,(pose[param]||0)+(still?0:amplitude*Math.sin(2*Math.PI*t/period)));
         }
     }
 }
+window.ChassieRig=ChassieRig;
 window.ChassieHeadMotion=ChassieHeadMotion;
 window.chassieHeadTarget=headTarget;
 window.chassieNodOffset=nodOffset;

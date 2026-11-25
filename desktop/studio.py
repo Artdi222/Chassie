@@ -133,7 +133,7 @@ class StudioControls(QObject):
         self.subtitle.setFixedWidth(340)
         self.tray=QSystemTrayIcon(QIcon(str(Path(__file__).resolve().parents[1]/'ui/public/chassie-icon.png')),self);self.tray.setToolTip('Chassie')
         menu=QMenu();self.tray_menu=menu
-        for title,callback in [('Show controls',self.toggle),('Conversation',lambda:self.action('chat')),('Models & expressions',lambda:self.action('models')),('Settings',lambda:self.action('settings')),('Open web studio',self.open_web),('Show / hide model',lambda:window.setVisible(not window.isVisible())),('Click through avatar',self.click_through),('Stop reply',lambda:self.send({'type':'stop'})),('Quit Chassie',QApplication.instance().quit)]:
+        for title,callback in [('Show controls',self.toggle),('Conversation',lambda:self.action('chat')),('Models & expressions',lambda:self.action('models')),('Settings',lambda:self.action('settings')),('Add a model…',lambda:self.action('models')),('Open web studio',self.open_web),('Show / hide model',lambda:window.setVisible(not window.isVisible())),('Click through avatar',self.click_through),('Stop reply',lambda:self.send({'type':'stop'})),('Quit Chassie',QApplication.instance().quit)]:
             action=QAction(title,menu);action.triggered.connect(callback);menu.addAction(action)
         self.tray.setContextMenu(menu);self.tray.activated.connect(lambda reason:self.toggle() if reason==QSystemTrayIcon.ActivationReason.Trigger else None);self.tray.show()
         window.installEventFilter(self)
@@ -201,7 +201,7 @@ class StudioControls(QObject):
             self.panels[name].hide()
             return
         if name not in self.panels:
-            titles={'chat':'Conversation','models':'Models & expressions','wardrobe':'Outfits & props','settings':'Settings'}
+            titles={'chat':'Conversation','models':'Customize','wardrobe':'Outfits & props','settings':'Settings'}
             self.panels[name]=FloatingPanel(titles[name],self.base_url+'/?panel='+name,self.window,transparent=name=='chat')
             if name in ('settings','models'):
                 row=QHBoxLayout();row.setContentsMargins(12,6,12,10)
@@ -268,7 +268,10 @@ class StudioControls(QObject):
             data=json.loads(raw)
             if not isinstance(data,dict):return
             self.state.receive(data,time.monotonic())
+            if data.get('type')=='model_catalog' and {m['id'] for m in data.get('models',[])}!=set(self.catalog.models):
+                self.catalog.reload()  # A model was added from the Customize panel.
             if data.get('type')=='model_state':
+                if data['model_id'] not in self.catalog.models:self.catalog.reload()
                 previous=self.window.entry.id if self.window.entry else None
                 if previous != data['model_id']:
                     if previous:self.model_frames[previous]={'zoom':self.window.framing.zoom,'vertical':self.window.framing.vertical}

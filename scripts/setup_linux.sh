@@ -75,7 +75,7 @@ if scripts/install_desktop_entry.sh >/dev/null; then ok "Chassie in the applicat
 if find model -name '*.model3.json' -print -quit 2>/dev/null | grep -q .; then
   ok "Live2D model found in model/"
 else
-  bad "no Live2D model yet: put one in model/<Name>/ (README, step 6)"
+  ok "Live2D model: none yet, you add one when Chassie first opens (README, step 6)"
 fi
 
 if [ -f .chassie/hermes-api-key ]; then

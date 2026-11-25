@@ -144,6 +144,10 @@ class ModelEntry:
 class ModelCatalog:
     def __init__(self, root=ROOT):
         self.root = Path(root).resolve()
+        self.reload()
+
+    def reload(self):
+        """Rescan the folder in place, so holders of this catalog see newly added models."""
         self.models = {}
         self.errors = []
         for path in sorted(self.root.rglob('*.model3.json')):

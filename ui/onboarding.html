@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome to Chassie</title>
+<link rel="icon" type="image/png" href="public/chassie-icon.png">
+<link rel="stylesheet" href="style.css?v=12">
+</head>
+<body>
+<div class="onboarding">
+  <aside class="ob-stage" aria-label="Character preview">
+    <div class="ob-brand"><img src="public/chassie-icon.png" alt="">Chassie</div>
+    <canvas id="ob-canvas" aria-hidden="true"></canvas>
+    <div class="ob-placeholder" id="ob-placeholder">
+      <div class="ob-orb"><img src="public/chassie-icon.png" alt=""></div>
+      <p id="ob-placeholder-text">Your character will appear here.</p>
+    </div>
+    <p class="ob-name" id="ob-name" hidden><strong></strong><span>Move your mouse — she's watching</span></p>
+  </aside>
+
+  <main class="ob-main">
+    <ol class="ob-steps" aria-label="Setup progress">
+      <li data-step="0"><b>1</b><span>Welcome</span></li>
+      <li data-step="1"><b>2</b><span>Character</span></li>
+      <li data-step="2"><b>3</b><span>Voice &amp; chat</span></li>
+      <li data-step="3"><b>4</b><span>Ready</span></li>
+    </ol>
+
+    <section class="ob-view" data-view="0">
+      <p class="ob-eyebrow">Welcome</p>
+      <h1>A companion that lives on your desktop.</h1>
+      <p class="ob-lead">Chassie is an animated character you can talk to. She answers with a voice, remembers what matters to you, and keeps you company while you work.</p>
+      <ul class="ob-points">
+        <li><svg class="icon"><use href="icons.svg#chat"/></svg><div><strong>Talk or type</strong><span>Use the microphone or the chat box, in English or Indonesian.</span></div></li>
+        <li><svg class="icon"><use href="icons.svg#heart"/></svg><div><strong>She remembers you</strong><span>Clear facts and preferences are kept as notes you can read and edit.</span></div></li>
+        <li><svg class="icon"><use href="icons.svg#lock"/></svg><div><strong>Stays on this computer</strong><span>Her memory, voice, and camera never leave your machine.</span></div></li>
+      </ul>
+      <p class="ob-lead" style="margin-top:26px;font-size:14px">Setup takes about a minute. First, she needs a body.</p>
+    </section>
+
+    <section class="ob-view" data-view="1" hidden>
+      <p class="ob-eyebrow">Step 2 of 4</p>
+      <h1 id="character-title">Choose her look.</h1>
+      <p class="ob-lead" id="character-lead">Chassie uses Live2D models — the same kind VTubers use. Add the model you downloaded; no need to unzip it.</p>
+      <div class="ob-section">
+        <div class="ob-models" id="ob-models" role="radiogroup" aria-label="Installed models"></div>
+        <div id="ob-import"></div>
+        <details class="ob-help">
+          <summary>Where do I get a Live2D model?</summary>
+          <ol>
+            <li>Find a free or paid model on <a href="https://booth.pm/en/search/Live2D%20model" target="_blank" rel="noopener noreferrer">BOOTH</a> or <a href="https://nizima.com/en" target="_blank" rel="noopener noreferrer">nizima</a>. VTube Studio models work too.</li>
+            <li>Download it. It usually comes as a .zip file.</li>
+            <li>Drop the .zip above. Chassie finds the model inside and skips extras like PSD artwork.</li>
+          </ol>
+          <p class="control-help">Chassie needs a Cubism 3 or 4 model: one with a <code>.model3.json</code> file. Please respect each model's licence.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="ob-view" data-view="2" hidden>
+      <p class="ob-eyebrow">Step 3 of 4</p>
+      <h1>How should she talk with you?</h1>
+      <p class="ob-lead">You can change all of this later in Settings.</p>
+      <span class="ob-label" id="lang-label">Chat and subtitles in</span>
+      <div class="ob-choice" role="radiogroup" aria-labelledby="lang-label">
+        <label class="ob-option"><input type="radio" name="language" value="en" checked><div><strong>English</strong><span>Her words appear in English.</span></div></label>
+        <label class="ob-option"><input type="radio" name="language" value="id"><div><strong>Bahasa Indonesia</strong><span>Teks dan subtitle dalam Bahasa Indonesia.</span></div></label>
+      </div>
+      <span class="ob-label" id="initiative-label">When you go quiet</span>
+      <div class="ob-choice" role="radiogroup" aria-labelledby="initiative-label">
+        <label class="ob-option"><input type="radio" name="initiative" value="normal" checked><div><strong>She may start a conversation</strong><span>A friendly check-in now and then.</span></div></label>
+        <label class="ob-option"><input type="radio" name="initiative" value="rare"><div><strong>Rarely</strong><span>Mostly waits for you.</span></div></label>
+        <label class="ob-option"><input type="radio" name="initiative" value="off"><div><strong>Only when I talk to her</strong><span>Never speaks first.</span></div></label>
+      </div>
+      <span class="ob-label" id="input-label">After you speak into the microphone</span>
+      <div class="ob-choice" role="radiogroup" aria-labelledby="input-label">
+        <label class="ob-option"><input type="radio" name="input" value="review" checked><div><strong>Let me check it first</strong><span>Your words go into the chat box; press Enter to send.</span></div></label>
+        <label class="ob-option"><input type="radio" name="input" value="hands_free"><div><strong>Send automatically</strong><span>Hands-free, like a call.</span></div></label>
+      </div>
+    </section>
+
+    <section class="ob-view" data-view="3" hidden>
+      <p class="ob-eyebrow">All set</p>
+      <h1 id="ready-title">She's ready to meet you.</h1>
+      <p class="ob-lead">Chassie will appear in the corner of your screen. A few things worth knowing:</p>
+      <div class="ob-tips">
+        <div class="ob-tip"><svg class="icon"><use href="icons.svg#cursor"/></svg><strong>Click her</strong><span>for chat, looks, and settings.</span></div>
+        <div class="ob-tip"><svg class="icon"><use href="icons.svg#smile"/></svg><strong>Drag her</strong><span>anywhere on your screen.</span></div>
+        <div class="ob-tip"><svg class="icon"><use href="icons.svg#mic"/></svg><strong>Turn on the mic</strong><span>in Settings to talk out loud.</span></div>
+        <div class="ob-tip"><svg class="icon"><use href="icons.svg#plus"/></svg><strong>More models</strong><span>can be added from Customize.</span></div>
+      </div>
+      <p class="import-status" id="finish-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <nav class="ob-nav" aria-label="Setup navigation">
+      <button type="button" class="button-quiet" id="ob-back" hidden><svg class="icon"><use href="icons.svg#arrow-left"/></svg>Back</button>
+      <span class="grow"></span>
+      <span class="ob-kbd" id="ob-hint"></span>
+      <button type="button" class="button-primary" id="ob-next">Get started<svg class="icon"><use href="icons.svg#arrow-right"/></svg></button>
+    </nav>
+  </main>
+</div>
+<script src="vendor/live2dcubismcore.min.js"></script><script src="vendor/pixi-7.4.3.min.js"></script><script src="vendor/pixi-live2d-0.5.0-ls-8.min.js"></script>
+<script src="pointer.js?v=7"></script><script src="importer.js?v=1"></script><script src="onboarding.js?v=2"></script>
+</body>
+</html>

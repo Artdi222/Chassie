@@ -16,7 +16,7 @@ sees you through the camera when it matters, and remembers what you tell her.
 
 </div>
 
-## Install her: 7 steps
+## Install her: 6 steps
 
 **Before you start:** a Linux PC (x86_64) with about 8 GB of RAM and 6 GB of free disk, a microphone, and
 an account with an AI provider that Hermes supports (an API key). A webcam and an NVIDIA graphics
@@ -120,21 +120,43 @@ Takes 5 to 20 minutes: about 4 GB of downloads (Python packages, her voice, eyes
 once to accept the VOICEVOX terms for her voice: type `yes` and press **Enter**.
 
 You see at the end: `Chassie setup summary`, lines starting with `OK`, then `Done. Next:`.
-A line `!! no Live2D model yet` is expected here: STEP 6 fixes it.
+`Live2D model: none yet` is expected here: you add one in STEP 6.
 
 - If you see `uv was not found` → STEP 1 again, in a new terminal.
 - If you see `voice not installed: its terms were not accepted` → run the setup again and type `yes`.
 - If a download fails → run the setup again. Finished parts are skipped.
 - If a line starts with `!!` → do what that line says, then run the setup again.
 
-### STEP 6 — Give her a body: a Live2D model
+### STEP 6 — Start her and give her a body
 
-Chassie does not come with a model: you choose her look. Any Live2D **Cubism 3 or 4** model works (a folder with a
-`.model3.json`, a `.moc3` and textures). Free models are on [Booth](https://booth.pm/en/search/Live2D%20free),
-the [Live2D sample models](https://www.live2d.com/en/learn/sample/) and many VTuber communities. Read the model's
-licence: most allow personal use, few allow sharing.
+```bash
+.venv/bin/python launch.py
+```
 
-Unzip it into its own folder inside `model/`:
+The setup also added **Chassie** to your application menu: next time, open her from there.
+
+The first time, a **Welcome to Chassie** window opens and walks you through setup in four short screens. On the
+**Character** screen you give her a body: a Live2D model.
+
+1. Download a Live2D **Cubism 3 or 4** model. Free ones are on [BOOTH](https://booth.pm/en/search/Live2D%20free),
+   [nizima](https://nizima.com/en), the [Live2D sample models](https://www.live2d.com/en/learn/sample/) and many
+   VTuber communities; VTube Studio models work too. Read the model's licence: most allow personal use, few allow
+   sharing.
+2. Drop the downloaded **.zip** on the window, or press **Choose .zip file** (or **Choose folder** for an unpacked
+   model). No unzipping needed: Chassie finds the `.model3.json` inside, copies just that model into `model/`, and
+   skips extras such as PSD artwork.
+3. She appears in the preview straight away. Pick how she talks with you, then press **Meet …** (her name).
+
+You see: the window closes and after a few seconds she appears at the bottom right of your screen and greets you.
+
+Add more models any time: click her → **Customize** → **Add another model** (or tray → **Add a model…**).
+She animates any model: lip-sync, blinking, breathing, looking at you, and emotions through the standard Cubism
+face parameters (mouth form, eye smile, cheeks, brows). Models with their own expression files also show those in
+**Customize**.
+
+<details><summary>Prefer to copy the files yourself?</summary>
+
+Unzip the model into its own folder inside `model/`, one folder per model:
 
 ```
 model/
@@ -144,21 +166,7 @@ model/
     └── Hiyori.2048/texture_00.png
 ```
 
-You see: `find model -name '*.model3.json'` prints your model's file.
-
-She animates any model: lip-sync, blinking, breathing, looking at you, and emotions through the standard Cubism
-face parameters (mouth form, eye smile, cheeks, brows). Models with their own expression files also show those in
-the **Model** panel.
-
-### STEP 7 — Start her
-
-```bash
-.venv/bin/python launch.py
-```
-
-The setup also added **Chassie** to your application menu: next time, open her from there.
-
-You see: after a few seconds she appears at the bottom right of your screen and greets you.
+</details>
 
 **First time:** click her, open **Settings** → **People & memory** → **Introduce someone**, enter your name, tick
 **Remember face** (look at the camera alone) and the consent box, and press **Remember with permission**. The first
@@ -367,14 +375,14 @@ Quit her first (tray → **Quit Chassie**), then start her again. Your `config.l
 | She says she cannot see, or replies fail when she looks | The model cannot read images: set an image-capable `hermes.vision_model`, or set `vision.camera_enabled` and `vision.screen_enabled` to `false`. |
 | She answers in text but you hear nothing | Run the setup again and type `yes` for VOICEVOX; check your speakers in your sound settings. |
 | `Voice input unavailable` | The microphone could not open: pick it in your sound settings, or set `audio.input_device` in `config.local.yaml`. |
-| `Chassie has no Live2D model yet` | Put a model in `model/` (STEP 6); its folder must contain a `.model3.json`. |
+| `Chassie still has no Live2D model` | Open Chassie again and add a model on the **Character** screen. If the model is refused, the message says why (an older Cubism 2 model, or no `.model3.json` inside). |
 | `Chassie's avatar could not start or stopped unexpectedly` | The end of `.chassie/launcher.log` names the reason, often a model that fails to load: try another model. |
 | `Port 8000 is occupied` | Another program uses the port: quit it, or set `ui.port` in `config.local.yaml`. |
 | `Chassie is already running but could not be shown` | Quit her from the tray icon and open her again. |
 | She mishears what you say | Lock your language: `stt.language: "en"` (or yours) in `config.local.yaml`. |
 | A dark rectangle or blur around her (Wayland) | Your compositor blurs transparent windows. On Hyprland she adds her own window rules; elsewhere, turn blur off for the window class `chassie-overlay`. See [docs/overlay.md](docs/overlay.md). |
 | She talks too often or too little | **Settings → Voice & chat** → when you go quiet: normal, rare or off. |
-| She remembers nothing | Check `vault_path` in `~/.hermes/chassie.json` points at an existing folder, `provider: chassie` under `memory:` in `~/.hermes/config.yaml`, and that you introduced yourself (STEP 7). |
+| She remembers nothing | Check `vault_path` in `~/.hermes/chassie.json` points at an existing folder, `provider: chassie` under `memory:` in `~/.hermes/config.yaml`, and that you introduced yourself (STEP 6). |
 
 Every part writes to `.chassie/launcher.log`. When you ask for help, attach its last lines.
 

@@ -166,6 +166,10 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._web_app.router.add_get('/api/models',self._handle_models)
         self._web_app.router.add_get('/api/models/{model_id}/model.json',self._handle_model_manifest)
         self._web_app.router.add_get('/api/models/{model_id}/assets/{asset:.*}',self._handle_model_asset)
+        self._web_app.router.add_post('/api/models/import',self._handle_model_import)
+        self._web_app.router.add_get('/api/onboarding',self._handle_onboarding)
+        self._web_app.router.add_post('/api/onboarding',self._handle_onboarding)
+        self._web_app.router.add_get('/onboarding',self._handle_onboarding_page)
         self._web_app.router.add_get('/',self._handle_index)
         self._web_app.router.add_static('/',path=str(ROOT/'ui'))
 

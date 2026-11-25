@@ -13,6 +13,7 @@ def test_launcher_starts_and_cleans_up_only_its_own_backend(tmp_path, monkeypatc
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
     with_model(tmp_path)
     monkeypatch.setattr(launch,'ROOT',tmp_path)
+    monkeypatch.setattr(launch,'onboarding',lambda _: {'completed':True,'has_model':True})
     monkeypatch.setattr(launch,'status',Mock(side_effect=[None,{'application':'chassie','protocol':2}]))
     child=Mock();child.poll.return_value=None
     popen=Mock(return_value=child);desktop=Mock(return_value=0)
@@ -29,6 +30,7 @@ def test_launcher_preserves_an_existing_compatible_backend(tmp_path, monkeypatch
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
     with_model(tmp_path)
     monkeypatch.setattr(launch,'ROOT',tmp_path)
+    monkeypatch.setattr(launch,'onboarding',lambda _: {'completed':True,'has_model':True})
     monkeypatch.setattr(launch,'status',lambda _: {'application':'chassie','protocol':2})
     popen=Mock();monkeypatch.setattr(launch.subprocess,'Popen',popen)
     monkeypatch.setattr(launch.subprocess,'call',Mock(return_value=0))
@@ -67,12 +69,24 @@ def test_activation_restores_hidden_qt_window_twice(tmp_path):
     assert b'DESKTOP_RESTORED_TWICE' in result.stdout
 
 
-def test_launcher_explains_a_missing_model_instead_of_starting(tmp_path, monkeypatch):
-    from PySide6 import QtWidgets
+def test_first_run_opens_onboarding_before_the_desktop(tmp_path, monkeypatch):
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
     monkeypatch.setattr(launch,'ROOT',tmp_path)
-    popen=Mock();monkeypatch.setattr(launch.subprocess,'Popen',popen)
-    shown=Mock();monkeypatch.setattr(QtWidgets.QMessageBox,'critical',shown)
-    assert launch.main()==1
-    popen.assert_not_called()
-    assert 'no Live2D model yet' in shown.call_args.args[2] and 'model/README.md' in shown.call_args.args[2]
+    monkeypatch.setattr(launch,'status',lambda _: {'application':'chassie','protocol':2})
+    states=iter([{'completed':False,'has_model':False},{'completed':True,'has_model':True}])
+    monkeypatch.setattr(launch,'onboarding',lambda _: next(states))
+    calls=Mock(return_value=0);monkeypatch.setattr(launch.subprocess,'call',calls)
+    assert launch.main()==0
+    first,second=(c.args[0] for c in calls.call_args_list)
+    assert first[1:4]==['-m','desktop.onboarding','--url'] and first[-1]=='http://127.0.0.1:18765/onboarding'
+    assert second[1:3]==['-m','desktop']
+
+
+def test_closing_onboarding_quits_without_an_error(tmp_path, monkeypatch):
+    (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
+    monkeypatch.setattr(launch,'ROOT',tmp_path)
+    monkeypatch.setattr(launch,'status',lambda _: {'application':'chassie','protocol':2})
+    monkeypatch.setattr(launch,'onboarding',lambda _: {'completed':False,'has_model':False})
+    calls=Mock(return_value=1);monkeypatch.setattr(launch.subprocess,'call',calls)
+    assert launch.main()==0
+    assert calls.call_count==1

@@ -3,21 +3,29 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from pathlib import Path
-from urllib.parse import urlsplit
+import shutil
+import tempfile
+import time
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlsplit
 from aiohttp import web
 from brain.initiative import PREFIX as INITIATIVE_PREFIX
 
 logger=logging.getLogger('orchestrator')
 
 
+def _require_local(request):
+    """Only this computer's own pages may drive Chassie (no DNS rebinding, no other sites)."""
+    origin=request.headers.get('Origin')
+    try: host=urlsplit('//'+request.host).hostname
+    except ValueError: host=None
+    if host not in ('127.0.0.1','localhost','::1'): raise web.HTTPForbidden(text='Loopback host required')
+    if origin and (urlsplit(origin).scheme not in ('http','https') or urlsplit(origin).netloc!=request.host): raise web.HTTPForbidden(text='Local origin required')
+
+
 class WebMixin:
     async def _handle_ui_websocket(self,request):
-        origin=request.headers.get('Origin')
-        try: host=urlsplit('//'+request.host).hostname
-        except ValueError: host=None
-        if host not in ('127.0.0.1','localhost','::1'): raise web.HTTPForbidden(text='Loopback host required')
-        if origin and (urlsplit(origin).scheme not in ('http','https') or urlsplit(origin).netloc!=request.host): raise web.HTTPForbidden(text='Local origin required')
+        _require_local(request)
         ws=web.WebSocketResponse(max_msg_size=16384,heartbeat=30)
         await ws.prepare(request)
         try:
@@ -122,7 +130,9 @@ class WebMixin:
 
     async def _broadcast_avatar(self): await self._broadcast_to_ui(self._avatar_payload())
 
-    async def _handle_index(self,request): return web.FileResponse(Path(__file__).resolve().parents[1]/'ui/index.html')
+    async def _handle_index(self,request):
+        if not self._catalog.models and 'panel' not in request.query: raise web.HTTPFound('/onboarding')
+        return web.FileResponse(Path(__file__).resolve().parents[1]/'ui/index.html')
 
     async def _handle_status(self,request): return web.json_response({'application':'chassie','protocol':2,'status':self._current_status,'voice_ready':self._stt.is_listening(),'automatic_barge_in':self._barge_in})
 
@@ -142,3 +152,79 @@ class WebMixin:
             if path is None or not path.resolve().is_relative_to(entry.root): raise ValueError('Unknown asset')
             return web.FileResponse(path)
         except ValueError: raise web.HTTPNotFound()
+
+    # ---- First-run onboarding and model import -------------------------------------------
+
+    def _onboarding_path(self):
+        path=getattr(self._model_selection,'path',None)
+        return (path.parent if path else Path(__file__).resolve().parents[1]/'.chassie')/'onboarding.json'
+
+    def _onboarding_state(self):
+        try: done=bool(json.loads(self._onboarding_path().read_text()).get('completed'))
+        except (OSError,ValueError,AttributeError): done=False
+        return {'completed':done,'has_model':bool(self._catalog.models),
+                'model_id':self._model_selection.state['model_id']}
+
+    async def _handle_onboarding_page(self,request):
+        return web.FileResponse(Path(__file__).resolve().parents[1]/'ui/onboarding.html')
+
+    async def _handle_onboarding(self,request):
+        _require_local(request)
+        if request.method=='POST':
+            if not self._catalog.models: raise web.HTTPConflict(text='Add a Live2D model first')
+            path=self._onboarding_path();path.parent.mkdir(parents=True,exist_ok=True)
+            path.write_text(json.dumps({'completed':True,'at':time.time()}))
+        return web.json_response(self._onboarding_state())
+
+    async def _handle_model_import(self,request):
+        """Accept one .zip, or the files of a picked folder (filenames carry their relative paths)."""
+        from avatar.importer import MAX_BYTES, MAX_FILES, ImportError_, install, _clean
+        _require_local(request)
+        model_dir=self._catalog.root
+        model_dir.mkdir(parents=True,exist_ok=True)
+        work=Path(tempfile.mkdtemp(prefix='.upload-',dir=model_dir))
+        try:
+            reader=await request.multipart()
+            total=count=0;archive=None;folder=work/'folder';top=None
+            while (part:=await reader.next()) is not None:
+                if not part.filename: continue
+                count+=1
+                if count>MAX_FILES: raise ImportError_(f'Too many files (more than {MAX_FILES}).')
+                name=unquote(part.filename).replace('\\','/')  # Some clients percent-encode '/'.
+                if name.lower().endswith('.zip') and '/' not in name:
+                    if archive or count>1: raise ImportError_('Pick one zip file at a time.')
+                    archive=dest=work/'upload.zip';top=PurePosixPath(name).stem
+                else:
+                    if archive: raise ImportError_('Pick one zip file at a time.')
+                    clean=_clean(name)
+                    if clean is None: continue
+                    top=top or clean.parts[0]
+                    dest=folder/clean
+                    dest.parent.mkdir(parents=True,exist_ok=True)
+                with dest.open('wb') as out:
+                    while chunk:=await part.read_chunk(1<<20):
+                        total+=len(chunk)
+                        if total>MAX_BYTES: raise ImportError_('This upload is larger than 1.5 GB.')
+                        out.write(chunk)
+            if count==0: raise ImportError_('Nothing was uploaded. Pick a .zip file or a model folder.')
+            installed=await asyncio.to_thread(install,archive or folder,model_dir,fallback_name=top or 'Model')
+        except ImportError_ as exc:
+            return web.json_response({'error':str(exc)},status=400)
+        finally:
+            shutil.rmtree(work,ignore_errors=True)
+        async with self._control_lock:
+            await asyncio.to_thread(self._catalog.reload)
+            failed=[e for e in self._catalog.errors if e.split(':')[0] in installed]
+            ready=[m for m in installed if m in self._catalog.models]
+            if failed and not ready:
+                for name in installed: shutil.rmtree(model_dir/name,ignore_errors=True)
+                await asyncio.to_thread(self._catalog.reload)
+                return web.json_response({'error':'The model files are incomplete: '+failed[0].split(': ',1)[-1]},status=400)
+            current=self._model_selection.state['model_id']
+            if ready and (current is None or current not in self._catalog.models):
+                self._model_selection.change({'model_id':ready[0]})
+            await self._broadcast_to_ui({'type':'model_catalog',**self._catalog.public()})
+            await self._broadcast_to_ui(self._model_selection.payload())
+        logger.info('Imported Live2D model(s): %s',', '.join(ready))
+        return web.json_response({'installed':ready,'models':[m.public() for m in self._catalog.models.values()],
+                                  'selected':self._model_selection.state['model_id']})

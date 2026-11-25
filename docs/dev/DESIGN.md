@@ -2,13 +2,16 @@
 name: Chassie Companion Studio
 description: A local lavender companion interface built around actual Live2D models.
 colors:
-  ink: "#2f293d"
-  muted: "#6b637b"
-  paper: "#f6f4fa"
+  ink: "#1e1a27"
+  muted: "#5c5669"
+  paper: "#f3f1f7"
   white: "#fff"
-  accent: "#7055b5"
-  accent-soft: "#ebe5f6"
-  line: "#e3deeb"
+  inset: "#f7f5fb"
+  accent: "#6a4cc8"
+  accent-strong: "#5437ae"
+  accent-soft: "#efeafc"
+  line: "#e7e3ef"
+  night: "#1d1a26"
 typography:
   headline:
     fontFamily: "Outfit, 'Segoe UI', sans-serif"
@@ -88,6 +91,10 @@ components:
 ---
 
 # Design System: Chassie Companion Studio
+
+> 2026-11 redesign: pill-shaped controls and floating stage toolbar, real toggle switches, segmented settings
+> tabs, model cards with an "Add another model" importer, and a four-step first-run onboarding
+> (`ui/onboarding.html`) with a live model preview. Tokens live as CSS variables at the top of `ui/style.css`.
 
 ## Overview
 
