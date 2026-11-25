@@ -58,6 +58,10 @@ DEEPSEEK_VARIANTS = {
     'love': [{'key7':1,'EyeSmile':.8,'ParamMouthForm':.45,'LeanInput':-12}],
 }
 MODEL_REACTIONS={'Model_4':REACTIONS,'DeepSeek':DEEPSEEK_REACTIONS}
+# Any other package: the same looks from the standard Cubism parameter ids only (mouth form,
+# eye smile/open, cheek, brows); package-specific ParamNN switches mean different things per model.
+STANDARD_REACTIONS={emotion:{key:value for key,value in values.items() if not key[5:].isdigit()}
+                    for emotion,values in REACTIONS.items()}
 MODEL_VARIANTS={'DeepSeek':DEEPSEEK_VARIANTS}
 ALIASES={}
 
@@ -82,9 +86,10 @@ def expression_id(emotion, generated=None, variant=0):
 
 
 def generated_reactions(parameter_ids, model_id='Model_4'):
-    """Empty for packages without a reaction table: their own expressions stay manual."""
+    """Reaction expressions for a package; unknown packages use the standard-parameter table."""
     result={}
-    tables=[(f'__chassie__/{name}.exp3.json',values) for name,values in MODEL_REACTIONS.get(model_id,{}).items()]
+    table=MODEL_REACTIONS.get(model_id,STANDARD_REACTIONS)
+    tables=[(f'__chassie__/{name}.exp3.json',values) for name,values in table.items()]
     tables+=[(f'__chassie__/{name}~{index}.exp3.json',values)
              for name,looks in MODEL_VARIANTS.get(model_id,{}).items() for index,values in enumerate(looks,2)]
     for key,values in tables:

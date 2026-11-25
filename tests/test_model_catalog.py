@@ -90,7 +90,11 @@ def test_reaction_tables_are_per_model_and_only_use_real_parameters():
         assert set(table)-{'waiting'}==VALID_EMOTIONS-{'neutral'}
     # DeepSeek-chan's Param46/48/49 are grass physics, never facial reactions.
     assert not {'Param46','Param48','Param49'}&{k for v in DEEPSEEK_REACTIONS.values() for k in v}
-    assert generated_reactions({'ParamMouthForm'},'Unknown')=={}
+    # Any other model reacts through the standard Cubism ids it has, never package ParamNN switches.
+    unknown=generated_reactions({'ParamMouthForm','ParamCheek','Param48'},'Unknown')
+    assert unknown['__chassie__/happy.exp3.json']['Parameters']==[{'Id':'ParamMouthForm','Value':.75,'Blend':'Overwrite'},
+                                                                  {'Id':'ParamCheek','Value':.25,'Blend':'Overwrite'}]
+    assert all(p['Id']!='Param48' for v in unknown.values() for p in v['Parameters'])
     happy=generated_reactions({'ParamMouthForm','EyeSmile'},'DeepSeek')['__chassie__/happy.exp3.json']
     assert {p['Id'] for p in happy['Parameters']}=={'ParamMouthForm','EyeSmile'}
 
