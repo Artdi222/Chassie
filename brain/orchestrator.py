@@ -115,7 +115,9 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._owner_alone_since=None
         if self._automatic_memory:
             owner=config.get('hermes',{}).get('personal_memory_profile_id')
-            if owner in {p.id for p in self._memory.list_profiles()}:self._session_context.set_owner(owner)
+            profiles=self._memory.list_profiles()
+            if owner is None and len(profiles)==1:owner=profiles[0].id  # A single profile is the owner
+            if owner in {p.id for p in profiles}:self._session_context.set_owner(owner)
             self._vault=self._vault or VaultMemory()
             self._speaker=self._speaker or VoiceIdentity(self._memory,presence=lambda:self._vision.status() if self._vision else {})
             self._stt.speaker_identity=self._speaker
