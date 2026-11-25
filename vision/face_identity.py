@@ -4,7 +4,7 @@ import re
 
 import numpy as np
 
-MODEL_DIR = Path(__file__).parent / '.chassie' / 'vision-models'
+MODEL_DIR = Path(__file__).resolve().parents[1] / '.chassie' / 'vision-models'
 DETECTOR = 'face_detection_yunet_2023mar.onnx'
 RECOGNIZER = 'w600k_r50.onnx'
 TEMPLATE_MODEL = 'arcface-w600k-r50'

@@ -18,8 +18,8 @@ import time
 
 import numpy as np
 
-from ambient import ChangeWatcher, SceneWatcher, create_detector
-from face_identity import FaceIdentity, MODEL_DIR
+from vision.ambient import ChangeWatcher, SceneWatcher, create_detector
+from vision.face_identity import FaceIdentity, MODEL_DIR
 
 logger = logging.getLogger('vision')
 # Mean grayscale difference (0-255) on a 64x36 thumbnail before the screen is sent again.
@@ -85,7 +85,7 @@ class VisualContext:
         self.freshness = max(self.interval * 2, 5.0)
         self.model_dir = Path(cfg.get('model_dir', MODEL_DIR))
         if not self.model_dir.is_absolute():
-            self.model_dir = Path(__file__).parent / self.model_dir
+            self.model_dir = Path(__file__).resolve().parents[1] / self.model_dir
         self.memory, self.clock = memory, clock
         self._lock = threading.RLock()
         self._stop = threading.Event()
@@ -271,7 +271,7 @@ class VisualContext:
 
     def screen_has_content(self):
         """False when only Chassie itself is on screen, so there is nothing worth sending."""
-        from app_context import external_window_visible
+        from vision.app_context import external_window_visible
         return external_window_visible()
 
     def mark_screen_sent(self):

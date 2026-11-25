@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from face_tracker import FaceTracker
+from vision.face_tracker import FaceTracker
 
 
 def tracker(now):

@@ -12,7 +12,7 @@ import threading
 
 import numpy as np
 
-from onnx_gpu import create_session
+from vision.onnx_gpu import create_session
 
 logger = logging.getLogger('memory')
 MODEL_DIR = Path(__file__).resolve().parents[1] / '.chassie' / 'memory-models' / 'multilingual-e5-small'
@@ -25,7 +25,7 @@ def _digest(text):
 class SemanticIndex:
     def __init__(self, model_dir=MODEL_DIR, cache_path=None, *, prefer_gpu=True):
         from tokenizers import Tokenizer
-        from onnx_gpu import gpu_available
+        from vision.onnx_gpu import gpu_available
         model_dir = Path(model_dir)
         use_gpu = prefer_gpu and gpu_available()
         model = model_dir / ('model_fp16.onnx' if use_gpu else 'model_quantized.onnx')

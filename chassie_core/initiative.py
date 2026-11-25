@@ -12,7 +12,7 @@ import datetime
 import logging
 import time
 
-from app_context import active_application
+from vision.app_context import active_application
 
 logger=logging.getLogger('orchestrator')
 

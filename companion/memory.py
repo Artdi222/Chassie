@@ -10,7 +10,7 @@ import sqlite3
 import threading
 from uuid import uuid4
 
-from face_identity import TEMPLATE_MODEL, TEMPLATE_SIZE
+from vision.face_identity import TEMPLATE_MODEL, TEMPLATE_SIZE
 
 
 def bounded_text(value, name, maximum):

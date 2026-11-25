@@ -1,6 +1,6 @@
 import pytest
 
-from visual_requests import requested_visual_sources
+from vision.visual_requests import requested_visual_sources
 
 
 @pytest.mark.parametrize('text,sources', [

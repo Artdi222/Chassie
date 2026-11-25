@@ -39,10 +39,10 @@ from avatar.catalog import ModelCatalog, ModelSelection
 from chassie_core.sessions import SessionStore, new_session_id
 from chassie_core.reminders import ReminderStore, parse_time
 from chassie_core.initiative import PREFIX as INITIATIVE_PREFIX
-from face_identity import face_command
-from visual_context import VisualContext
-from visual_requests import requested_visual_sources
-from app_context import active_application
+from vision.face_identity import face_command
+from vision.visual_context import VisualContext
+from vision.visual_requests import requested_visual_sources
+from vision.app_context import active_application
 
 logger=logging.getLogger('orchestrator')
 SEMANTIC_MIN=2.0  # z-score vs the whole vault; unrelated queries on the owner's vault topped out near 2.0.
@@ -193,7 +193,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         elif 'vision' not in self._config and self._config.get('face_tracker',{}).get('enabled',False):
             try:
                 if self._face_tracker is None:
-                    from face_tracker import FaceTracker
+                    from vision.face_tracker import FaceTracker
                     self._face_tracker=FaceTracker(self._config)
                 self._face_tracker.start()
             except Exception as exc: logger.warning('Face tracker unavailable: %s',type(exc).__name__)

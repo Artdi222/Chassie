@@ -8,8 +8,8 @@ import pytest
 from aiohttp import web
 
 from companion.memory import MemoryStore
-from face_identity import FaceIdentity, face_command, match_template
-from visual_context import VisualContext, encode_frame, capture_screen
+from vision.face_identity import FaceIdentity, face_command, match_template
+from vision.visual_context import VisualContext, encode_frame, capture_screen
 from hermes_bridge import HermesBridge
 from test_hermes_tts import CONFIG
 from test_orchestrator import app, playback_fixture
@@ -133,7 +133,7 @@ def test_camera_encoding_is_bounded_jpeg_and_native_recognizer_handles_no_face()
     data = encode_frame(frame, 320)
     decoded = cv2.imdecode(np.frombuffer(base64.b64decode(data.split(',')[1]), dtype=np.uint8), cv2.IMREAD_COLOR)
     assert decoded.shape == (240, 320, 3)
-    from face_identity import MODEL_DIR, DETECTOR, RECOGNIZER
+    from vision.face_identity import MODEL_DIR, DETECTOR, RECOGNIZER
     if all((MODEL_DIR / name).exists() for name in (DETECTOR, RECOGNIZER)):
         assert FaceIdentity().observe(frame, []) == ([], None)
 
@@ -169,7 +169,7 @@ def test_recognition_failure_keeps_camera_frame_and_releases_device(tmp_path, mo
         cap.read.side_effect = read
         recognizer = Mock(ready=True, error=None)
         recognizer.observe.side_effect = RuntimeError('Synthetic inference failure')
-        monkeypatch.setattr('visual_context.FaceIdentity', lambda _: recognizer)
+        monkeypatch.setattr('vision.visual_context.FaceIdentity', lambda _: recognizer)
         monkeypatch.setattr('cv2.VideoCapture', lambda _: cap)
         vision._camera_loop()
         assert vision.snapshot()[0]['source'] == 'camera'
@@ -191,8 +191,8 @@ def test_wayland_captures_visible_gui_on_active_monitor(monkeypatch):
         return png.tobytes()
     monkeypatch.setenv('WAYLAND_DISPLAY', 'test')
     monkeypatch.setenv('HYPRLAND_INSTANCE_SIGNATURE', 'test')
-    monkeypatch.setattr('visual_context.shutil.which', lambda _: '/usr/bin/test')
-    monkeypatch.setattr('visual_context.subprocess.check_output', run)
+    monkeypatch.setattr('vision.visual_context.shutil.which', lambda _: '/usr/bin/test')
+    monkeypatch.setattr('vision.visual_context.subprocess.check_output', run)
     image, title = capture_screen()
     assert calls[-1] == ['grim', '-o', 'DP-1', '-t', 'png', '-']
     assert title == 'editor — Work'

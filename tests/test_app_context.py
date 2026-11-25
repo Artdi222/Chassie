@@ -5,16 +5,16 @@ from unittest.mock import Mock
 
 import pytest
 
-from app_context import active_application
+from vision.app_context import active_application
 from test_orchestrator import app, playback_fixture
 
 
 def test_hyprland_reads_only_app_class_without_capture(monkeypatch):
     monkeypatch.setenv('HYPRLAND_INSTANCE_SIGNATURE', 'test')
-    monkeypatch.setattr('app_context.shutil.which', lambda _: '/usr/bin/hyprctl')
+    monkeypatch.setattr('vision.app_context.shutil.which', lambda _: '/usr/bin/hyprctl')
     run = Mock(return_value=json.dumps({'class': 'code', 'title': 'private document',
                                        'pid': 123, 'address': 'secret'}).encode())
-    monkeypatch.setattr('app_context.subprocess.check_output', run)
+    monkeypatch.setattr('vision.app_context.subprocess.check_output', run)
     assert active_application() == {'available': True, 'app': 'code'}
     assert run.call_args.args[0] == ['hyprctl', '-j', 'activewindow']
     assert run.call_args.kwargs['timeout'] <= .25
@@ -24,23 +24,23 @@ def test_hyprland_reads_only_app_class_without_capture(monkeypatch):
                                      subprocess.TimeoutExpired('hyprctl', .25), OSError('unavailable')])
 def test_missing_or_failed_app_lookup_is_unknown(monkeypatch, result):
     monkeypatch.setenv('HYPRLAND_INSTANCE_SIGNATURE', 'test')
-    monkeypatch.setattr('app_context.shutil.which', lambda _: '/usr/bin/hyprctl')
+    monkeypatch.setattr('vision.app_context.shutil.which', lambda _: '/usr/bin/hyprctl')
     run = Mock(side_effect=result) if isinstance(result, Exception) else Mock(return_value=result)
-    monkeypatch.setattr('app_context.subprocess.check_output', run)
+    monkeypatch.setattr('vision.app_context.subprocess.check_output', run)
     assert active_application() == {'available': False}
 
 
 def test_unsupported_desktop_does_not_capture(monkeypatch):
     monkeypatch.delenv('HYPRLAND_INSTANCE_SIGNATURE', raising=False)
     run = Mock()
-    monkeypatch.setattr('app_context.subprocess.check_output', run)
+    monkeypatch.setattr('vision.app_context.subprocess.check_output', run)
     assert active_application() == {'available': False}
     run.assert_not_called()
 
 
 def test_overlay_uses_live_external_focus_order_without_window_contents(monkeypatch):
     monkeypatch.setenv('HYPRLAND_INSTANCE_SIGNATURE','test')
-    monkeypatch.setattr('app_context.shutil.which',lambda _:'/usr/bin/hyprctl')
+    monkeypatch.setattr('vision.app_context.shutil.which',lambda _:'/usr/bin/hyprctl')
     overlay={'class':'chassie-overlay','title':'Chassie — Conversation'}
     clients=[{'class':'firefox','focusHistoryID':4,'mapped':True},
              {'class':'chassie-overlay','focusHistoryID':0,'mapped':True},
@@ -51,7 +51,7 @@ def test_overlay_uses_live_external_focus_order_without_window_contents(monkeypa
              {'class':'never-focused','focusHistoryID':-1,'mapped':True},
              {'class':'bad-rank','focusHistoryID':'0','mapped':True}]
     run=Mock(side_effect=[json.dumps(overlay),json.dumps(clients)])
-    monkeypatch.setattr('app_context.subprocess.check_output',run)
+    monkeypatch.setattr('vision.app_context.subprocess.check_output',run)
     assert active_application()=={'available':True,'app':'code',
         'source':'last_external_focus','overlay_focused':True}
     assert [c.args[0][-1] for c in run.call_args_list]==['activewindow','clients']
@@ -62,21 +62,21 @@ def test_overlay_uses_live_external_focus_order_without_window_contents(monkeypa
                                   {},None,'bad json'])
 def test_overlay_without_valid_external_focus_is_unknown(monkeypatch,clients):
     monkeypatch.setenv('HYPRLAND_INSTANCE_SIGNATURE','test')
-    monkeypatch.setattr('app_context.shutil.which',lambda _:'/usr/bin/hyprctl')
+    monkeypatch.setattr('vision.app_context.shutil.which',lambda _:'/usr/bin/hyprctl')
     run=Mock(side_effect=['{"class":"chassie-overlay"}',json.dumps(clients)])
-    monkeypatch.setattr('app_context.subprocess.check_output',run)
+    monkeypatch.setattr('vision.app_context.subprocess.check_output',run)
     assert active_application()['available'] is False
 
 
 def test_overlay_lookup_refreshes_and_obeys_total_time_budget(monkeypatch):
     monkeypatch.setenv('HYPRLAND_INSTANCE_SIGNATURE','test')
-    monkeypatch.setattr('app_context.shutil.which',lambda _:'/usr/bin/hyprctl')
+    monkeypatch.setattr('vision.app_context.shutil.which',lambda _:'/usr/bin/hyprctl')
     run=Mock(side_effect=['{"class":"chassie-overlay"}',
                          '[{"class":"code","mapped":true,"focusHistoryID":1}]',
                          '{"class":"chassie-overlay"}','[]',
                          '{"class":"chassie-overlay"}'])
-    monkeypatch.setattr('app_context.subprocess.check_output',run)
-    monkeypatch.setattr('app_context.time.monotonic',Mock(side_effect=[0,.1,1,1.1,2,2.3]))
+    monkeypatch.setattr('vision.app_context.subprocess.check_output',run)
+    monkeypatch.setattr('vision.app_context.time.monotonic',Mock(side_effect=[0,.1,1,1.1,2,2.3]))
     assert active_application()['app']=='code'
     assert active_application()['available'] is False
     assert active_application()['available'] is False

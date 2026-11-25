@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock
 import numpy as np
 import pytest
 
-from ambient import ChangeWatcher, SceneWatcher
+from vision.ambient import ChangeWatcher, SceneWatcher
 from bilingual import BilingualChunker
 from chassie_core.initiative import InitiativeState, MODES, PREFIX, decide, initiative_text
 from desktop.motion import HeadMotion
@@ -250,7 +250,7 @@ def test_missed_face_frames_do_not_count_as_away(app):
 
 def test_screen_is_sent_only_when_it_changed(tmp_path):
     import cv2
-    from visual_context import VisualContext
+    from vision.visual_context import VisualContext
     from companion import MemoryStore
     vision = VisualContext({'vision': {'screen_enabled': True, 'screen_always': True}}, MemoryStore(str(tmp_path / 'm.sqlite')))
     assert not vision.screen_changed()  # Nothing captured yet.

@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
 from chassie_core.presence import PresenceMixin
-from face_identity import face_command
-from visual_requests import requested_visual_sources
+from vision.face_identity import face_command
+from vision.visual_requests import requested_visual_sources
 
 
 def reason(camera, identity):

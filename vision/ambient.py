@@ -109,7 +109,7 @@ class OpenVocabularyDetector:
 
     def __init__(self, model_dir, threshold=.35, *, prefer_gpu=True):
         import json
-        from onnx_gpu import create_session
+        from vision.onnx_gpu import create_session
         model_dir = Path(model_dir)
         if not (model_dir / OPEN_MODEL).is_file():
             raise FileNotFoundError('Open-vocabulary model missing. Run scripts/install_vision.py.')
