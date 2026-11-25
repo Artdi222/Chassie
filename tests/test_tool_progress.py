@@ -3,9 +3,9 @@ import os
 
 import pytest
 
-import desktop_grant
-from bilingual import BilingualChunker
-from hermes_bridge import ToolProgress
+from brain import desktop_grant
+from brain.bilingual import BilingualChunker
+from brain.hermes_bridge import ToolProgress
 from speech.speech_chunker import SpeechChunker
 from tests.test_hermes_stream import STOP, bridge, delta, server
 
@@ -87,7 +87,7 @@ def test_bilingual_skips_plain_narration_only_after_a_tool_started():
 
 
 def test_model_memory_lines_are_parsed_hidden_and_validated():
-    from bilingual import display_translation
+    from brain.bilingual import display_translation
     pair = json.dumps({'emotion': 'happy', 'ja': '覚えたよ。', 'en': 'Got it.'}, ensure_ascii=False)
     memory = json.dumps({'memory': 'Artdi prefers coffee without sugar'})
     chunker = BilingualChunker('en')
@@ -100,7 +100,7 @@ def test_model_memory_lines_are_parsed_hidden_and_validated():
 
 
 def test_memory_line_may_carry_a_title_and_category():
-    from bilingual import BilingualChunker
+    from brain.bilingual import BilingualChunker
     line = '{"memory":"Artdi suka kopi tanpa gula.","title":"Kopi tanpa gula","category":"people"}\n'
     assert BilingualChunker('en').feed(line) == [
         ('memory', 'Artdi suka kopi tanpa gula.', {'title': 'Kopi tanpa gula', 'category': 'people'})]

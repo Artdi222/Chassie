@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from aiohttp import ClientSession, web
-from orchestrator import Orchestrator
+from brain.orchestrator import Orchestrator
 
 
 @pytest.fixture

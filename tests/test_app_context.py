@@ -89,7 +89,7 @@ async def test_app_metadata_without_vision_refreshes_and_clears_each_turn(app, m
     playback = playback_fixture(app); playback.first_release.set()
     app._config['app_context'] = {'enabled': True}
     lookup = Mock(side_effect=[{'available': True, 'app': 'code'}, {'available': False}])
-    monkeypatch.setattr('orchestrator.active_application', lookup)
+    monkeypatch.setattr('brain.orchestrator.active_application', lookup)
     seen = []
     async def stream(text, **kwargs):
         seen.append(kwargs)
@@ -109,7 +109,7 @@ async def test_app_metadata_without_vision_refreshes_and_clears_each_turn(app, m
 async def test_disabled_app_metadata_never_queries_desktop(app, monkeypatch):
     playback = playback_fixture(app); playback.first_release.set()
     lookup = Mock()
-    monkeypatch.setattr('orchestrator.active_application', lookup)
+    monkeypatch.setattr('brain.orchestrator.active_application', lookup)
     await app._run_turn({'text': 'Hello', 'source': 'text'})
     lookup.assert_not_called()
 
@@ -118,7 +118,7 @@ async def test_disabled_app_metadata_never_queries_desktop(app, monkeypatch):
 async def test_overlay_app_context_labels_previous_focus_without_images(app,monkeypatch):
     playback=playback_fixture(app);playback.first_release.set()
     app._config['app_context']={'enabled':True}
-    monkeypatch.setattr('orchestrator.active_application',lambda:{'available':True,'app':'code',
+    monkeypatch.setattr('brain.orchestrator.active_application',lambda:{'available':True,'app':'code',
         'source':'last_external_focus','overlay_focused':True})
     seen=[]
     async def stream(text,**kwargs):
@@ -136,7 +136,7 @@ async def test_overlay_app_context_labels_previous_focus_without_images(app,monk
 async def test_failed_or_cancelled_turn_releases_app_metadata(app, monkeypatch, cancel):
     playback = playback_fixture(app); playback.first_release.set()
     app._config['app_context'] = {'enabled': True}
-    monkeypatch.setattr('orchestrator.active_application', lambda: {'available': True, 'app': 'code'})
+    monkeypatch.setattr('brain.orchestrator.active_application', lambda: {'available': True, 'app': 'code'})
     async def stream(text, **kwargs):
         assert json.loads(kwargs['context'])['active_application']['app'] == 'code'
         if cancel:

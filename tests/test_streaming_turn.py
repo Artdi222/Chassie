@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 from aiohttp import web
-from hermes_bridge import HermesBridge
+from brain.hermes_bridge import HermesBridge
 from test_hermes_tts import CONFIG
 
 from test_orchestrator import app, playback_fixture
@@ -206,8 +206,8 @@ async def test_slow_playback_backpressures_text_stream(app):
     ('', 'Let me check that for you.'),              # silent tool call gets a filler
 ])
 async def test_speech_starts_while_hermes_runs_a_tool(app, tmp_path, monkeypatch, opening, expected):
-    import desktop_grant
-    from hermes_bridge import ToolProgress
+    from brain import desktop_grant
+    from brain.hermes_bridge import ToolProgress
     monkeypatch.setattr(desktop_grant, 'grant_path', lambda: tmp_path / 'desktop-grant')
     playback=playback_fixture(app)
     release=asyncio.Event()

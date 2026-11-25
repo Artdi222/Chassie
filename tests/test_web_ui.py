@@ -6,7 +6,7 @@ import pytest
 from playwright.async_api import async_playwright
 
 from test_orchestrator import app
-from hermes_bridge import HermesBridge
+from brain.hermes_bridge import HermesBridge
 from test_hermes_tts import CONFIG
 
 

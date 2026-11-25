@@ -5,7 +5,7 @@ import math
 import random
 from urllib.parse import urlsplit
 
-from emotion_parser import VALID_EMOTIONS
+from brain.emotion_parser import VALID_EMOTIONS
 
 
 @dataclass(frozen=True)

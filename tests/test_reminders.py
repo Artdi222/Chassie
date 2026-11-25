@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from bilingual import BilingualChunker
-from chassie_core.reminders import ReminderStore, parse_time
-from hermes_bridge import HermesBridge
+from brain.bilingual import BilingualChunker
+from brain.reminders import ReminderStore, parse_time
+from brain.hermes_bridge import HermesBridge
 from test_hermes_tts import CONFIG
 from test_orchestrator import app
 from test_sessions import exchange, make_owner

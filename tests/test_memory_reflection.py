@@ -77,7 +77,7 @@ async def test_transcript_logged_only_for_owner_scope(app, tmp_path):
 
 @pytest.mark.asyncio
 async def test_complete_once_sends_no_history_or_memory_header():
-    from hermes_bridge import HermesBridge
+    from brain.hermes_bridge import HermesBridge
     from test_hermes_tts import CONFIG
     bridge = HermesBridge(CONFIG)
     sent = {}

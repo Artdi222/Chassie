@@ -9,7 +9,9 @@ import re
 from pathlib import Path
 
 import aiohttp
-from bilingual import LANGUAGES, bilingual_prompt, display_translation
+from brain.bilingual import LANGUAGES, bilingual_prompt, display_translation
+
+ROOT=Path(__file__).resolve().parents[1]  # Repository root (config, ui/, .chassie/)
 
 logger=logging.getLogger('hermes')
 
@@ -116,7 +118,7 @@ class HermesBridge:
         self._api_key=os.environ.get(cfg.get('api_key_env','CHASSIE_HERMES_API_KEY'),'').strip() or cfg.get('api_key','')
         if not self._api_key and cfg.get('api_key_file'):
             key_path=Path(cfg['api_key_file']).expanduser()
-            if not key_path.is_absolute(): key_path=Path(__file__).parent/key_path
+            if not key_path.is_absolute(): key_path=ROOT/key_path
             if key_path.exists(): self._api_key=key_path.read_text(encoding='utf-8').strip()
         self._bilingual=config.get('tts',{}).get('engine')=='voicevox'
         self._english_prompt=cfg.get('system_prompt','')

@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 from vision.ambient import ChangeWatcher, SceneWatcher
-from bilingual import BilingualChunker
-from chassie_core.initiative import InitiativeState, MODES, PREFIX, decide, initiative_text
+from brain.bilingual import BilingualChunker
+from brain.initiative import InitiativeState, MODES, PREFIX, decide, initiative_text
 from desktop.motion import HeadMotion
 from test_orchestrator import app, playback_fixture  # noqa: F401  (fixture)
 
@@ -180,7 +180,7 @@ async def test_slow_first_sentence_gets_a_thinking_filler(app):
 
 
 def test_discard_response_removes_the_silent_exchange():
-    from hermes_bridge import HermesBridge
+    from brain.hermes_bridge import HermesBridge
     from test_hermes_tts import CONFIG
     bridge = HermesBridge(CONFIG)
     base = len(bridge._messages)
@@ -343,7 +343,7 @@ async def test_model_looks_before_answering_and_turn_retries_with_the_photo(app)
 
 
 def test_look_only_reply_without_trailing_newline_is_valid():
-    from bilingual import BilingualChunker
+    from brain.bilingual import BilingualChunker
     chunker = BilingualChunker('en')
     assert chunker.feed('{"action":"look","source":"camera"}') == []
     assert chunker.finish() == [('action', 'look', 'camera')]

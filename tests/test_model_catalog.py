@@ -85,7 +85,7 @@ def test_interaction_preferences_persist_per_model_and_validate_atomically(tmp_p
 
 def test_reaction_tables_are_per_model_and_only_use_real_parameters():
     from avatar.reactions import generated_reactions, MODEL_REACTIONS, DEEPSEEK_REACTIONS
-    from emotion_parser import VALID_EMOTIONS
+    from brain.emotion_parser import VALID_EMOTIONS
     for table in MODEL_REACTIONS.values():
         assert set(table)-{'waiting'}==VALID_EMOTIONS-{'neutral'}
     # DeepSeek-chan's Param46/48/49 are grass physics, never facial reactions.

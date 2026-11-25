@@ -5,7 +5,7 @@ import json
 from aiohttp import web
 import pytest
 
-from hermes_bridge import HermesBridge
+from brain.hermes_bridge import HermesBridge
 
 
 def delta(content=None, *, finish=None, **extra):

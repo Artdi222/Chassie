@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import numpy as np
 import pytest
 
-from hermes_bridge import HermesBridge
+from brain.hermes_bridge import HermesBridge
 from speech.tts_engine import TTSEngine, sentence_chunks
 
 CONFIG={'hermes':{'gateway_url':'http://localhost:8642','endpoint':'/v1/chat/completions',

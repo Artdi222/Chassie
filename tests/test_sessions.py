@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from chassie_core.sessions import SessionStore, new_session_id
-from hermes_bridge import HermesBridge
+from brain.sessions import SessionStore, new_session_id
+from brain.hermes_bridge import HermesBridge
 from test_hermes_tts import CONFIG
 from test_orchestrator import app
 

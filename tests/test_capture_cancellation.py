@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from orchestrator import Orchestrator
+from brain.orchestrator import Orchestrator
 
 
 async def wait_for_thread(event):

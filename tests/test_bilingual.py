@@ -1,6 +1,6 @@
 import json
 import pytest
-from bilingual import BilingualChunker, display_translation
+from brain.bilingual import BilingualChunker, display_translation
 
 PAIR={'emotion':'happy','ja':'こんにちは。','en':'Hello.'}
 
@@ -36,7 +36,7 @@ def test_buffer_is_bounded_and_empty_response_fails():
 from test_orchestrator import app, playback_fixture
 import asyncio
 from unittest.mock import Mock
-from hermes_bridge import HermesBridge
+from brain.hermes_bridge import HermesBridge
 from test_hermes_tts import CONFIG
 
 
@@ -120,7 +120,7 @@ async def test_each_sentence_updates_voice_emotion_with_avatar(app):
 
 
 def test_indonesian_translation_protocol_and_mixed_history():
-    from bilingual import bilingual_prompt
+    from brain.bilingual import bilingual_prompt
     assert '"id":"Halo!' in bilingual_prompt('id') and 'Indonesian translation' in bilingual_prompt('id')
     with pytest.raises(ValueError): bilingual_prompt('fr')
     pair = '{"emotion":"happy","ja":"こんにちは！","id":"Halo!"}\n'
@@ -132,7 +132,7 @@ def test_indonesian_translation_protocol_and_mixed_history():
 
 @pytest.mark.asyncio
 async def test_translation_language_switch_persists_and_reaches_hermes(app, tmp_path):
-    from orchestrator import Orchestrator
+    from brain.orchestrator import Orchestrator
     await app.handle_control({'type': 'set_translation_language', 'language': 'id'})
     assert app._settings()['translation_language'] == 'id'
     assert app._hermes.translation_language == 'id'
@@ -200,7 +200,7 @@ async def test_model_face_action_without_face_request_is_ignored(app):
 
 
 def test_first_clause_split_only_when_tail_is_ready_in_time():
-    from bilingual import split_first_clause
+    from brain.bilingual import split_first_clause
     assert split_first_clause('お疲れ様、コーディングで疲れたんだね。ちょっと休んでいいんだよ。') == [
         'お疲れ様、コーディングで疲れたんだね。', 'ちょっと休んでいいんだよ。']
     for short_or_unbalanced in ('はい、そうです。', 'んー、今の気分なら、ロードトゥードーンの「アンクローズド」がいいかも。'):

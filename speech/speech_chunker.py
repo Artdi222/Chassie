@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from emotion_parser import VALID_EMOTIONS
+from brain.emotion_parser import VALID_EMOTIONS
 
 _TAGS = {f'[{emotion}]': emotion for emotion in VALID_EMOTIONS}
 _TAG_PREFIXES = frozenset(tag[:length] for tag in _TAGS for length in range(1, len(tag)))

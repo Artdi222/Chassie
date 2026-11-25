@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from chassie_core.presence import PresenceMixin
+from brain.presence import PresenceMixin
 from vision.face_identity import face_command
 from vision.visual_requests import requested_visual_sources
 

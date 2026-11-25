@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from urllib.parse import urlsplit
 from aiohttp import web
-from chassie_core.initiative import PREFIX as INITIATIVE_PREFIX
+from brain.initiative import PREFIX as INITIATIVE_PREFIX
 
 logger=logging.getLogger('orchestrator')
 

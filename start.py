@@ -28,7 +28,7 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="tensorflow")
 warnings.filterwarnings("ignore", category=FutureWarning, module="tensorflow")
 
-from orchestrator import Orchestrator
+from brain.orchestrator import Orchestrator
 
 
 def setup_logging(config: dict):
@@ -102,7 +102,7 @@ def check_dependencies():
 
 async def check_hermes(config: dict) -> bool:
     """Check if Hermes gateway is reachable."""
-    from hermes_bridge import HermesBridge
+    from brain.hermes_bridge import HermesBridge
     bridge = HermesBridge(config)
     try:
         await bridge.connect()

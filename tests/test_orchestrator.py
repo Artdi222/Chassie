@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock,Mock
 
 import pytest
-from orchestrator import Orchestrator
+from brain.orchestrator import Orchestrator
 from speech.stt_engine import SpeechEvent
 
 @pytest.fixture

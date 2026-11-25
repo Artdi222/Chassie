@@ -10,7 +10,7 @@ from aiohttp import web
 from companion.memory import MemoryStore
 from vision.face_identity import FaceIdentity, face_command, match_template
 from vision.visual_context import VisualContext, encode_frame, capture_screen
-from hermes_bridge import HermesBridge
+from brain.hermes_bridge import HermesBridge
 from test_hermes_tts import CONFIG
 from test_orchestrator import app, playback_fixture
 

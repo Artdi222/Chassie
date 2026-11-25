@@ -6,7 +6,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
-from bilingual import JAPANESE
+from brain.bilingual import JAPANESE
 from speech.speech_polish import clean_speech
 from speech.speech_prosody import ProsodyPlanner
 

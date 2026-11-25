@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--expect-emotion', help='Fail unless the final rendered state matches this emotion')
     parser.add_argument('--verify-hyprland', action='store_true', help='Assert live compositor pin/blur state for this process only')
     args = parser.parse_args()
-    from emotion_parser import VALID_EMOTIONS
+    from brain.emotion_parser import VALID_EMOTIONS
     if args.emotion not in VALID_EMOTIONS:
         parser.error('Unsupported emotion')
     from PySide6.QtCore import QTimer

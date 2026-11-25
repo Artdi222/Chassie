@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import re
-from emotion_parser import VALID_EMOTIONS
+from brain.emotion_parser import VALID_EMOTIONS
 
 JAPANESE = re.compile(r'[\u3040-\u30ff\u3400-\u9fff]')
 LANGUAGES = {'en': 'English', 'id': 'Indonesian'}

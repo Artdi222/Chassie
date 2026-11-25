@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from avatar import audit_assets, load_manifest
-from emotion_parser import VALID_EMOTIONS
+from brain.emotion_parser import VALID_EMOTIONS
 
 
 def test_manifest_maps_every_emotion():

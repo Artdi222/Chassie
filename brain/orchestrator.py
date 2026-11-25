@@ -20,9 +20,8 @@ from companion.vault import VaultMemory
 from companion import reflection
 from companion.reflection import NOTE_DIR as DIARY_DIR
 from speech.voice_identity import VoiceIdentity
-from hermes_bridge import HermesBridge, ToolProgress
-import desktop_grant
-
+from brain.hermes_bridge import HermesBridge, ToolProgress
+from brain import desktop_grant
 # (Japanese speech, translation) spoken when Hermes starts a tool before saying anything.
 TOOL_FILLERS={'en':('ちょっと調べてみるね。','Let me check that for you.'),
               'id':('ちょっと調べてみるね。','Bentar, aku cek dulu ya.')}
@@ -32,13 +31,13 @@ from speech.stt_engine import STTEngine
 from speech.tts_engine import TTSEngine
 from speech.speech_chunker import SpeechChunker
 from speech.speech_pacing import SpeechPacing
-from bilingual import BilingualChunker, LANGUAGES, display_translation, split_first_clause
+from brain.bilingual import BilingualChunker, LANGUAGES, display_translation, split_first_clause
 from avatar import load_manifest
 from avatar.manifest import DEFAULT_MANIFEST
 from avatar.catalog import ModelCatalog, ModelSelection
-from chassie_core.sessions import SessionStore, new_session_id
-from chassie_core.reminders import ReminderStore, parse_time
-from chassie_core.initiative import PREFIX as INITIATIVE_PREFIX
+from brain.sessions import SessionStore, new_session_id
+from brain.reminders import ReminderStore, parse_time
+from brain.initiative import PREFIX as INITIATIVE_PREFIX
 from vision.face_identity import face_command
 from vision.visual_context import VisualContext
 from vision.visual_requests import requested_visual_sources
@@ -47,10 +46,12 @@ from vision.app_context import active_application
 logger=logging.getLogger('orchestrator')
 SEMANTIC_MIN=2.0  # z-score vs the whole vault; unrelated queries on the owner's vault topped out near 2.0.
 
-from chassie_core.controls import ControlsMixin
-from chassie_core.presence import PresenceMixin
-from chassie_core.initiative import InitiativeMixin
-from chassie_core.web import WebMixin
+from brain.controls import ControlsMixin
+from brain.presence import PresenceMixin
+from brain.initiative import InitiativeMixin
+from brain.web import WebMixin
+
+ROOT=Path(__file__).resolve().parents[1]  # Repository root (config, ui/, .chassie/)
 
 class _Chunks(list):
     mouth=None
@@ -91,7 +92,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._audio_player=c.get('player') or AudioPlayer(config)
         self._audio_analyzer=c.get('analyzer') or AudioAnalyzer(sample_rate=config['audio']['output_sample_rate'])
         self._face_tracker=c.get('face')
-        self._memory=MemoryStore(config.get('companion',{}).get('memory_path',str(Path(__file__).parent/'.chassie/memory.sqlite')))
+        self._memory=MemoryStore(config.get('companion',{}).get('memory_path',str(ROOT/'.chassie/memory.sqlite')))
         self._vision=c.get('vision')
         if self._vision is None and any(config.get('vision',{}).get(key,False) for key in ('camera_enabled','screen_enabled')):
             self._vision=VisualContext(config,self._memory)
@@ -103,7 +104,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._look_now=None;self._looked=False  # Model-chosen look before answering (once per turn)
         self._previous_user_text=''
         self._semantic=None
-        self._transcripts=Path(config.get('companion',{}).get('memory_path',str(Path(__file__).parent/'.chassie/memory.sqlite'))).parent/'transcripts'
+        self._transcripts=Path(config.get('companion',{}).get('memory_path',str(ROOT/'.chassie/memory.sqlite'))).parent/'transcripts'
         self._face_command_result=None
         self._session_context=SessionContext()
         self._automatic_memory=config.get('companion',{}).get('automatic_memory',False) is True
@@ -119,7 +120,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             self._speaker=self._speaker or VoiceIdentity(self._memory,presence=lambda:self._vision.status() if self._vision else {})
             self._stt.speaker_identity=self._speaker
         self._catalog=ModelCatalog()
-        selection_path=Path(config.get('companion',{}).get('memory_path',str(Path(__file__).parent/'.chassie/memory.sqlite'))).parent/'model-selection.json'
+        selection_path=Path(config.get('companion',{}).get('memory_path',str(ROOT/'.chassie/memory.sqlite'))).parent/'model-selection.json'
         self._model_selection=ModelSelection(self._catalog,selection_path)
         self._subtitle=None
         self._ui_sockets=set()
@@ -164,7 +165,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._web_app.router.add_get('/api/models/{model_id}/model.json',self._handle_model_manifest)
         self._web_app.router.add_get('/api/models/{model_id}/assets/{asset:.*}',self._handle_model_asset)
         self._web_app.router.add_get('/',self._handle_index)
-        self._web_app.router.add_static('/',path=str(Path(__file__).parent/'ui'))
+        self._web_app.router.add_static('/',path=str(ROOT/'ui'))
 
     async def start(self):
         self._running=True

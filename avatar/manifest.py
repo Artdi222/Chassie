@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 
-from emotion_parser import VALID_EMOTIONS
+from brain.emotion_parser import VALID_EMOTIONS
 
 DEFAULT_MANIFEST = Path(__file__).with_name("ulvm2_0001.json")
 

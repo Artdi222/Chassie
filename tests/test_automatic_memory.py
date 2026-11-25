@@ -149,7 +149,7 @@ async def test_listening_reaction_tracks_speech_without_interrupting_reply(app):
 
 
 def test_startup_uses_only_the_configured_owner_without_manual_profile_selection(app):
-    from orchestrator import Orchestrator
+    from brain.orchestrator import Orchestrator
     owner=app._memory.create_profile('Configured owner',consent=True)
     config={**app._config,'companion':{**app._config['companion'],'automatic_memory':True},
             'hermes':{'personal_memory_profile_id':owner.id}}
