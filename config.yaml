@@ -9,13 +9,14 @@ hermes:
   stream_timeout: 300  # Whole streamed request, incl. backpressure and agent-reach/agent-desktop tool calls
   stream_read_timeout: 75  # Hermes keepalive is 30s; allow two intervals plus scheduling slack
   model: "hermes-agent"
-  # Chassie's own model, independent of Hermes's global default (model.default).
-  provider: "anthropic"  # Native Anthropic credentials in ~/.hermes/.env
-  text_model: "claude-haiku-5-5"
-  vision_model: "claude-haiku-5-5"  # Haiku also reads camera and screen snapshots
+  # null uses whatever model Hermes is set up with (hermes setup model). To give Chassie her own,
+  # set e.g. provider: "anthropic", text_model: "claude-haiku-5-5" in config.local.yaml.
+  provider: null
+  text_model: null
+  vision_model: null  # Must read images (camera/screen snapshots); null uses Hermes's model
   personal_memory_session_key: "chassie-owner-memory"  # Only sent for a selected personal profile
   personal_memory_profile_id: null  # Owner profile id; null uses the only profile once you create one
-  reasoning_effort: "low"  # Low reasoning keeps replies fast; null inherits Hermes/CLI settings
+  reasoning_effort: null  # "low" keeps replies fast on models that reason; null inherits Hermes settings
   api_key_env: "CHASSIE_HERMES_API_KEY"
   api_key_file: ".chassie/hermes-api-key"  # Local secret; excluded from source control
   # English-only fallback prompt; VOICEVOX uses the paired Japanese/English protocol in bilingual.py.
