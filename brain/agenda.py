@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from brain.reminders import read_json_list, write_json_list
+from brain.reminders import read_json_list, write_json
 
 KINDS = ('follow_up', 'promise', 'curiosity', 'share')
 MAX_ATTEMPTS = 2           # Raised this often without being resolved: dropped, never nagged.
@@ -44,7 +44,7 @@ class AgendaStore:
         item = {'id': uuid4().hex[:10], 'text': text, 'kind': kind, 'source': str(source)[:80],
                 'earliest': _iso(earliest or now), 'expires': _iso(expires or now + LIFETIME),
                 'priority': max(0., min(1., float(priority))), 'attempts': 0, 'status': 'open'}
-        write_json_list(self.path, items + [item])
+        write_json(self.path, items + [item])
         return item
 
     def open(self, now=None):
@@ -53,7 +53,7 @@ class AgendaStore:
         items = self.list()
         keep = [i for i in items if i['expires'] > now]
         if len(keep) != len(items):
-            write_json_list(self.path, keep)
+            write_json(self.path, keep)
         return [i for i in keep if i['status'] == 'open' and i['earliest'] <= now]
 
     def top(self, count, now=None):
@@ -64,7 +64,7 @@ class AgendaStore:
         return next(iter(self.top(1, now)), None)
 
     def _update(self, identifier, change):
-        write_json_list(self.path, [change(i) if i['id'] == identifier else i for i in self.list()])
+        write_json(self.path, [change(i) if i['id'] == identifier else i for i in self.list()])
 
     def raised(self, identifier):
         def bump(item):

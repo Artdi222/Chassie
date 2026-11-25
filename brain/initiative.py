@@ -53,16 +53,17 @@ class InitiativeState:
 
 
 def decide(state,now,*,owner_alone,face_visible,camera_on,mic_on,clock_time,screen_on=False,
-           agenda_item=None,acceptance=None):
+           agenda_item=None,acceptance=None,restraint=1):
     """Return (reason, detail, sources) for the next initiative, or None.
 
     Pure: callers pass observations; only `state` fields are read here. `acceptance(reason)`
     is how often the owner answered that kind of initiative at this hour (0.5 = unknown):
     well-received ones come sooner, ignored ones later, within half to four times the wait.
+    `restraint` stretches every wait further (she is sulking or sleepy).
     """
     def wait(reason,base):
         share=acceptance(reason) if acceptance else .5
-        return base*min(4.,max(.5,.5/max(share,1e-6)))
+        return base*min(4.,max(.5,.5/max(share,1e-6)))*restraint
     settings=MODES.get(state.mode)
     if not owner_alone:return None
     if state.look and state.look['due'] is not None and now>=state.look['due']:
@@ -219,7 +220,8 @@ class InitiativeMixin:
                               mic_on=self._mic_enabled,clock_time=datetime.datetime.now(),
                               screen_on=bool(self._vision and getattr(self._vision,'screen_enabled',False)),
                               agenda_item=self._agenda.best() if self._owner_alone() else None,
-                              acceptance=lambda reason:self._signals.acceptance(reason,datetime.datetime.now().hour))
+                              acceptance=lambda reason:self._signals.acceptance(reason,datetime.datetime.now().hour),
+                              restraint=self._mood.restraint())
                 if choice:await self._start_initiative(*choice)
                 else:self._log_wait(now,visible)
             except asyncio.CancelledError:

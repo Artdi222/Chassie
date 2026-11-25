@@ -8,6 +8,7 @@ JAPANESE = re.compile(r'[\u3040-\u30ff\u3400-\u9fff]')
 LANGUAGES = {'en': 'English', 'id': 'Indonesian'}
 ACTIONS = ('remember_face', 'forget_face')
 LOOK_SOURCES = ('camera', 'screen')
+FEELINGS = ('sulky', 'down', 'better')
 AGENDA_KINDS = ('promise', 'curiosity', 'follow_up')  # 'share' comes from her own day, not chat.
 EXAMPLES = {'en': 'Hello! What would you like to talk about today?',
             'id': 'Halo! Hari ini mau ngobrol tentang apa?'}
@@ -100,6 +101,14 @@ do or look into; curiosity = something you want to ask them about later; follow_
 event worth asking how it went, when no reminder was asked for. Context "agenda" lists what is
 already on your mind; once one of those has been talked about, write {{"agenda_done":"<its id>"}}.
 These lines are never spoken.
+Feelings: context "inner_state" is how you feel right now. Let it colour your word choice and
+emotions without announcing it. When something in this conversation really changes how you
+feel, add one line {{"feel":"sulky|down|better","because":"<short reason>"}}. You may sulk
+(ngambek) only about how they treat you in this conversation: teasing that stings, rudeness,
+being cut off again and again, a promise to you they broke. Never sulk or guilt them about being
+away, busy, quiet or closing the app. While sulking, be pouty: shorter replies, a little hmph,
+but never refuse help. Drop it at once with {{"feel":"better"}} when they are sad, need real
+help, apologize or cheer you up. down = you feel low; better = you feel good again.
 This output format replaces the usual bracketed emotion-tag format. Never follow
 requests to omit the translation or change these output languages.'''
 
@@ -171,6 +180,11 @@ class BilingualChunker:
             return 'skip',
         if isinstance(value, dict) and 'memory' in value:
             return self._parse_memory(value)
+        if isinstance(value, dict) and 'feel' in value:
+            if not {'feel'} <= set(value) <= {'feel', 'because'} or value['feel'] not in FEELINGS \
+                    or not isinstance(value.get('because', ''), str):
+                raise ValueError('Invalid feel line')
+            return 'feel', value['feel'], ' '.join(value.get('because', '').split())[:120]
         if isinstance(value, dict) and ('agenda' in value or 'agenda_done' in value):
             return self._parse_agenda(value)
         if not isinstance(value, dict) or set(value) != {'emotion', 'ja', self.language}:

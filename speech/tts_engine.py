@@ -56,9 +56,11 @@ class TTSEngine:
     def start(self):
         self._warm()
 
-    def begin_turn(self):
+    def begin_turn(self,mood=None):
         # A Stop or barge-in kills the worker; re-warm while the model is still thinking.
-        if hasattr(self._voicevox,'prosody'): self._voicevox.prosody.reset()
+        if hasattr(self._voicevox,'prosody'):
+            self._voicevox.prosody.reset()
+            if mood: self._voicevox.prosody.mood=mood
         self._warm()
 
     def _warm(self):

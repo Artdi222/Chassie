@@ -38,7 +38,7 @@ def read_json_list(path):
         return []
 
 
-def write_json_list(path, items):
+def write_json(path, items):
     """Atomic, owner-only write: a crash never leaves a half-written file."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -61,7 +61,7 @@ class ReminderStore:
         return read_json_list(self.path)
 
     def _write(self, items):
-        write_json_list(self.path, items)
+        write_json(self.path, items)
 
     def add(self, text, at, repeat=None):
         text = ' '.join(str(text).split())

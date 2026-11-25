@@ -41,6 +41,7 @@ class ProsodyPlanner:
     def __init__(self, rng=None):
         self.rng = rng or random.Random()
         self.previous = None
+        self.mood = (0.0, 1.0, 1.0)  # (pitch offset, intonation scale, speed scale) from her inner state
 
     def reset(self):
         """A new reply starts from its own mood, not the end of the last one."""
@@ -48,6 +49,7 @@ class ProsodyPlanner:
 
     def plan(self, text, emotion='neutral'):
         pitch, intonation, speed = EMOTIONS.get(emotion, EMOTIONS['neutral'])
+        pitch, intonation, speed = pitch + self.mood[0], intonation * self.mood[1], speed * self.mood[2]
         shape = 'question' if _QUESTION.search(text) else 'exclaim' if _EXCLAIM.search(text) else \
             'trail' if _TRAIL.search(text) else 'statement'
         if shape == 'question': intonation += .08

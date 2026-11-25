@@ -42,7 +42,7 @@ AIRI / OpenAmika / Neuro-sama lives in that conversation; this file is the sourc
 |---|---|---|
 | 0 | Save memory lines as soon as parsed; owner name instead of hardcoded `Artdi:` | done 2026-11-25 |
 | 1 | Agenda store + model agenda lines + agenda in context + agenda initiatives + learned timing | done 2026-11-25 |
-| 2 | Inner state: mood (valence/energy, decay to persona baseline), sulk, closeness → emotion hints, prosody, initiative thresholds | later plan |
+| 2 | Inner state: mood (valence/energy, decay to persona baseline), sulk, closeness → emotion hints, prosody, initiative thresholds | done 2026-11-25 |
 | 3 | Layered memory: fact metadata, ADD/UPDATE/SUPERSEDE/NOOP consolidation, core profile, wikilink entity hop, recency×importance×relevance scoring | later plan |
 | 4 | Light fiction: daily activity (+ optional real article → `share` agenda item) | later plan |
 | 5 | Adaptive endpointing + instant non-verbal face reaction | later plan |
@@ -177,3 +177,41 @@ then clear it. Closing the app or ignoring her simply leaves `raised` without `a
 - Skipped on purpose (add when needed): agenda UI panel; backfilling open loops from diaries
   written before this change; a "closed soon after initiative" signal (closing already counts as
   not answered).
+
+---
+
+## Phase 2: Inner state (`brain/mood.py`, new)
+
+State file `.chassie/inner-state.json` (atomic write on every change, no LLM):
+`{valence -1..1, energy 0..1, sulk: null|{level, cause, since}, closeness 0..1, last_day, updated}`.
+
+**Dynamics (wall clock, so closing the app lets her settle):**
+- valence decays to baseline .3 (half-life 20 min); energy decays to a clock target
+  (00–05h .25, 06–08h .45, 22–23h .4, else .6; half-life 30 min).
+- `react(emotion)`: each spoken sentence nudges valence/energy a little (table `REACT`).
+- `feel(feeling, because)` from the model line `{"feel":"sulky|down|better","because":"..."}`:
+  sulky → sulk level 1 and valence −.25; down → valence −.35; better → sulk cleared, valence +.25.
+- sulk level halves every 10 min; gone below .2 or after 30 min; **cleared on load** (never carried
+  into the next session).
+- `met(now)`: first owner turn of a day → closeness += (1 − closeness) × .03 (starts at .1).
+
+**Effects:**
+- Context (every scope): `inner_state` = mood/energy/closeness in words, plus `sulking.about`.
+  Rules live in the prompt: let feelings colour word choice and emotions, never announce them;
+  sulk only about how she is treated in this conversation, never about the owner being away, busy
+  or closing the app; while sulking be pouty and shorter but never refuse help; write
+  `{"feel":"better"}` at once if they are sad, need real help, apologize or cheer her up.
+- Prosody: `ProsodyPlanner.mood = (pitch offset, intonation ×, speed ×)` from `Mood.prosody()`,
+  set by `TTSEngine.begin_turn(mood=...)`; `reset()` keeps it.
+- Initiatives: `decide(..., restraint=Mood.restraint())` multiplies every learned wait:
+  sulking ×3, energy < .35 ×1.6, else ×1.
+
+**Interfaces:** `Mood(path)` with `react(emotion, now=None)`, `feel(feeling, because='', now=None)`,
+`met(now=None)`, `describe(now=None) -> dict`, `prosody(now=None) -> tuple`, `restraint(now=None) -> float`.
+Parser: `('feel', feeling, because)`.
+
+**Tests:** `tests/test_mood.py` (decay, clock energy, sulk lifecycle and reload, closeness once a
+day, prosody direction, clamping), feel-line parsing, a turn with a feel line changes the mood and
+the context carries `inner_state`, planner applies mood, `decide` restraint.
+
+Skipped on purpose: idle animation from mood, mood shown in the UI.
