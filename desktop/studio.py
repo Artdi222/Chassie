@@ -25,7 +25,7 @@ ICON_PATHS = {
 
 
 def icon(name):
-    data=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7055b5" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{ICON_PATHS[name]}</svg>'
+    data=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#76599a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{ICON_PATHS[name]}</svg>'
     pix=QPixmap(48,48); pix.fill(Qt.GlobalColor.transparent)
     painter=QPainter(pix); QSvgRenderer(QByteArray(data.encode())).render(painter); painter.end()
     return QIcon(pix)
@@ -43,11 +43,11 @@ class FloatingPanel(QWidget):
         if transparent:
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         background='transparent' if transparent else '#ffffff'
-        self.setStyleSheet(f'QWidget{{background:{background};color:#1e1a27;font-size:14px;}}'
-                           'QLabel#panelTitle{font-size:13px;font-weight:600;color:#5c5669;}'
+        self.setStyleSheet(f'QWidget{{background:{background};color:#2e2124;font-size:14px;}}'
+                           'QLabel#panelTitle{font-size:13px;font-weight:600;color:#6a5559;}'
                            'QPushButton#panelClose{border:0;border-radius:14px;min-width:28px;max-width:28px;min-height:28px;max-height:28px;'
-                           'background:transparent;color:#5c5669;font-size:15px;}'
-                           'QPushButton#panelClose:hover{background:#efebf8;color:#1e1a27;}')
+                           'background:transparent;color:#6a5559;font-size:15px;}'
+                           'QPushButton#panelClose:hover{background:#f6e9ee;color:#2e2124;}')
         self.drag = None
         layout=QVBoxLayout(self);layout.setContentsMargins(1,1,1,1);layout.setSpacing(0)
         if not transparent:
@@ -105,8 +105,8 @@ class BubbleButton(QAbstractButton):
         painter.fillRect(self.rect(),Qt.GlobalColor.transparent)
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(QColor('#e3deeb'),1))
-        painter.setBrush(QColor('#e7dff4' if self.underMouse() or self.isDown() else '#ffffff'))
+        painter.setPen(QPen(QColor('#efe2dc'),1))
+        painter.setBrush(QColor('#efe4f5' if self.underMouse() or self.isDown() else '#ffffff'))
         painter.drawEllipse(self.rect().adjusted(1,1,-1,-1))
         self.icon().paint(painter,QRect(12,12,20,20))
 
@@ -128,7 +128,7 @@ class BubbleHint(QLabel):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setWindowTitle('Chassie hint')
         # Stylesheet backgrounds are skipped on translucent top-level windows: paint the pill.
-        self.setStyleSheet('QLabel{background:transparent;color:#f3f1f8;padding:6px 13px;font-size:13px;font-weight:500;}')
+        self.setStyleSheet('QLabel{background:transparent;color:#f8eee8;padding:6px 13px;font-size:13px;font-weight:500;}')
 
     def paintEvent(self,event):
         painter=QPainter(self)
@@ -174,7 +174,7 @@ class StudioControls(QObject):
         self.subtitle.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowTransparentForInput)
         self.subtitle.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.subtitle.setWordWrap(True);self.subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.subtitle.setStyleSheet('QLabel{background:#292330;color:white;padding:12px 18px;border-radius:12px;font-size:15px;}')
+        self.subtitle.setStyleSheet('QLabel{background:#3b2c30;color:white;padding:12px 18px;border-radius:12px;font-size:15px;}')
         self.subtitle.setFixedWidth(340)
         self.tray=QSystemTrayIcon(QIcon(str(Path(__file__).resolve().parents[1]/'ui/public/chassie-icon.png')),self);self.tray.setToolTip('Chassie')
         menu=QMenu();self.tray_menu=menu

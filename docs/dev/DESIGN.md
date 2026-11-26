@@ -1,17 +1,18 @@
 ---
 name: Chassie Companion Studio
-description: A local lavender companion interface built around actual Live2D models.
+description: A warm cream-and-lilac companion interface built around actual Live2D models, matched to the Chassie app icon.
 colors:
-  ink: "#1e1a27"
-  muted: "#5c5669"
-  paper: "#f3f1f7"
-  white: "#fff"
-  inset: "#f7f5fb"
-  accent: "#6a4cc8"
-  accent-strong: "#5437ae"
-  accent-soft: "#efeafc"
-  line: "#e7e3ef"
-  night: "#1d1a26"
+  ink: "#2e2124"
+  muted: "#6a5559"
+  paper: "#fbf4ee"
+  white: "#fffcf9"
+  inset: "#fbf2ec"
+  accent: "#76599a"
+  accent-strong: "#61477f"
+  accent-soft: "#f3eaf6"
+  accent-ring: "#c7a9cd"
+  line: "#efe2dc"
+  night: "#2b1f22"
 typography:
   headline:
     fontFamily: "Outfit, 'Segoe UI', sans-serif"
@@ -98,37 +99,37 @@ components:
 
 ## Overview
 
-**Creative North Star: "Lavender Companion Studio"**
+**Creative North Star: "Cozy Cream Companion"** (2026-11-26, from the app icon `ui/public/chassie-icon.png`)
 
-A quiet pale lavender application shell gives the actual Live2D character visual priority. Dark ink, purple actions, white conversation surfaces, and compact outline icons carry the interface across browser and desktop panels.
+A warm cream shell gives the actual Live2D character visual priority. The palette is taken from the app icon: cream background, cocoa ink from her hair, mauve actions, a lilac focus ring from her hair clip, and a cream-to-lavender stage gradient. Compact outline icons carry the interface across browser and desktop panels.
 
 The name below describes the approved lavender companion direction; it is documentation language, not an additional user-approved brand concept. This records the implemented system in ui/style.css, ui/index.html, ui/studio.js, and desktop/studio.py.
 
 **Key Characteristics:**
 
-- Pale lavender foundations with purple interaction states.
+- Warm cream foundations with mauve interaction states; lavender only on the stage and washes.
 - Outfit typography with compact controls and restrained headings.
-- White rounded panels and circular avatar actions.
+- Warm-white rounded panels and circular avatar actions; the app icon is the wordmark logo.
 - Actual model assets, spoken subtitles, and shared web panel styling.
 
 ## Colors
 
-A pale lavender foundation supports dark plum ink and a purple interaction accent.
+A warm cream foundation supports cocoa ink and a mauve interaction accent. White text on `accent` is 5.7:1; `accent` on `paper` is 5.3:1.
 
 ### Primary
 
-- **Companion Purple** (`accent`): buttons, active appearance choices, microphone controls, and outline icons.
-- **Soft Lavender** (`accent-soft`): selected model tiles, hover surfaces, and control notices.
+- **Companion Mauve** (`accent`): buttons, active appearance choices, microphone controls, and outline icons.
+- **Soft Lilac** (`accent-soft`): selected model tiles, hover surfaces, and control notices.
 
 ### Neutral
 
-- **Plum Ink** (`ink`): headings and primary interface text.
-- **Muted Plum** (`muted`): descriptions, status captions, help, and metadata.
-- **Lavender Paper** (`paper`): application background and inset settings surfaces.
-- **Panel White** (`white`): chat, dialogs, fields, and circular actions.
-- **Lavender Line** (`line`): dividers, input outlines, and unselected model borders.
+- **Cocoa Ink** (`ink`): headings and primary interface text.
+- **Muted Cocoa** (`muted`): descriptions, status captions, help, and metadata.
+- **Cream Paper** (`paper`): application background and inset settings surfaces.
+- **Warm White** (`white`): chat, dialogs, fields, and circular actions.
+- **Blush Line** (`line`): dividers, input outlines, and unselected model borders.
 
-**The Accent Signals Action Rule.** Use purple for actionable controls and selected appearance choices; use muted ink for supporting information.
+**The Accent Signals Action Rule.** Use mauve for actionable controls and selected appearance choices; use muted ink for supporting information.
 
 ## Typography
 
