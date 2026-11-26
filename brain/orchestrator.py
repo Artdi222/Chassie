@@ -310,7 +310,10 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         profile=self._vault.path/consolidation.PROFILE_NOTE if getattr(self._vault,'path',None) else None
         interests=('Her personality: '+' '.join(str(self._config.get('companion',{}).get('persona') or '').split())+'\n\nOwner profile:\n'
                    +(profile.read_text(encoding='utf-8')[:1500] if profile and profile.is_file() else 'unknown yet'))
-        slots=her_day.parse_day(await self._hermes.complete_once(her_day.DAY_SYSTEM.replace('{language}',language),interests))
+        reply=await self._hermes.complete_once(her_day.DAY_SYSTEM.replace('{language}',language),interests)
+        try: slots=her_day.parse_day(reply)
+        except ValueError as exc:
+            raise ValueError(f'{exc}; the model replied: {reply[:300]!r}') from exc  # Shows why, next time.
         read=None
         if self._config.get('companion',{}).get('daily_read',True) is not False:
             try:
@@ -815,7 +818,9 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                     await self._reflect_day(days[0])
                     continue
                 if not busy and (await self._consolidate())['new']: continue  # Next batch at once.
-                if not busy and self._day.today() is None: await self._plan_day()
+                if not busy and self._day.today() is None:
+                    try: await self._plan_day()
+                    except (ValueError,RuntimeError) as exc: logger.warning('Her day not planned yet: %s',exc)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:

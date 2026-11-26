@@ -16,7 +16,7 @@ DAY = dt.datetime(2026, 11, 25, 13, 0)
 def test_day_replies_are_validated():
     assert parse_day('Here you go:\n' + json.dumps(SLOTS)) == SLOTS
     for bad in ({**SLOTS, 'night': ''}, {k: v for k, v in SLOTS.items() if k != 'evening'},
-                {**SLOTS, 'morning': 'x' * 200}):
+                {**SLOTS, 'morning': '   '}):  # Too long is trimmed, not rejected (see below).
         with pytest.raises(ValueError):
             parse_day(json.dumps(bad))
 
@@ -62,3 +62,12 @@ async def test_no_article_when_daily_read_is_off(app):
     app._hermes.complete_once = AsyncMock(return_value=json.dumps(SLOTS))
     await app._plan_day()
     assert app._hermes.complete_once.await_count == 1 and app._agenda.open() == []
+
+
+def test_day_replies_in_other_shapes_are_still_understood():
+    indonesian = {'pagi': 'baca soal produser lo-fi', 'siang': 'ikut nonton layarmu',
+                  'sore': 'mikirin lagu gitar yang kamu sebut', 'malam': 'setengah tidur dengerin hujan'}
+    assert parse_day(json.dumps(indonesian))['evening'] == 'mikirin lagu gitar yang kamu sebut'
+    assert parse_day(json.dumps({'slots': SLOTS})) == SLOTS
+    long = parse_day(json.dumps({**SLOTS, 'morning': 'reading ' + 'about music history ' * 12}))
+    assert len(long['morning']) <= 120 and long['morning'].startswith('reading about')

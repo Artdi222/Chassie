@@ -14,6 +14,8 @@ import re
 from brain.reminders import write_json
 
 SLOTS = ('morning', 'afternoon', 'evening', 'night')
+# Asked to write in Indonesian, models sometimes translate the keys too.
+ALIASES = {'morning': 'pagi', 'afternoon': 'siang', 'evening': 'sore', 'night': 'malam'}
 DAY_SYSTEM = (
     "Imagine Chassie's day today: she is an AI companion living on her owner's computer. "
     'Write ONLY one JSON object {"morning":"...","afternoon":"...","evening":"...","night":"..."}, '
@@ -43,8 +45,14 @@ def _json(reply):
 
 def parse_day(reply):
     value = _json(reply)
-    slots = {slot: ' '.join(str(value.get(slot, '')).split()) for slot in SLOTS}
-    if not all(3 <= len(text) <= 120 for text in slots.values()):
+    value = value.get('slots') if isinstance(value.get('slots'), dict) else value
+    slots = {}
+    for slot in SLOTS:
+        text = ' '.join(str(value.get(slot) or value.get(ALIASES[slot]) or '').split())
+        if len(text) > 120:
+            text = text[:120].rsplit(' ', 1)[0].rstrip(' ,.;')  # Too long: keep the start, at a word.
+        slots[slot] = text
+    if not all(len(text) >= 3 for text in slots.values()):
         raise ValueError('Every slot needs a short activity')
     return slots
 
