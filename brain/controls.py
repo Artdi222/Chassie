@@ -39,7 +39,28 @@ class ControlsMixin:
                 'initiative_mode':self._initiative.mode,
                 'automatic_barge_in':self._barge_in,'pending_topic':bool(self._pending_topic),
                 'vision':self._vision.status() if self._vision else None,
-                'face_observation':self._face_tracker.get_observation() if self._face_tracker else None}
+                'face_observation':self._face_tracker.get_observation() if self._face_tracker else None,
+                'usage':self._usage(),'health':self._health()}
+
+    def _usage(self):
+        usage=getattr(self._hermes,'usage',None)
+        usage=dict(usage) if isinstance(usage,dict) else {}
+        price=self._config.get('hermes',{}).get('price_per_million') or {}
+        if usage and isinstance(price,dict) and price:
+            usage['cost']=round((usage.get('prompt_tokens',0)*price.get('input',0)+usage.get('completion_tokens',0)*price.get('output',0))/1e6,4)
+        return usage
+
+    def _health(self):
+        """True working, False broken, None unknown or switched off."""
+        speech=self._tts.status() if isinstance(self._tts,TTSEngine) else None
+        vision=self._vision.status() if self._vision else None
+        vault=self._vault.status() if self._automatic_memory and self._vault and hasattr(self._vault,'status') else None
+        brain=getattr(self._hermes,'healthy',None)
+        return {'brain':brain if brain in (True,False) else None,
+                'voice':speech.get('ready') if isinstance(speech,dict) else None,
+                'ears':(self._stt.is_listening() is True) if self._mic_enabled else None,
+                'memory':vault.get('available') if isinstance(vault,dict) else None,
+                'eyes':(vision.get('camera',{}).get('available') if vision.get('camera',{}).get('enabled') else None) if isinstance(vision,dict) else None}
 
     async def _broadcast_settings(self): await self._broadcast_to_ui(self._settings())
 

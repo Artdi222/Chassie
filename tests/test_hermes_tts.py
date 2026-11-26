@@ -117,3 +117,13 @@ async def test_tts_decodes_from_memory_resamples_and_reports_empty(monkeypatch):
     t._voicevox.synthesize=AsyncMock(return_value=b'')
     with pytest.raises(RuntimeError):
         _=[c async for c in t.synthesize_stream('test')]
+
+
+def test_background_work_can_use_a_cheaper_model():
+    from brain.hermes_bridge import HermesBridge
+    messages = [{'role': 'user', 'content': 'x'}]
+    plain = HermesBridge(CONFIG)
+    assert plain._request_payload(messages, background=True)['model'] == plain._request_payload(messages)['model']
+    cheap = HermesBridge({**CONFIG, 'hermes': {**CONFIG['hermes'], 'text_model': 'big', 'background_model': 'small'}})
+    assert cheap._request_payload(messages)['model'] == 'big'
+    assert cheap._request_payload(messages, background=True)['model'] == 'small'

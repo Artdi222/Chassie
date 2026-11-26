@@ -49,3 +49,12 @@ async def test_web_avatar_follows_face_and_tilts_while_thinking(app):
             await browser.close()
     finally:
         await runner.cleanup()
+
+
+def test_settings_report_health_and_session_usage(app):
+    app._hermes.usage = {'requests': 2, 'prompt_tokens': 1_500_000, 'completion_tokens': 500_000}
+    app._hermes.healthy = True
+    app._config['hermes'] = {**app._config.get('hermes', {}), 'price_per_million': {'input': 1.0, 'output': 4.0}}
+    settings = app._settings()
+    assert settings['usage'] == {'requests': 2, 'prompt_tokens': 1_500_000, 'completion_tokens': 500_000, 'cost': 3.5}
+    assert settings['health']['brain'] is True and set(settings['health']) == {'brain', 'voice', 'ears', 'memory', 'eyes'}

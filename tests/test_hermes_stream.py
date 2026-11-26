@@ -305,3 +305,25 @@ async def test_http_error_never_exposes_backend_body():
                 _=[piece async for piece in h.stream_message('hello')]
             assert 'backend-secret' not in str(error.value)
         finally: await h.close()
+
+
+@pytest.mark.asyncio
+async def test_usage_is_counted_and_health_follows_requests():
+    usage = b'data: ' + json.dumps({'choices': [], 'usage': {'prompt_tokens': 10, 'completion_tokens': 5}}).encode() + b'\n\n'
+    async with server([delta('Hi.'), STOP[:-len(b'data: [DONE]\n\n')], usage, b'data: [DONE]\n\n']) as (url, _):
+        h = bridge(url)
+        assert h.healthy is None
+        await h.connect()
+        try:
+            [item async for item in h.stream_message('hello')]
+        finally:
+            await h.close()
+    assert h.usage == {'requests': 1, 'prompt_tokens': 10, 'completion_tokens': 5} and h.healthy is True
+    async with server([], status=500) as (url, _):
+        h = bridge(url); await h.connect()
+        try:
+            with pytest.raises(Exception):
+                [item async for item in h.stream_message('hello')]
+        finally:
+            await h.close()
+    assert h.healthy is False

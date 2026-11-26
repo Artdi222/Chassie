@@ -109,6 +109,8 @@ class HermesBridge:
         self._model=cfg['model']
         self._text_model=cfg.get('text_model') or self._model
         self._vision_model=cfg.get('vision_model') or self._model
+        # Diary, memory consolidation and her day: a cheaper model is enough; null = text_model.
+        self._background_model=cfg.get('background_model') or self._text_model
         self._provider=cfg.get('provider')
         self._personal_memory_session_key=cfg.get('personal_memory_session_key')
         self._personal_memory_profile_id=cfg.get('personal_memory_profile_id')
@@ -129,17 +131,19 @@ class HermesBridge:
         self._revision=0
         self._max_turns=cfg.get('max_history_turns',20)
         self._pending=None
+        self.usage={'requests':0,'prompt_tokens':0,'completion_tokens':0}  # This session, for the cost tile
+        self.healthy=None  # None until the first request or health check
         self.clear_history()
 
     async def connect(self):
         headers={'Authorization':f'Bearer {self._api_key}'} if self._api_key else {}
         self._session=aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout),headers=headers)
 
-    def _request_payload(self,messages,*,stream=False):
+    def _request_payload(self,messages,*,stream=False,background=False):
         has_images=any(isinstance(message.get('content'),list) and any(
             isinstance(part,dict) and part.get('type')=='image_url'
             for part in message['content']) for message in messages)
-        payload={'model':self._vision_model if has_images else self._text_model,'messages':messages}
+        payload={'model':self._vision_model if has_images else self._background_model if background else self._text_model,'messages':messages}
         # Hermes can ignore bare model IDs on OpenAI-compatible endpoints.
         # Explicit provider selection makes this override request-scoped.
         if self._provider: payload['provider']=self._provider
@@ -207,13 +211,15 @@ class HermesBridge:
         if not self._session: raise RuntimeError('Hermes not connected')
         messages=[{'role':'system','content':system},{'role':'user','content':text}]
         try:
-            async with self._session.post(self._base_url+self._endpoint,json=self._request_payload(messages),
+            async with self._session.post(self._base_url+self._endpoint,json=self._request_payload(messages,background=True),
                                           timeout=aiohttp.ClientTimeout(total=self._stream_timeout)) as resp:
                 if resp.status!=200: raise RuntimeError(f'Hermes returned HTTP {resp.status}')
                 data=await resp.json()
             response=data['choices'][0]['message']['content']
+            self._note_usage(data.get('usage'));self.usage['requests']+=1;self.healthy=True
         except asyncio.CancelledError: raise
         except (aiohttp.ClientError,asyncio.TimeoutError,ValueError,KeyError,IndexError,TypeError) as exc:
+            self.healthy=False
             raise RuntimeError('Hermes could not complete the background request') from exc
         if not isinstance(response,str) or not response.strip() or re.match(r'^API call failed',response.strip()):
             raise RuntimeError('Hermes returned no usable text')
@@ -307,6 +313,7 @@ class HermesBridge:
                     if isinstance(metadata,dict) and (metadata.get('failed') or metadata.get('partial') or metadata.get('completed') is False):
                         raise _provider_error(json.dumps(metadata)+received)
                     choices=value.get('choices')
+                    if isinstance(value.get('usage'),dict): self._note_usage(value['usage'])
                     if choices==[] and 'usage' in value: continue
                     if not isinstance(choices,list) or not choices: raise ValueError('Missing SSE choices')
                     choice=next((item for item in choices if isinstance(item,dict) and item.get('index',0)==0),None)
@@ -345,9 +352,14 @@ class HermesBridge:
                 # _pending intentionally remains until physical playback finishes.
                 check_revision()
                 update_pending()
+                self.usage['requests']+=1;self.healthy=True
         except asyncio.CancelledError:
             raise
+        except RuntimeError:
+            self.healthy=False  # Provider or HTTP error
+            raise
         except asyncio.TimeoutError as exc:
+            self.healthy=False
             read_timeout=isinstance(exc,aiohttp.ServerTimeoutError)
             logger.warning('Hermes stream timeout: kind=%s total_limit=%s read_limit=%s received_text=%s',
                            'read' if read_timeout else 'total',self._stream_timeout,
@@ -356,6 +368,7 @@ class HermesBridge:
                 raise RuntimeError(f'Hermes streaming request timed out: no data for {self._stream_read_timeout:g} seconds. Please retry.') from None
             raise RuntimeError(f'Hermes streaming request timed out: exceeded {self._stream_timeout:g} seconds total. Please retry.') from None
         except (aiohttp.ClientError,ValueError,KeyError,IndexError,TypeError,RecursionError):
+            self.healthy=False
             raise RuntimeError('Hermes stream was invalid or interrupted. Please retry.') from None
 
     def _trim(self):
@@ -429,13 +442,20 @@ class HermesBridge:
         self._messages.extend(messages[cut:])
         self.session_id=session_id
 
+    def _note_usage(self,usage):
+        if not isinstance(usage,dict): return
+        for key in ('prompt_tokens','completion_tokens'):
+            if isinstance(usage.get(key),int): self.usage[key]+=usage[key]
+
     async def health_check(self):
         try:
             if self._session:
-                async with self._session.get(self._base_url+self._health_endpoint) as r: return r.status==200
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
-                async with session.get(self._base_url+self._health_endpoint) as r: return r.status==200
-        except (aiohttp.ClientError,asyncio.TimeoutError): return False
+                async with self._session.get(self._base_url+self._health_endpoint) as r: self.healthy=r.status==200
+            else:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as session:
+                    async with session.get(self._base_url+self._health_endpoint) as r: self.healthy=r.status==200
+        except (aiohttp.ClientError,asyncio.TimeoutError): self.healthy=False
+        return self.healthy
 
     async def close(self):
         if self._session: await self._session.close(); self._session=None

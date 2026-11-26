@@ -1,9 +1,11 @@
 """Bounded, sentence-aligned Japanese speech and English/Indonesian display protocol."""
 from __future__ import annotations
 import json
+import logging
 import re
 from brain.emotion_parser import VALID_EMOTIONS
 
+logger = logging.getLogger('orchestrator')
 JAPANESE = re.compile(r'[\u3040-\u30ff\u3400-\u9fff]')
 LANGUAGES = {'en': 'English', 'id': 'Indonesian'}
 ACTIONS = ('remember_face', 'forget_face')
@@ -137,9 +139,12 @@ def split_first_clause(ja, *, minimum=18, head_share=.4):
 
 
 class BilingualChunker:
-    def __init__(self, language='en'):
+    def __init__(self, language='en', *, tolerant=False):
         if language not in LANGUAGES: raise ValueError('Unsupported translation language')
         self.language = language
+        # Tolerant (live replies): a malformed line is dropped instead of failing the whole reply.
+        self.tolerant = tolerant
+        self.dropped = 0
         self._buffer = ''
         self._count = 0
         self._finished = False
@@ -157,7 +162,13 @@ class BilingualChunker:
     def _line(self, line):
         if self._skip_narration and not line.lstrip().startswith('{'):
             return None
-        return self._parse(line)
+        try:
+            return self._parse(line)
+        except (ValueError, RecursionError):
+            if not self.tolerant: raise
+            self.dropped += 1
+            logger.warning('Dropped a malformed reply line: %s', line[:160])
+            return None
 
     def feed(self, delta):
         if self._finished: raise RuntimeError('Bilingual stream already finished')
@@ -256,9 +267,9 @@ class BilingualChunker:
         if self._finished or not self._buffer.strip(): return []
         try: json.loads(self._buffer)
         except (ValueError, RecursionError): return []  # Still mid-line; wait for more text.
-        result = [self._parse(self._buffer)]
+        parsed = self._line(self._buffer)
         self._buffer = ''
-        return result
+        return [parsed] if parsed is not None else []
 
     def finish(self):
         if self._finished: return []

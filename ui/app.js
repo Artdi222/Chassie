@@ -454,9 +454,30 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // One line per part of her: working, broken, or off/unknown.
+    function renderHealth(health, usage) {
+        const list = document.getElementById("health-state");
+        if (!list || !health) return;
+        const parts = {brain: "Brain (Hermes)", voice: "Voice", ears: "Microphone", memory: "Memory vault", eyes: "Camera"};
+        list.replaceChildren(...Object.entries(parts).map(([key, label]) => {
+            const value = health[key], item = document.createElement("li");
+            item.className = "health-item " + (value === true ? "ok" : value === false ? "bad" : "off");
+            item.textContent = `${label}: ${value === true ? "working" : value === false ? "not working" : "off or not checked yet"}`;
+            return item;
+        }));
+        const note = document.getElementById("usage-state");
+        if (note && usage) {
+            const tokens = (usage.prompt_tokens || 0) + (usage.completion_tokens || 0);
+            note.textContent = `This session: ${usage.requests || 0} model requests, ${tokens.toLocaleString()} tokens`
+                + (typeof usage.cost === "number" ? ` (about $${usage.cost.toFixed(3)}).`
+                   : ". Set hermes.price_per_million in config.local.yaml to see the cost.");
+        }
+    }
+
     function renderSettings() {
         setControlsConnected(true);
         renderVision(settings.vision);
+        renderHealth(settings.health, settings.usage);
         micToggle.checked = settings.mic_enabled;
         const voicevox = settings.speech_engine === "voicevox";
         const subtitles = settings.translation_language === "id" ? "Indonesian" : "English";

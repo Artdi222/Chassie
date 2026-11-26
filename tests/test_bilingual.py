@@ -223,3 +223,29 @@ async def test_split_first_sentence_plays_both_parts_with_one_subtitle(app):
     assert [e['text'] for e in events if e.get('type')=='subtitle' and e['text']]==['Good work. Take a break.','Hello.']
     assert app._stream_view['text']=='[happy] Good work. Take a break. [happy] Hello.'
     assert app._spoken.split()==['Good','work.','Take','a','break.','Hello.']
+
+
+def test_tolerant_chunker_skips_a_broken_line_but_not_an_empty_reply():
+    good = '{"emotion":"happy","en":"Hello!","ja":"こんにちは！"}\n'
+    chunker = BilingualChunker('en', tolerant=True)
+    assert chunker.feed('{"emotion":"happy","ja":"こんにちは"\n' + good) == [('happy', 'Hello!', 'こんにちは！')]
+    assert chunker.finish() == [] and chunker.dropped == 1
+    with pytest.raises(ValueError):
+        empty = BilingualChunker('en', tolerant=True); empty.feed('{"broken": \n'); empty.finish()
+
+
+@pytest.mark.asyncio
+async def test_one_broken_line_no_longer_fails_the_whole_reply(app):
+    from test_orchestrator import playback_fixture
+    playback_fixture(app).first_release.set()
+    app._bilingual = True
+    spoken = []
+    async def synthesize(text, *, emotion):
+        spoken.append(text); yield np.ones(480)
+    app._tts.synthesize_stream = synthesize
+    async def stream(*a, **kw):
+        yield '{"emotion":"happy","ja":"壊れた"\n{"emotion":"happy","ja":"大丈夫だよ。","en":"It is fine."}\n'
+    app._hermes.stream_message = stream
+    await app._run_turn({'text': 'halo', 'source': 'text'})
+    assert spoken == ['大丈夫だよ。']
+    assert not any('did not contain valid' in str(c.args[0].get('text', '')) for c in app._broadcast_to_ui.call_args_list)

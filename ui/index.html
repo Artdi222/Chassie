@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Chassie — Companion Studio</title><link rel="icon" type="image/png" href="public/chassie-icon.png"><link rel="stylesheet" href="style.css?v=14"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Chassie — Companion Studio</title><link rel="icon" type="image/png" href="public/chassie-icon.png"><link rel="stylesheet" href="style.css?v=17"></head>
 <body>
 <div class="studio-shell">
 <header class="app-bar"><a class="wordmark" href="/" aria-label="Chassie home"><img class="wordmark-logo" src="public/chassie-icon.png" alt="">Chassie<span>companion studio</span></a><div class="app-actions"><span class="local-badge">On this computer</span><button id="menu-toggle" class="icon-button" title="Open settings" aria-label="Open settings"><svg class="icon"><use href="icons.svg#settings"/></svg></button></div></header>
@@ -81,6 +81,9 @@
 </section>
 <section id="tab-system" class="settings-tab" role="tabpanel" aria-labelledby="tab-system-btn" hidden>
     <div class="setting-row desktop-only"><div><label>Click through her</label><p class="control-help">She ignores the mouse so you can click what is behind her. To undo, use the tray icon → Click through avatar.</p></div><button type="button" class="action-btn" data-window="click_through">Turn on</button></div>
+    <h3>Health</h3>
+    <ul id="health-state" class="health-list" role="status"></ul>
+    <p id="usage-state" class="control-help" role="status"></p>
     <h3>Automatic vision</h3>
     <p id="vision-state" class="control-help" role="status">Checking camera and screen…</p>
     <p id="face-identity" class="control-help" role="status"></p>

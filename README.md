@@ -200,6 +200,19 @@ Click her to open the round menu: **chat**, **model**, **outfit**, **settings** 
 The **web studio** (`http://127.0.0.1:8000` while she runs) has the same chat and settings in a browser, plus a
 model preview. To run only the web studio without the desktop avatar: `.venv/bin/python start.py --text`.
 
+## Text her from your phone
+
+Hermes can carry her to Telegram (or Discord, WhatsApp…): the same personality from `~/.hermes/SOUL.md` and the
+same memory vault, as text.
+
+1. Make a bot with [@BotFather](https://t.me/BotFather) and copy its token.
+2. `hermes gateway setup`, choose Telegram and paste the token. Then `hermes gateway restart`.
+3. Put your own Telegram user id (ask [@userinfobot](https://t.me/userinfobot)) in `~/.hermes/chassie.json`:
+   `"owner_ids": {"telegram": ["<your id>"]}`. Only your private chats with the bot reach her memory; anyone
+   else, and group chats, talk to her without it.
+
+Her agenda, mood and diary live on the desktop, so they follow your desktop chats only.
+
 ## What she can do
 
 **Conversation**
@@ -258,7 +271,12 @@ hermes:
   text_model: "<model id>"
   vision_model: "<model id>"   # must read images
   reasoning_effort: "low"      # faster replies on models that think first
+  background_model: "<cheaper model id>"  # diary, memory tidying, her day; needs provider
+  price_per_million: {input: 1.0, output: 4.0}  # USD: shows the session cost in Settings > System
 ```
+
+Settings → System shows her health (brain, voice, microphone, memory, camera) and how many tokens this session
+used. A reply with one malformed line now skips that line instead of failing the whole reply.
 
 ## Her personality
 

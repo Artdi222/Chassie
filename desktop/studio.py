@@ -25,7 +25,7 @@ ICON_PATHS = {
 
 
 def icon(name):
-    data=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#76599a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{ICON_PATHS[name]}</svg>'
+    data=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5e4749" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{ICON_PATHS[name]}</svg>'
     pix=QPixmap(48,48); pix.fill(Qt.GlobalColor.transparent)
     painter=QPainter(pix); QSvgRenderer(QByteArray(data.encode())).render(painter); painter.end()
     return QIcon(pix)
@@ -106,7 +106,7 @@ class BubbleButton(QAbstractButton):
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QPen(QColor('#efe2dc'),1))
-        painter.setBrush(QColor('#efe4f5' if self.underMouse() or self.isDown() else '#ffffff'))
+        painter.setBrush(QColor('#f1e5e0' if self.underMouse() or self.isDown() else '#ffffff'))
         painter.drawEllipse(self.rect().adjusted(1,1,-1,-1))
         self.icon().paint(painter,QRect(12,12,20,20))
 
@@ -136,7 +136,7 @@ class BubbleHint(QLabel):
         painter.fillRect(self.rect(),Qt.GlobalColor.transparent)
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(Qt.PenStyle.NoPen);painter.setBrush(QColor(29,26,38,240))
+        painter.setPen(Qt.PenStyle.NoPen);painter.setBrush(QColor(43,31,34,240))
         radius=self.height()/2;painter.drawRoundedRect(self.rect(),radius,radius)
         painter.end()
         super().paintEvent(event)

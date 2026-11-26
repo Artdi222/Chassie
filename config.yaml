@@ -14,6 +14,8 @@ hermes:
   provider: null
   text_model: null
   vision_model: null  # Must read images (camera/screen snapshots); null uses Hermes's model
+  background_model: null  # Diary, memory tidying, her day: a cheaper model is enough (needs provider set); null = text_model
+  price_per_million: null  # e.g. {input: 1.0, output: 4.0} (USD per million tokens) shows the session cost in Settings > System
   personal_memory_session_key: "chassie-owner-memory"  # Only sent for a selected personal profile
   personal_memory_profile_id: null  # Owner profile id; null uses the only profile once you create one
   reasoning_effort: null  # "low" keeps replies fast on models that reason; null inherits Hermes settings

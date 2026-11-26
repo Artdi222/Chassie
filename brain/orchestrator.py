@@ -453,7 +453,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             raise
 
     async def _produce_speech(self,text,generation,sentences,started):
-        chunker=BilingualChunker(self._translation_language) if self._bilingual else SpeechChunker()
+        chunker=BilingualChunker(self._translation_language,tolerant=True) if self._bilingual else SpeechChunker()
         first_pair=True
         self._turn_sentences=0
         self._turn_memories_saved=0
