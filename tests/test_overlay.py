@@ -110,3 +110,14 @@ def test_expression_holds_before_the_next_feeling():
     state.settle(11.9); assert state.emotion == "happy"
     state.settle(12.1); assert state.emotion == "love" and state.pending_emotion is None  # Latest feeling wins.
     state.receive(msg("love", 4), now=12.2); assert state.emotion == "love"
+
+
+def test_reply_sentences_pile_up_until_the_bubble_is_full():
+    from desktop.state import pile_subtitle
+    fits = lambda text: len(text) <= 30
+    lines = pile_subtitle([], 'Hi there.', fits)
+    lines = pile_subtitle(lines, 'How are you?', fits)
+    assert lines == ['Hi there.', 'How are you?']  # The first one is still readable.
+    lines = pile_subtitle(lines, 'I read your book.', fits)
+    assert lines == ['How are you?', 'I read your book.']  # Full: the oldest leaves.
+    assert pile_subtitle([], 'x' * 50, fits) == ['x' * 50]  # A long sentence alone is still shown.

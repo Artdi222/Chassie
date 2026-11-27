@@ -9,7 +9,7 @@ from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath
 from PySide6.QtWidgets import QGraphicsDropShadowEffect, QWidget
 
 SURFACE, LINE, INK = QColor('#fffcf9'), QColor('#e3d2cc'), QColor('#2e2124')  # --surface, --line-2, --ink
-SHADOW, TAIL, RADIUS, PAD_X, PAD_Y, MAX_TEXT, MAX_LINES = 16, 10, 18, 18, 12, 300, 7
+SHADOW, TAIL, RADIUS, PAD_X, PAD_Y, MAX_TEXT, MAX_LINES = 16, 10, 18, 18, 12, 300, 5
 TEXT_FLAGS = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
 
 
@@ -50,6 +50,10 @@ class SpeechBubble(QWidget):
         width = min(MAX_TEXT, max(40, self.metrics.horizontalAdvance(text) + 2))  # Short lines: a small card.
         height = self.metrics.boundingRect(0, 0, width, 10_000, TEXT_FLAGS, text).height()
         return float(width), float(min(height, self.metrics.lineSpacing() * MAX_LINES))
+
+    def fits(self, text):
+        """Whether text fits the card without losing lines."""
+        return self.metrics.boundingRect(0, 0, MAX_TEXT, 10_000, TEXT_FLAGS, text).height() <= self.metrics.lineSpacing() * MAX_LINES
 
     def _current_size(self):
         return tuple(_mix(a, b, self.morph) for a, b in zip(self.size_from, self.size_to))

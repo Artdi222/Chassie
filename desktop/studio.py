@@ -11,7 +11,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QToolButton, QAbstractButton, QSystemTrayIcon, QMenu)
 
-from desktop.state import Rect, bottom_right, fit_to_screens, Framing, left_arc, scaled_window, subtitle_linger
+from desktop.state import Rect, bottom_right, fit_to_screens, Framing, left_arc, scaled_window, subtitle_linger, pile_subtitle
 
 ICON_PATHS = {
     'chat':'<path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/><path d="M7 10h8m-8 4h5"/>',
@@ -171,7 +171,8 @@ class StudioControls(QObject):
         self.status=QLabel('')
         from desktop.bubble import SpeechBubble
         self.subtitle=SpeechBubble(window)
-        self.subtitle_shown=(0.0,0)  # (time shown, characters) of the sentence in the bubble.
+        self.subtitle_shown=(0.0,0)  # (time the reply's first line appeared, characters now in the bubble).
+        self.subtitle_lines=[];self.subtitle_turn=None  # Sentences of the current reply still in the bubble.
         self.subtitle_hide=QTimer(self);self.subtitle_hide.setSingleShot(True)
         self.subtitle_hide.timeout.connect(lambda:self.subtitle.setVisible(False))
         self.tray=QSystemTrayIcon(QIcon(str(Path(__file__).resolve().parents[1]/'ui/public/chassie-icon.png')),self);self.tray.setToolTip('Chassie')
@@ -355,10 +356,17 @@ class StudioControls(QObject):
                 text,cancelled=data.get('text',''),data['generation']>self.native_subtitle_generation
                 self.native_subtitle_generation=data['generation']
                 if text:
-                    self.subtitle_hide.stop();self.subtitle_shown=(time.monotonic(),len(text))
-                    self.subtitle.setText(text);self.place_subtitle();self.subtitle.setVisible(True)  # Placed before it maps.
+                    # Japanese speech is quick: sentences of one reply pile up in the bubble instead of
+                    # replacing each other, and the oldest leave only when it is full.
+                    if self.subtitle_turn!=data['generation'] or not self.subtitle.isVisible():
+                        self.subtitle_turn,self.subtitle_lines=data['generation'],[]
+                        self.subtitle_shown=(time.monotonic(),0)
+                    self.subtitle_lines=pile_subtitle(self.subtitle_lines,text,self.subtitle.fits)
+                    shown=' '.join(self.subtitle_lines)
+                    self.subtitle_hide.stop();self.subtitle_shown=(self.subtitle_shown[0],len(shown))
+                    self.subtitle.setText(shown);self.place_subtitle();self.subtitle.setVisible(True)  # Placed before it maps.
                 elif cancelled:  # Stop or interruption: gone at once.
-                    self.subtitle_hide.stop();self.subtitle.setVisible(False)
+                    self.subtitle_hide.stop();self.subtitle.setVisible(False);self.subtitle_lines=[]
                 elif self.subtitle.isVisible() and not self.subtitle_hide.isActive():  # Sentence spoken: leave time to read it.
                     shown,chars=self.subtitle_shown
                     self.subtitle_hide.start(int(1000*subtitle_linger(chars,time.monotonic()-shown)))

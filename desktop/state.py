@@ -179,3 +179,11 @@ def subtitle_linger(chars: int, shown_for: float) -> float:
     """Seconds the last sentence stays readable after she stops: about 1.5 s plus 70 ms a character,
     counted from when it appeared; at least 2.5 s after her voice stops and never more than 10 s in all."""
     return max(2.5, min(10.0, 1.5 + 0.07 * chars) - shown_for)
+
+
+def pile_subtitle(lines: list, sentence: str, fits) -> list:
+    """Sentences of one reply stay in the bubble together; the oldest leave only when it is full."""
+    lines = [*lines, sentence]
+    while len(lines) > 1 and not fits(' '.join(lines)):
+        lines.pop(0)
+    return lines
