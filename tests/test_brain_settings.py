@@ -91,14 +91,23 @@ async def test_model_picker_lists_hermes_providers_and_models(app, tmp_path):
                 page.on('pageerror', lambda e: errors.append(str(e)))
                 await page.goto(url + '/?panel=settings')
                 await page.get_by_role('tab', name='System').click()
-                await page.locator('#brain-provider').focus()
-                await page.wait_for_function("document.querySelectorAll('#brain-providers option').length===1")
-                assert await page.locator('#brain-providers option').first.text_content() == 'Anthropic · signed in to Hermes'
-                await page.wait_for_function("document.querySelectorAll('#brain-models option').length===2")
-                assert await page.locator('#brain-vision-models option').count() == 1  # Only models that read images.
+                await page.locator('#brain-provider').click()
+                option = page.get_by_role('option', name='Anthropic Signed in')
+                await option.wait_for()
+                await page.screenshot(path='.test-artifacts/brain-provider-combo.png')
+                await option.click()
+                assert await page.locator('#brain-provider').input_value() == 'anthropic'
+                await page.wait_for_function("document.getElementById('brain-models-note').textContent.includes('2 models')")
+                await page.locator('#brain-vision_model').click()
+                assert await page.locator('#brain-vision_model-options [role=option]').count() == 1  # Only models that read images.
+                await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter')
+                assert await page.locator('#brain-vision_model').input_value() == 'claude-haiku-5-5'
+                await page.locator('#brain-text_model').fill('text')
+                assert await page.locator('#brain-text_model-options [role=option]').count() == 1  # Search narrows the list.
+                await page.keyboard.press('Escape')
+                assert await page.locator('#brain-text_model-options').is_hidden()
                 await page.select_option('#brain-reasoning_effort', 'medium')
                 await page.locator('#save-brain').click()
-                await page.wait_for_function("document.getElementById('brain-models-note').textContent.includes('2 models')")
                 await page.wait_for_timeout(300)
                 assert app._config['hermes']['reasoning_effort'] == 'medium' and not errors
                 await browser.close()

@@ -82,12 +82,14 @@ document.addEventListener("DOMContentLoaded", () => {
             case "voice_preview": document.getElementById("voice-pick-state").textContent = ""; break;
             case "voices": voiceData = data; document.getElementById("voice-pick-state").textContent = ""; drawVoices(); break;
             case "providers":
-                fillList("brain-providers", data.providers.map(p => [p.id, `${p.label}${p.signed_in ? " · signed in to Hermes" : ""}`]));
+                brainItems.providers = data.providers.map(p => ({value: p.id, label: p.label, badge: p.signed_in ? "Signed in" : ""}));
+                brainCombos.provider.refresh();
                 break;
             case "models": {
                 if (data.provider !== document.getElementById("brain-provider").value.trim()) break;
-                fillList("brain-models", data.models.map(m => [m.id, m.name]));
-                fillList("brain-vision-models", data.models.filter(m => m.vision !== false).map(m => [m.id, m.name]));
+                brainItems.models = data.models.map(m => ({value: m.id, label: m.name, badge: m.vision ? "Images" : ""}));
+                brainItems.vision = brainItems.models.filter((_, i) => data.models[i].vision !== false).map(m => ({...m, badge: ""}));
+                Object.values(brainCombos).forEach(c => c.refresh());
                 document.getElementById("brain-models-note").textContent = data.models.length
                     ? `${data.models.length} models known for ${data.provider}; you can also type any model id.`
                     : `No model list for ${data.provider}; type the model id.`;
@@ -561,9 +563,63 @@ document.addEventListener("DOMContentLoaded", () => {
     function askModels(provider) {
         if (provider && provider !== modelsFor && sendControl({type: "list_models", provider})) modelsFor = provider;
     }
-    function fillList(id, items) {
-        document.getElementById(id).replaceChildren(...items.map(([value, label]) => new Option(label, value)));
+    const brainItems = {providers: [], models: [], vision: []};
+
+    // Searchable dropdown over a plain text input: any typed value still counts.
+    function combobox(input, items, empty) {
+        const list = document.createElement("ul");
+        list.className = "combo-list"; list.id = `${input.id}-options`; list.setAttribute("role", "listbox"); list.hidden = true;
+        input.after(list);
+        input.setAttribute("role", "combobox"); input.setAttribute("aria-autocomplete", "list");
+        input.setAttribute("aria-controls", list.id); input.setAttribute("aria-expanded", "false");
+        let shown = [], active = -1, query = "";
+        const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); };
+        const choose = item => { input.value = item.value; close(); input.dispatchEvent(new Event("change")); };
+        const mark = index => {
+            active = index;
+            [...list.children].forEach((li, i) => li.setAttribute("aria-selected", String(i === active)));
+            const li = list.children[active];
+            if (li && shown[active]) { input.setAttribute("aria-activedescendant", li.id); li.scrollIntoView({block: "nearest"}); }
+        };
+        const render = () => {
+            const q = query.toLowerCase();
+            shown = items().filter(i => !q || i.value.toLowerCase().includes(q) || i.label.toLowerCase().includes(q)).slice(0, 80);
+            list.replaceChildren(...shown.map((item, i) => {
+                const li = document.createElement("li");
+                li.id = `${list.id}-${i}`; li.setAttribute("role", "option");
+                const label = document.createElement("span"); label.className = "combo-label"; label.textContent = item.label;
+                li.append(label);
+                if (item.label !== item.value) { const id = document.createElement("span"); id.className = "combo-id"; id.textContent = item.value; li.append(id); }
+                if (item.badge) { const badge = document.createElement("span"); badge.className = "combo-badge"; badge.textContent = item.badge; li.append(badge); }
+                li.addEventListener("mousedown", e => { e.preventDefault(); choose(item); });
+                return li;
+            }));
+            if (!shown.length) {
+                const li = document.createElement("li"); li.className = "combo-empty";
+                li.textContent = items().length ? "No match. Your typed value will be used." : empty();
+                list.append(li);
+            }
+            list.hidden = false; input.setAttribute("aria-expanded", "true"); mark(-1);
+        };
+        input.addEventListener("focus", () => { query = ""; render(); });  // Show everything first, then narrow.
+        input.addEventListener("input", () => { query = input.value.trim(); render(); });
+        input.addEventListener("blur", close);
+        input.addEventListener("keydown", e => {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                if (list.hidden) render();
+                if (shown.length) mark((active + (e.key === "ArrowDown" ? 1 : -1) + shown.length) % shown.length);
+            } else if (e.key === "Enter" && !list.hidden && active >= 0) { e.preventDefault(); choose(shown[active]); }
+            else if (e.key === "Escape" && !list.hidden) { e.preventDefault(); close(); }
+        });
+        return {refresh: () => { if (!list.hidden) render(); }};
     }
+    const brainCombos = {
+        provider: combobox(document.getElementById("brain-provider"), () => brainItems.providers, () => "Loading providers from Hermes…"),
+        text_model: combobox(document.getElementById("brain-text_model"), () => brainItems.models, () => "Choose a provider to see its models."),
+        vision_model: combobox(document.getElementById("brain-vision_model"), () => brainItems.vision, () => "Choose a provider to see its models."),
+        background_model: combobox(document.getElementById("brain-background_model"), () => brainItems.models, () => "Choose a provider to see its models."),
+    };
     function renderBrain(brain) {
         if (!brain) return;
         for (const key of BRAIN_KEYS) {
