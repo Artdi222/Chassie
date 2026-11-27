@@ -71,6 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.dispatchEvent(new CustomEvent("chassie-message", {detail: data}));
         switch (data.type) {
             case "model_catalog": case "model_state": case "subtitle": break;
+            case "appearance_needed": case "avatar_window": case "backchannel": case "restart": break;  // For the desktop overlay.
             case "settings":
                 settings = data;
                 renderSettings();

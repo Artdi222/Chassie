@@ -74,3 +74,21 @@ def test_avatar_png_crops_to_the_drawn_part():
         for y in range(50, 250): image.setPixelColor(x, y, QColor(20, 40, 200, 255))
     png = QImage.fromData(base64.b64decode(avatar_png(image)), 'PNG')
     assert (png.width(), png.height()) == (50, 200)
+
+
+@pytest.mark.asyncio
+async def test_avatar_picture_does_not_close_the_socket(app):
+    import aiohttp
+    from aiohttp import web
+    runner = web.AppRunner(app._web_app); await runner.setup(); site = web.TCPSite(runner, '127.0.0.1', 0); await site.start()
+    url = f'http://127.0.0.1:{site._server.sockets[0].getsockname()[1]}/ws'
+    try:
+        async with aiohttp.ClientSession() as session, session.ws_connect(url) as ws:
+            picture = 'data:image/png;base64,' + 'A' * 200_000  # A real avatar picture is ~150-250 KB.
+            await ws.send_json({'type': 'avatar_snapshot', 'model_id': 'not-the-current-one', 'image': picture})
+            while True:  # Skip the hydration messages; the answer is a notice, not a closed socket.
+                reply = await ws.receive_json(timeout=5)
+                if reply.get('type') == 'notice': break
+            assert 'avatar changed' in reply['text'] and not ws.closed
+    finally:
+        await runner.cleanup()

@@ -26,7 +26,9 @@ def _require_local(request):
 class WebMixin:
     async def _handle_ui_websocket(self,request):
         _require_local(request)
-        ws=web.WebSocketResponse(max_msg_size=16384,heartbeat=30)
+        # Local only (checked above). 4 MB: the overlay's one avatar picture (avatar_snapshot, under 3 MB) must
+        # fit; at 16 KB it closed the socket, and the reconnect asked for the picture again in a loop.
+        ws=web.WebSocketResponse(max_msg_size=4*1024*1024,heartbeat=30)
         await ws.prepare(request)
         try:
             # Hydrate before live delivery, while excluding concurrent guest/clear controls.

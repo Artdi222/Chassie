@@ -85,7 +85,10 @@ class ControlsMixin:
         except (OSError,KeyError,ValueError): return
         text=self._appearance.get(model_id,design) if model_id else None
         self._hermes.appearance=text or ''
-        if model_id and text is None and not (self._appearance_task and not self._appearance_task.done()):
+        asked=self.__dict__.setdefault('_appearance_asked',set())
+        if (model_id and text is None and (model_id,design) not in asked
+                and not (self._appearance_task and not self._appearance_task.done())):
+            asked.add((model_id,design))  # Once per design and session: a failure never turns into a loop.
             await self._broadcast_to_ui({'type':'appearance_needed','model_id':model_id})
 
     async def _describe_appearance(self,model_id,design,image):
@@ -257,8 +260,8 @@ class ControlsMixin:
                     self._appearance_task=asyncio.create_task(self._describe_appearance(model_id,design,image))
                     self._tasks.append(self._appearance_task)
             elif kind=='describe_appearance':
-                model_id,_=self._current_design()
-                if model_id: self._appearance.forget(model_id)
+                model_id,design=self._current_design()
+                if model_id: self._appearance.forget(model_id);self.__dict__.setdefault('_appearance_asked',set()).discard((model_id,design))
                 await self._sync_appearance()
             elif kind=='list_voices':
                 return await self._voices_payload()
