@@ -263,7 +263,9 @@ Any model Hermes can use works, as long as it can do three things:
   `vision.screen_enabled` to `false` in `config.local.yaml`, or give her a separate `hermes.vision_model`.
 
 She was developed with Claude Haiku 5.5. By default she uses Hermes's own model; to give her a different one than
-your other Hermes chats, use **Settings → System → AI model** (provider, models, API key and a **Test** button;
+your other Hermes chats, use **Settings → System → AI model** (searchable provider and model lists taken from
+Hermes: providers you signed in to come first, camera models are limited to ones that read images; thinking effort,
+API key and a **Test** button;
 the key goes to Hermes's `~/.hermes/.env` and is never shown again), or set it in `config.local.yaml`:
 
 ```yaml

@@ -81,6 +81,18 @@ document.addEventListener("DOMContentLoaded", () => {
             case "update": renderUpdate(data); break;
             case "voice_preview": document.getElementById("voice-pick-state").textContent = ""; break;
             case "voices": voiceData = data; document.getElementById("voice-pick-state").textContent = ""; drawVoices(); break;
+            case "providers":
+                fillList("brain-providers", data.providers.map(p => [p.id, `${p.label}${p.signed_in ? " · signed in to Hermes" : ""}`]));
+                break;
+            case "models": {
+                if (data.provider !== document.getElementById("brain-provider").value.trim()) break;
+                fillList("brain-models", data.models.map(m => [m.id, m.name]));
+                fillList("brain-vision-models", data.models.filter(m => m.vision !== false).map(m => [m.id, m.name]));
+                document.getElementById("brain-models-note").textContent = data.models.length
+                    ? `${data.models.length} models known for ${data.provider}; you can also type any model id.`
+                    : `No model list for ${data.provider}; type the model id.`;
+                break;
+            }
             case "brain_test":
                 document.getElementById("test-brain").disabled = false;
                 document.getElementById("brain-state").textContent = data.ok ? `Working: answered in ${data.seconds} s.` : `Not working: ${data.error}`;
@@ -544,14 +556,24 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("voice-terms-text").textContent = voiceData.terms;
     }
 
-    const BRAIN_KEYS = ["provider", "text_model", "vision_model", "background_model"];
+    const BRAIN_KEYS = ["provider", "text_model", "vision_model", "background_model", "reasoning_effort"];
+    let providersAsked = false, modelsFor = null;
+    function askModels(provider) {
+        if (provider && provider !== modelsFor && sendControl({type: "list_models", provider})) modelsFor = provider;
+    }
+    function fillList(id, items) {
+        document.getElementById(id).replaceChildren(...items.map(([value, label]) => new Option(label, value)));
+    }
     function renderBrain(brain) {
         if (!brain) return;
         for (const key of BRAIN_KEYS) {
             const input = document.getElementById(`brain-${key}`);
             if (document.activeElement !== input) input.value = brain[key] || "";
         }
-        document.getElementById("brain-providers").replaceChildren(...brain.providers.map(p => new Option(p)));
+        const effort = document.getElementById("brain-reasoning_effort");
+        if (effort.options.length === 1) brain.efforts.forEach(e => effort.add(new Option(e[0].toUpperCase() + e.slice(1), e)));
+        effort.value = brain.reasoning_effort || "";
+        askModels(brain.provider);
         document.getElementById("brain-key").hidden = !brain.key_name;
         document.getElementById("brain-key-label").textContent = `API key (${brain.key_name})`;
         document.getElementById("brain-key-state").textContent = brain.key_saved
@@ -730,6 +752,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (heardVoice && sendControl({type: "set_voice", style: heardVoice.id})) {
             pendingVoice = heardVoice.id; document.getElementById("voice-pick-state").textContent = "Switching her voice…";
         }
+    });
+    document.getElementById("brain-provider").addEventListener("change", e => askModels(e.target.value.trim()));
+    document.getElementById("brain-provider").addEventListener("focus", () => {
+        if (!providersAsked && sendControl({type: "list_providers"})) providersAsked = true;  // Runs `hermes auth list` once.
     });
     document.getElementById("save-brain").addEventListener("click", () => {
         const values = Object.fromEntries(BRAIN_KEYS.map(k => [k, document.getElementById(`brain-${k}`).value]));

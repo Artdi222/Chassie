@@ -100,11 +100,13 @@
     <p id="usage-state" class="control-help" role="status"></p>
     <h3>AI model</h3>
     <p class="control-help">Leave a field empty to use Hermes's default. Changes apply to her next reply.</p>
-    <label for="brain-provider">Provider</label><input id="brain-provider" class="field" placeholder="Hermes&#39;s default" autocomplete="off" spellcheck="false" list="brain-providers">
-    <label for="brain-text_model">Chat model</label><input id="brain-text_model" class="field" placeholder="Hermes&#39;s default" autocomplete="off" spellcheck="false">
-    <label for="brain-vision_model">Camera &amp; screen model (must read images)</label><input id="brain-vision_model" class="field" placeholder="Hermes&#39;s default" autocomplete="off" spellcheck="false">
-    <label for="brain-background_model">Background model (diary, tidying memory)</label><input id="brain-background_model" class="field" placeholder="Hermes&#39;s default" autocomplete="off" spellcheck="false">
-    <datalist id="brain-providers"></datalist>
+    <label for="brain-provider">Provider</label><input id="brain-provider" class="field" placeholder="Hermes&#39;s default · type to search" autocomplete="off" spellcheck="false" list="brain-providers">
+    <label for="brain-text_model">Chat model</label><input id="brain-text_model" class="field" placeholder="Hermes&#39;s default · type to search" autocomplete="off" spellcheck="false" list="brain-models">
+    <label for="brain-vision_model">Camera &amp; screen model (must read images)</label><input id="brain-vision_model" class="field" placeholder="Hermes&#39;s default · type to search" autocomplete="off" spellcheck="false" list="brain-vision-models">
+    <label for="brain-background_model">Background model (diary, tidying memory)</label><input id="brain-background_model" class="field" placeholder="Hermes&#39;s default · type to search" autocomplete="off" spellcheck="false" list="brain-models">
+    <label for="brain-reasoning_effort">Thinking effort</label><select id="brain-reasoning_effort"><option value="">Hermes's default</option></select>
+    <p id="brain-models-note" class="control-help" role="status"></p>
+    <datalist id="brain-providers"></datalist><datalist id="brain-models"></datalist><datalist id="brain-vision-models"></datalist>
     <div class="control-row"><button id="save-brain" class="action-btn secondary-btn">Save model</button><button id="test-brain" class="action-btn secondary-btn">Test</button></div>
     <p id="brain-state" class="control-help" role="status"></p>
     <div id="brain-key" hidden><label for="brain-key-input" id="brain-key-label">API key</label><input id="brain-key-input" class="field" type="password" autocomplete="off" spellcheck="false">

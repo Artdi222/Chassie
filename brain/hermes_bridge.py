@@ -107,7 +107,7 @@ class HermesBridge:
         # slack; using that same 30s as the read deadline races the heartbeat.
         self._stream_read_timeout=cfg.get('stream_read_timeout',75)
         self._model=cfg['model']
-        self.set_models(**{key:cfg.get(key) for key in ('provider','text_model','vision_model','background_model')})
+        self.set_models(**{key:cfg.get(key) for key in ('provider','text_model','vision_model','background_model','reasoning_effort')})
         self._personal_memory_session_key=cfg.get('personal_memory_session_key')
         self._personal_memory_profile_id=cfg.get('personal_memory_profile_id')
         self._reasoning_effort=cfg.get('reasoning_effort')
@@ -136,9 +136,10 @@ class HermesBridge:
         headers={'Authorization':f'Bearer {self._api_key}'} if self._api_key else {}
         self._session=aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout),headers=headers)
 
-    def set_models(self,provider=None,text_model=None,vision_model=None,background_model=None):
+    def set_models(self,provider=None,text_model=None,vision_model=None,background_model=None,reasoning_effort=None):
         """None means Hermes's own default; used from the next request on."""
         self._provider=provider
+        self._reasoning_effort=reasoning_effort
         self._text_model=text_model or self._model
         self._vision_model=vision_model or self._model
         # Diary, memory consolidation and her day: a cheaper model is enough; null = text_model.

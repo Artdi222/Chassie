@@ -1,7 +1,6 @@
 """UI control commands and the settings snapshot broadcast to every client."""
 from __future__ import annotations
 import asyncio
-import os
 from dataclasses import asdict
 import json
 import logging
@@ -14,17 +13,16 @@ from memory.store import bounded_text
 from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
 from brain.config import ROOT, save_local
-from brain import updates
+from brain import updates, hermes_catalog
 from speech import voices
 from avatar.appearance import PROMPT as APPEARANCE_PROMPT, fingerprint
 
 logger=logging.getLogger('orchestrator')
 
 
-BRAIN_KEYS=('provider','text_model','vision_model','background_model')
-# Key variable Hermes reads for each provider (hermes_cli.providers, checked 2026-11-27). Others: set up in Hermes.
-PROVIDER_KEYS={'anthropic':'ANTHROPIC_API_KEY','openrouter':'OPENROUTER_API_KEY','deepseek':'DEEPSEEK_API_KEY',
-               'gemini':'GOOGLE_API_KEY','xai':'XAI_API_KEY','groq':'GROQ_API_KEY','mistral':'MISTRAL_API_KEY'}
+MODEL_KEYS=('text_model','vision_model','background_model')
+BRAIN_KEYS=('provider',*MODEL_KEYS,'reasoning_effort')
+EFFORTS=('none','minimal','low','medium','high','xhigh','max')  # Same values HermesBridge accepts.
 
 
 def env_names(path):
@@ -128,12 +126,24 @@ class ControlsMixin:
 
     def _brain(self):
         hermes=self._config.get('hermes',{})
-        key=PROVIDER_KEYS.get(hermes.get('provider'))
-        return {**{k:hermes.get(k) for k in BRAIN_KEYS},'providers':list(PROVIDER_KEYS),'key_name':key,
+        key=hermes_catalog.key_name(self._hermes_home(),hermes.get('provider')) if hermes.get('provider') else None
+        return {**{k:hermes.get(k) for k in BRAIN_KEYS},'efforts':list(EFFORTS),'key_name':key,
                 'key_saved':bool(key) and key in env_names(self._env_path())}  # Never the key itself.
 
+    async def _brain_lists(self,kind,data):
+        if kind=='list_providers':
+            if getattr(self,'_providers_cache',None) is None:
+                self._providers_cache=await asyncio.to_thread(hermes_catalog.providers,self._hermes_home())
+            return {'type':'providers','providers':self._providers_cache}
+        provider=data.get('provider')
+        if not isinstance(provider,str) or not re.fullmatch(r'[\w.:/@+-]{1,120}',provider): raise ValueError('Unknown provider')
+        return {'type':'models','provider':provider,'models':await asyncio.to_thread(hermes_catalog.models,self._hermes_home(),provider)}
+
+    def _hermes_home(self):
+        return Path(getattr(self,'_hermes_home_path',None) or hermes_catalog.hermes_home())
+
     def _env_path(self):
-        return getattr(self,'_hermes_env_path',None) or Path(os.environ.get('HERMES_HOME','~/.hermes')).expanduser()/'.env'
+        return getattr(self,'_hermes_env_path',None) or self._hermes_home()/'.env'
 
     def _usage(self):
         usage=getattr(self._hermes,'usage',None)
@@ -167,6 +177,7 @@ class ControlsMixin:
     async def handle_control(self,data):
         if not isinstance(data,dict): raise ValueError('Expected an object')
         kind=data.get('type')
+        if kind in ('list_providers','list_models'): return await self._brain_lists(kind,data)  # Read-only: no lock.
         async with self._control_lock:
             if kind in ('select_model','set_model_options'):
                 model_id=data.get('model_id')
@@ -215,14 +226,16 @@ class ControlsMixin:
                 values={k:(data[k].strip() or None) if isinstance(data.get(k),str) else data.get(k) for k in BRAIN_KEYS}  # '' = Hermes default.
                 if any(v is not None and not (isinstance(v,str) and re.fullmatch(r'[\w.:/@+-]{1,120}',v)) for v in values.values()):
                     raise ValueError('Provider and model names use only letters, numbers and . : / @ + - _')
-                if not values['provider'] and any(values[k] for k in BRAIN_KEYS[1:]):
+                if values['reasoning_effort'] not in (None,*EFFORTS): raise ValueError('Unknown reasoning effort')
+                if not values['provider'] and any(values[k] for k in MODEL_KEYS):
                     raise ValueError("Choose a provider for these models, or leave every model on Hermes's default")
                 save_local('hermes',values,getattr(self,'_local_config_root',ROOT))
                 self._config.setdefault('hermes',{}).update(values)
                 self._hermes.set_models(**values)
             elif kind=='set_api_key':
-                name=PROVIDER_KEYS.get(self._config.get('hermes',{}).get('provider'))
-                if not name: raise ValueError('Choose a listed provider first; other providers are set up in Hermes')
+                provider=self._config.get('hermes',{}).get('provider')
+                name=hermes_catalog.key_name(self._hermes_home(),provider) if provider else None
+                if not name: raise ValueError('This provider signs in through Hermes itself (hermes auth add), not with a key here')
                 key=data.get('key')
                 if not isinstance(key,str) or not re.fullmatch(r'[\x21-\x7e]{8,500}',key.strip()): raise ValueError('That does not look like an API key')
                 await asyncio.to_thread(write_env,self._env_path(),name,key.strip())

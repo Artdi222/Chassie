@@ -20,19 +20,23 @@ async def test_set_brain_saves_and_applies(app, tmp_path):
     app._local_config_root = tmp_path
     app._hermes.set_models = lambda **kw: setattr(app, 'applied', kw)
     await app.handle_control({'type': 'set_brain', 'provider': 'anthropic', 'text_model': ' claude-haiku-5-5 ', 'vision_model': '', 'background_model': None})
-    expected = {'provider': 'anthropic', 'text_model': 'claude-haiku-5-5', 'vision_model': None, 'background_model': None}
+    expected = {'provider': 'anthropic', 'text_model': 'claude-haiku-5-5', 'vision_model': None, 'background_model': None, 'reasoning_effort': None}
     assert app.applied == expected and app._settings()['brain']['text_model'] == 'claude-haiku-5-5'
     assert yaml.safe_load((tmp_path / 'config.local.yaml').read_text())['hermes'] == expected
     with pytest.raises(ValueError): await app.handle_control({'type': 'set_brain', 'text_model': 'bad model; rm'})
     with pytest.raises(ValueError, match='provider'): await app.handle_control({'type': 'set_brain', 'text_model': 'x'})
+    with pytest.raises(ValueError, match='effort'): await app.handle_control({'type': 'set_brain', 'reasoning_effort': 'turbo'})
+    await app.handle_control({'type': 'set_brain', 'provider': 'anthropic', 'reasoning_effort': 'low'})
+    assert app.applied['reasoning_effort'] == 'low' and app._settings()['brain']['efforts'][0] == 'none'
 
 
 @pytest.mark.asyncio
 async def test_api_key_written_private_and_never_shown(app, tmp_path):
     env = tmp_path / '.env'; env.write_text('OTHER=1\nDEEPSEEK_API_KEY=old\n')
-    app._hermes_env_path, app._local_config_root = env, tmp_path
+    app._hermes_env_path, app._local_config_root, app._hermes_home_path = env, tmp_path, tmp_path
+    (tmp_path / 'models_dev_cache.json').write_text('{"deepseek": {"name": "DeepSeek", "env": ["DEEPSEEK_API_KEY"], "models": {}}}')
     app._hermes.set_models = lambda **kw: None
-    with pytest.raises(ValueError, match='provider'): await app.handle_control({'type': 'set_api_key', 'key': 'sk-secret-123456'})
+    with pytest.raises(ValueError, match='Hermes'): await app.handle_control({'type': 'set_api_key', 'key': 'sk-secret-123456'})
     await app.handle_control({'type': 'set_brain', 'provider': 'deepseek'})
     assert app._settings()['brain']['key_saved'] is True
     await app.handle_control({'type': 'set_api_key', 'key': 'sk-secret-123456'})
@@ -51,3 +55,52 @@ async def test_brain_test_reports_time_or_error(app):
     app._hermes.complete_once = AsyncMock(side_effect=RuntimeError('Hermes returned HTTP 401: invalid x-api-key'))
     result = await app.handle_control({'type': 'test_brain'})
     assert result == {'type': 'brain_test', 'ok': False, 'error': 'Hermes returned HTTP 401: invalid x-api-key'}
+
+
+@pytest.mark.asyncio
+async def test_provider_and_model_lists_come_from_hermes(app, tmp_path):
+    from unittest.mock import patch
+    (tmp_path / 'models_dev_cache.json').write_text('{"anthropic": {"name": "Anthropic", "env": ["ANTHROPIC_API_KEY"], "models": '
+                                                     '{"claude-haiku-5-5": {"name": "Claude Haiku 5.5", "modalities": {"input": ["text", "image"]}}}}}')
+    app._hermes_home_path = tmp_path
+    with patch('brain.hermes_catalog.signed_in', return_value=['anthropic']):
+        result = await app.handle_control({'type': 'list_providers'})
+    assert result['providers'][0] == {'id': 'anthropic', 'label': 'Anthropic', 'signed_in': True, 'key_name': 'ANTHROPIC_API_KEY'}
+    result = await app.handle_control({'type': 'list_models', 'provider': 'anthropic'})
+    assert result == {'type': 'models', 'provider': 'anthropic', 'models': [{'id': 'claude-haiku-5-5', 'name': 'Claude Haiku 5.5', 'vision': True, 'reasoning': False}]}
+
+
+@pytest.mark.asyncio
+async def test_model_picker_lists_hermes_providers_and_models(app, tmp_path):
+    from unittest.mock import patch
+    from aiohttp import web
+    from playwright.async_api import async_playwright
+    (tmp_path / 'models_dev_cache.json').write_text('{"anthropic": {"name": "Anthropic", "env": ["ANTHROPIC_API_KEY"], "models": {'
+        '"claude-haiku-5-5": {"name": "Claude Haiku 5.5", "modalities": {"input": ["text", "image"]}},'
+        '"text-only": {"name": "Text Only", "modalities": {"input": ["text"]}}}}}')
+    app._hermes_home_path, app._local_config_root = tmp_path, tmp_path
+    app._hermes.set_models = lambda **kw: None
+    app._config['hermes'] = {'provider': 'anthropic'}
+    runner = web.AppRunner(app._web_app); await runner.setup(); site = web.TCPSite(runner, '127.0.0.1', 0); await site.start()
+    url = f'http://127.0.0.1:{site._server.sockets[0].getsockname()[1]}'
+    try:
+        with patch('brain.hermes_catalog.signed_in', return_value=['anthropic']):
+            async with async_playwright() as pw:
+                browser = await pw.chromium.launch(args=['--no-sandbox'])
+                page = await browser.new_page(); errors = []
+                page.on('pageerror', lambda e: errors.append(str(e)))
+                await page.goto(url + '/?panel=settings')
+                await page.get_by_role('tab', name='System').click()
+                await page.locator('#brain-provider').focus()
+                await page.wait_for_function("document.querySelectorAll('#brain-providers option').length===1")
+                assert await page.locator('#brain-providers option').first.text_content() == 'Anthropic · signed in to Hermes'
+                await page.wait_for_function("document.querySelectorAll('#brain-models option').length===2")
+                assert await page.locator('#brain-vision-models option').count() == 1  # Only models that read images.
+                await page.select_option('#brain-reasoning_effort', 'medium')
+                await page.locator('#save-brain').click()
+                await page.wait_for_function("document.getElementById('brain-models-note').textContent.includes('2 models')")
+                await page.wait_for_timeout(300)
+                assert app._config['hermes']['reasoning_effort'] == 'medium' and not errors
+                await browser.close()
+    finally:
+        await runner.cleanup()
