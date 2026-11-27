@@ -396,3 +396,4 @@ html.embedded-chat,body.embedded{background:transparent}
 .health-item.ok::before{background:var(--good)}
 .health-item.bad{color:var(--danger)}
 .health-item.bad::before{background:var(--danger)}
+.update-notes{white-space:pre-line}

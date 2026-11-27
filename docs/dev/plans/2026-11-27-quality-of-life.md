@@ -91,7 +91,9 @@ inside Chassie, without a terminal or editing files.
 
 1. ~~Q2 light: Chassie's own persona only (skip the SOUL.md editor for now).~~ Done 2026-11-27:
    Settings → Voice & chat textarea, `set_persona` control, `brain.config.save_local_persona`.
-2. Q5 for git installs (check and update from GitHub releases).
+2. ~~Q5 for git installs (check and update from GitHub releases).~~ Done 2026-11-27: `brain/updates.py`
+   uses `git fetch` and tags (works for the private repo with no API token); release notes are the tag
+   message; restart through exit code 75 → `launch.py` execs itself. Tray entry skipped (Settings only).
 3. Q1, then Q3, then Q4.
 4. Windows port (`2026-11-26-windows-port.md`) and Q6 AppImage later: they cost the most tokens (no local
    Windows testing; CI build loops). Build the AppImage on GitHub Actions, not locally (no large upload).

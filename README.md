@@ -379,6 +379,10 @@ companion:
 Her memories are in your memory folder (STEP 4), and her chats, reminders, recognised faces and downloaded models
 are in `.chassie/`. Updating touches neither.
 
+Easiest: **Settings → System → Check for updates**, then **Update and restart**. It refuses when files in the
+Chassie folder were changed by hand (it lists them), and re-runs the setup when the update needs new packages.
+By hand:
+
 ```bash
 cd Chassie
 git pull

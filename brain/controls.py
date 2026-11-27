@@ -9,6 +9,7 @@ from memory.store import bounded_text
 from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
 from brain.config import ROOT, save_local_persona
+from brain import updates
 
 logger=logging.getLogger('orchestrator')
 
@@ -120,6 +121,10 @@ class ControlsMixin:
                 save_local_persona(persona,getattr(self,'_local_config_root',ROOT))
                 self._config.setdefault('companion',{})['persona']=persona
                 self._hermes._persona=' '.join(persona.split())  # Applied from the next reply on.
+            elif kind in ('check_update','apply_update'):
+                result=await asyncio.to_thread(updates.check if kind=='check_update' else updates.apply,getattr(self,'_update_root',ROOT))
+                await self._broadcast_to_ui({'type':'update',**result})
+                if result.get('updated'): await self._broadcast_to_ui({'type':'restart'})  # The desktop app quits; launch.py starts it again.
             elif kind=='set_initiative_mode':
                 await self._set_initiative_mode(data.get('mode'))
                 self._save_speech_settings()

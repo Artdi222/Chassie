@@ -9,6 +9,7 @@ import time
 from urllib.error import URLError
 from urllib.request import urlopen
 from desktop.activation import activation_path, request_activation
+from brain.updates import RESTART_CODE
 
 ROOT = Path(__file__).resolve().parent
 
@@ -68,6 +69,7 @@ def main():
             if not (onboarding(port) or {}).get('has_model'):
                 raise RuntimeError('Chassie still has no Live2D model. Open Chassie again to add one.')
         code=subprocess.call([sys.executable,'-m','desktop','--endpoint',f'ws://127.0.0.1:{port}/ws'],cwd=ROOT,env=env,stdout=log,stderr=log)
+        if code==RESTART_CODE:return code  # Updated from Settings: start again after cleanup below.
         if code>0:raise RuntimeError("Chassie's avatar could not start or stopped unexpectedly. See .chassie/launcher.log.")
         return code
     except Exception as exc:
@@ -85,4 +87,7 @@ def main():
         log.close();lock.close()
 
 
-if __name__=='__main__':raise SystemExit(main())
+if __name__=='__main__':
+    code=main()
+    if code==RESTART_CODE:os.execv(sys.executable,[sys.executable,str(ROOT/'launch.py')])
+    raise SystemExit(code)

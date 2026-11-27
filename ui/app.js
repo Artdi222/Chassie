@@ -78,8 +78,10 @@ document.addEventListener("DOMContentLoaded", () => {
             case "vision_status":
                 renderVision(data);
                 break;
+            case "update": renderUpdate(data); break;
             case "notice":
                 document.getElementById("control-notice").textContent = data.text;
+                document.getElementById("check-update").disabled = document.getElementById("apply-update").disabled = false;
                 if (data.scope === "chat") appendSystemAlert(data.text,data.retry_text);
                 // A failed control never sends settings back: unlock the mic switch at its real state.
                 if (settings && micToggle.disabled) { micToggle.disabled = false; micToggle.checked = settings.mic_enabled; }
@@ -474,6 +476,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function renderUpdate(data) {
+        const state = document.getElementById("update-state"), notes = document.getElementById("update-notes");
+        document.getElementById("check-update").disabled = document.getElementById("apply-update").disabled = false;
+        document.getElementById("apply-update").hidden = !data.available || data.local_changes.length > 0;
+        notes.hidden = !data.available || !data.notes;
+        notes.textContent = data.latest ? `${data.latest}: ${data.notes}` : "";
+        state.textContent = data.updated ? "Updated. Chassie is restarting…"
+            : data.local_changes.length ? `Files changed on this computer block updating: ${data.local_changes.join(", ")}`
+            : data.available ? `${data.behind} new change${data.behind === 1 ? "" : "s"} available (you have ${data.current}).`
+            : `Chassie is up to date (${data.current}).`;
+    }
+
     function renderSettings() {
         setControlsConnected(true);
         renderVision(settings.vision);
@@ -600,6 +614,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("companion-mode").addEventListener("change",e=>sendControl({type:"set_mode",mode:e.target.value}));
     document.getElementById("translation-language").addEventListener("change",e=>sendControl({type:"set_translation_language",language:e.target.value}));
     document.getElementById("initiative-mode").addEventListener("change",e=>sendControl({type:"set_initiative_mode",mode:e.target.value}));
+    for (const [id, type, text] of [["check-update", "check_update", "Checking…"], ["apply-update", "apply_update", "Updating; this can take a few minutes…"]])
+        document.getElementById(id).addEventListener("click", () => {
+            if (!sendControl({type})) return;
+            document.getElementById("check-update").disabled = document.getElementById("apply-update").disabled = true;
+            document.getElementById("update-state").textContent = text;
+        });
     document.getElementById("save-persona").addEventListener("click",()=>sendControl({type:"set_persona",persona:document.getElementById("persona").value}));
     document.getElementById("stop-btn").addEventListener("click",()=>sendControl({type:"stop"}));
     document.getElementById("resume-btn").addEventListener("click",()=>sendControl({type:"resume_topic"}));

@@ -335,6 +335,9 @@ class StudioControls(QObject):
                     self.window.framing=Framing.from_settings(saved) if saved else Framing.for_model(data['model_id'])
                 self.window.select_entry(self.catalog.get(data['model_id']),data,self.cache_dir)
                 self.announce_renderer()
+            elif data.get('type')=='restart':
+                from brain.updates import RESTART_CODE
+                QApplication.instance().exit(RESTART_CODE)  # Updated: launch.py starts the new version.
             elif data.get('type')=='avatar_window':
                 {'smaller':lambda:self.resize_window(1/1.15),'larger':lambda:self.resize_window(1.15),
                  'zoom_out':lambda:self.adjust_frame(zoom=-.15),'zoom_in':lambda:self.adjust_frame(zoom=.15),
