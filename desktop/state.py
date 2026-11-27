@@ -158,3 +158,9 @@ def left_arc(avatar: Rect, screen: Rect, diameter: int = 44) -> list[Rect]:
     dx = max(screen.x + 8 - left, min(0, screen.x + screen.width - 8 - right))
     dy = max(screen.y + 8 - top, min(0, screen.y + screen.height - 8 - bottom))
     return [Rect(r.x + dx, r.y + dy, diameter, diameter) for r in rects]
+
+
+def subtitle_linger(chars: int, shown_for: float) -> float:
+    """Seconds a finished sentence stays readable: about 1 s plus 60 ms a character, counted from when it
+    appeared; at least 1.5 s after her voice stops and never more than 8 s in all."""
+    return max(1.5, min(8.0, 1.0 + 0.06 * chars) - shown_for)

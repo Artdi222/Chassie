@@ -11,7 +11,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QToolButton, QAbstractButton, QSystemTrayIcon, QMenu)
 
-from desktop.state import Rect, bottom_right, fit_to_screens, Framing, left_arc, scaled_window
+from desktop.state import Rect, bottom_right, fit_to_screens, Framing, left_arc, scaled_window, subtitle_linger
 
 ICON_PATHS = {
     'chat':'<path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/><path d="M7 10h8m-8 4h5"/>',
@@ -171,6 +171,9 @@ class StudioControls(QObject):
         self.status=QLabel('')
         from desktop.bubble import SpeechBubble
         self.subtitle=SpeechBubble(window)
+        self.subtitle_shown=(0.0,0)  # (time shown, characters) of the sentence in the bubble.
+        self.subtitle_hide=QTimer(self);self.subtitle_hide.setSingleShot(True)
+        self.subtitle_hide.timeout.connect(lambda:self.subtitle.setVisible(False))
         self.tray=QSystemTrayIcon(QIcon(str(Path(__file__).resolve().parents[1]/'ui/public/chassie-icon.png')),self);self.tray.setToolTip('Chassie')
         menu=QMenu();self.tray_menu=menu
         for title,callback in [('Show controls',self.toggle),('Conversation',lambda:self.action('chat')),('Customize',lambda:self.action('models')),('Settings',lambda:self.action('settings')),('Add a model…',lambda:self.action('models')),('Open web studio',self.open_web),('Show / hide model',lambda:window.setVisible(not window.isVisible())),('Click through avatar',self.click_through),('Stop reply',lambda:self.send({'type':'stop'})),('Quit Chassie',QApplication.instance().quit)]:
@@ -349,8 +352,16 @@ class StudioControls(QObject):
                  'frame_up':lambda:self.adjust_frame(vertical=.15),'frame_down':lambda:self.adjust_frame(vertical=-.15),
                  'reset':self.reset_frame,'click_through':self.click_through}.get(data.get('action'),lambda:None)()
             elif data.get('type')=='subtitle' and data.get('generation',-1)>=self.native_subtitle_generation:
-                self.native_subtitle_generation=data['generation'];self.subtitle.setText(data.get('text',''))
-                self.subtitle.setVisible(bool(data.get('text')));self.place_subtitle()
+                text,cancelled=data.get('text',''),data['generation']>self.native_subtitle_generation
+                self.native_subtitle_generation=data['generation']
+                if text:
+                    self.subtitle_hide.stop();self.subtitle_shown=(time.monotonic(),len(text))
+                    self.subtitle.setText(text);self.subtitle.setVisible(True);self.place_subtitle()
+                elif cancelled:  # Stop or interruption: gone at once.
+                    self.subtitle_hide.stop();self.subtitle.setVisible(False)
+                elif self.subtitle.isVisible() and not self.subtitle_hide.isActive():  # Sentence spoken: leave time to read it.
+                    shown,chars=self.subtitle_shown
+                    self.subtitle_hide.start(int(1000*subtitle_linger(chars,time.monotonic()-shown)))
         except (ValueError,KeyError,TypeError,OSError) as exc:
             self.status.setText(str(exc))
 

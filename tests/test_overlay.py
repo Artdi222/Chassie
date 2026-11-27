@@ -91,3 +91,10 @@ def test_avatar_window_scales_about_its_corner_up_to_the_screen():
     tiny=scaled_window(start,.01,screen)
     assert (tiny.width,tiny.height)>=(200,260)
     assert Framing(5.9,-1).adjust(zoom=1).zoom==6.0
+
+
+def test_subtitle_stays_long_enough_to_read():
+    from desktop.state import subtitle_linger
+    assert subtitle_linger(4, 0.3) == 1.5  # "Hai!": still a moment after her voice stops.
+    assert subtitle_linger(80, 2.0) == pytest.approx(3.8)  # A long line: reading time counted from when it appeared.
+    assert subtitle_linger(400, 0.0) == 8.0 and subtitle_linger(80, 9.0) == 1.5
