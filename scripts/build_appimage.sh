@@ -22,6 +22,14 @@ grep -vE '^(onnxruntime-gpu|nvidia-)' requirements.txt > "$WORK/requirements.txt
 echo "voicevox_core @ $VOICEVOX_WHEEL" >> "$WORK/requirements.txt"
 "$PY" -m pip install --no-cache-dir --no-warn-script-location -r "$WORK/requirements.txt" -r requirements-overlay.txt
 
+echo "== PortAudio, ALSA only (no JACK dependency), for desktops without it"
+curl -fsSL https://github.com/PortAudio/portaudio/archive/refs/tags/v19.7.0.tar.gz | tar -xz -C "$WORK"
+cmake -S "$WORK/portaudio-19.7.0" -B "$WORK/portaudio" -DCMAKE_BUILD_TYPE=Release -DPA_USE_JACK=OFF \
+      -DPA_BUILD_SHARED=ON -DPA_BUILD_STATIC=OFF -DBUILD_SHARED_LIBS=ON >/dev/null
+cmake --build "$WORK/portaudio" -j"$(nproc)" >/dev/null
+mkdir -p "$APPDIR/usr/lib" && find "$WORK/portaudio" -maxdepth 1 -name 'libportaudio.so*' -exec cp -P {} "$APPDIR/usr/lib/" \;
+ls "$APPDIR"/usr/lib/libportaudio.so* >/dev/null
+
 echo "== Chassie $VERSION"
 mkdir -p "$APPDIR/opt/chassie"
 git ls-files -z -- . ':!tests' ':!docs' ':!.github' ':!packaging' | tar --null -T - -cf - | tar -xf - -C "$APPDIR/opt/chassie"

@@ -6,5 +6,7 @@ export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
 [ -f "$HERE/opt/_internal/certs.pem" ] && export SSL_CERT_FILE="${SSL_CERT_FILE:-$HERE/opt/_internal/certs.pem}"
 # Chromium's sandbox needs a setuid helper or user namespaces an AppImage may not get; the panels only show local pages.
 export QTWEBENGINE_DISABLE_SANDBOX=1
+# Its own PortAudio (ALSA only), used when the desktop has none (start.py).
+export CHASSIE_PORTAUDIO="$(ls "$HERE"/usr/lib/libportaudio.so* 2>/dev/null | head -n 1)"
 mkdir -p "$CHASSIE_DATA"
 exec "$HERE/opt/python3.12/bin/python3.12" "$HERE/opt/chassie/launch.py" "$@"

@@ -43,7 +43,7 @@ class VoicevoxTTS:
     def check_installation(self):
         paths = ('dict/open_jtalk_dic_utf_8-1.11/sys.dic', 'onnxruntime/lib/libvoicevox_onnxruntime.so.1.17.3')
         if importlib.util.find_spec('voicevox_core') is None or any(not (self.root / p).is_file() for p in paths):
-            raise RuntimeError('VOICEVOX is not installed. Install it in Settings → Voice & chat (or run scripts/install_voicevox.py).')
+            raise RuntimeError('VOICEVOX is not installed. Install it in Settings → Voice & chat.')
         if not (voice(self.root, self.style) or {}).get('installed'):
             raise RuntimeError(f'VOICEVOX voice style {self.style} is not installed. Choose one in Settings → Voice & chat.')
 

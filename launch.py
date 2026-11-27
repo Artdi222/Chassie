@@ -32,6 +32,13 @@ def onboarding(port):
         return None
 
 
+def last_error(log_path):
+    """The backend's last [ERROR] line, so the dialog says what went wrong instead of only where the log is."""
+    try: lines=log_path.read_text(errors='replace').splitlines()[-200:]
+    except OSError: return ''
+    return next((l.split('[ERROR]',1)[1].strip() for l in reversed(lines) if '[ERROR]' in l),'')
+
+
 def main():
     from brain.config import load_config
     config = load_config(ROOT)
@@ -56,10 +63,10 @@ def main():
             backend=subprocess.Popen([sys.executable,str(ROOT/'start.py'),'--text'],cwd=ROOT,stdout=log,stderr=log)
             deadline=time.monotonic()+20
             while time.monotonic()<deadline:
-                if backend.poll() is not None:raise RuntimeError('Chassie backend stopped. See .chassie/launcher.log.')
+                if backend.poll() is not None:raise RuntimeError(last_error(data_dir/'launcher.log') or 'Chassie could not start.')
                 if (status(port) or {}).get('protocol')==2:break
                 time.sleep(.2)
-            else:raise RuntimeError('Chassie backend did not start within 20 seconds. See .chassie/launcher.log.')
+            else:raise RuntimeError('Chassie did not start within 20 seconds.')
         env=os.environ.copy()
         if sys.platform.startswith('linux'):env['QT_QPA_PLATFORM']='xcb'
         setup=onboarding(port) or {}
@@ -73,14 +80,20 @@ def main():
                 raise RuntimeError('Chassie still has no Live2D model. Open Chassie again to add one.')
         code=subprocess.call([sys.executable,'-m','desktop','--endpoint',f'ws://127.0.0.1:{port}/ws'],cwd=ROOT,env=env,stdout=log,stderr=log)
         if code==RESTART_CODE:return code  # Updated from Settings: start again after cleanup below.
-        if code>0:raise RuntimeError("Chassie's avatar could not start or stopped unexpectedly. See .chassie/launcher.log.")
+        if code>0:raise RuntimeError("Chassie's avatar could not start or stopped unexpectedly.")
         return code
     except Exception as exc:
         print(str(exc),file=log)
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
         from PySide6.QtWidgets import QApplication,QMessageBox
         os.environ.setdefault('QT_QPA_PLATFORM','xcb')
         app=QApplication.instance() or QApplication(['Chassie'])
-        QMessageBox.critical(None,'Unable to open Chassie',str(exc))
+        box=QMessageBox(QMessageBox.Icon.Critical,'Unable to open Chassie',str(exc),QMessageBox.StandardButton.Close)
+        box.setInformativeText(f'Details are in {DATA/".chassie/launcher.log"}.')
+        logs=box.addButton('Open log folder',QMessageBox.ButtonRole.ActionRole)
+        box.exec()
+        if box.clickedButton() is logs:QDesktopServices.openUrl(QUrl.fromLocalFile(str(DATA/'.chassie')))
         return 1
     finally:
         if backend and backend.poll() is None:

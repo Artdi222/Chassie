@@ -16,6 +16,11 @@ os.environ["GLOG_logtostderr"] = "0"
 os.environ["GLOG_stderrthreshold"] = "3"
 os.environ["GLOG_v"] = "0"
 
+if os.environ.get("CHASSIE_PORTAUDIO"):  # AppImage: the desktop's PortAudio first, else its own (ALSA only).
+    import ctypes.util
+    _find_library = ctypes.util.find_library
+    ctypes.util.find_library = lambda name: _find_library(name) or (os.environ["CHASSIE_PORTAUDIO"] if name == "portaudio" else None)
+
 import asyncio
 import logging
 import signal
@@ -89,6 +94,10 @@ def check_dependencies():
             __import__(module_name)
         except ImportError:
             missing.append(package_name)
+        except OSError:  # sounddevice without the PortAudio system library.
+            print("[ERROR] The sound library PortAudio is missing. Install it (Debian/Ubuntu: libportaudio2, "
+                  "Arch/Fedora: portaudio), then open Chassie again.")
+            sys.exit(1)
 
     if missing:
         print(f"[ERROR] Missing packages: {', '.join(missing)}")

@@ -40,7 +40,7 @@ class VoiceIdentity:
 
     def enroll(self,profile_id,*,consent):
         if consent is not True:raise ValueError('The speaker must agree to voice recognition')
-        if not self.ready:raise ValueError('Voice recognition is unavailable. Run scripts/install_speaker.py.')
+        if not self.ready:raise ValueError('Voice recognition is not installed yet. It downloads when Chassie starts; Settings → System → Check setup shows why it is missing.')
         with self._lock:self.pending=(profile_id,self.clock()+90);self.last=None
 
     def cancel(self):

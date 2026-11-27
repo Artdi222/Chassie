@@ -38,3 +38,11 @@ def test_first_run_keeps_the_git_install_menu_entry(tmp_path, monkeypatch):
     entry.unlink(); first_run.menu_entry()
     assert 'Exec="/x/Chassie.AppImage"' in entry.read_text() and (tmp_path / 'chassie-icon.png').is_file()
     first_run.menu_entry()  # Its own entry is refreshed (new AppImage path).
+
+
+def test_launcher_dialog_names_the_backend_error(tmp_path):
+    import launch
+    log = tmp_path / 'launcher.log'
+    log.write_text('starting\n[ERROR] The sound library PortAudio is missing. Install it.\nTraceback ...\n')
+    assert launch.last_error(log) == 'The sound library PortAudio is missing. Install it.'
+    assert launch.last_error(tmp_path / 'missing.log') == ''
