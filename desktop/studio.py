@@ -315,6 +315,13 @@ class StudioControls(QObject):
         self.connected=False;self.state.disconnected();self.subtitle.hide();self.native_subtitle_generation=-1;self.update_mic()
         if not self.retry.isActive():self.retry.start(2000)
 
+    def send_appearance(self,model_id):
+        """One picture of the avatar alone (transparent window: nothing else on screen) to describe her look."""
+        if not self.window.entry or self.window.entry.id!=model_id:return
+        from desktop.snapshot import avatar_png
+        image=avatar_png(self.window.grabFramebuffer())
+        if image:self.send({'type':'avatar_snapshot','model_id':model_id,'image':'data:image/png;base64,'+image})
+
     def send(self,data):
         if self.connected:self.socket.sendTextMessage(json.dumps(data))
 
@@ -335,6 +342,8 @@ class StudioControls(QObject):
                     self.window.framing=Framing.from_settings(saved) if saved else Framing.for_model(data['model_id'])
                 self.window.select_entry(self.catalog.get(data['model_id']),data,self.cache_dir)
                 self.announce_renderer()
+            elif data.get('type')=='appearance_needed' and self.window.entry and data.get('model_id')==self.window.entry.id:
+                QTimer.singleShot(2000,lambda model_id=data['model_id']:self.send_appearance(model_id))  # Let her settle first.
             elif data.get('type')=='restart':
                 from brain.updates import RESTART_CODE
                 QApplication.instance().exit(RESTART_CODE)  # Updated: launch.py starts the new version.

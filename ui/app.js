@@ -564,6 +564,9 @@ document.addEventListener("DOMContentLoaded", () => {
         renderVision(settings.vision);
         renderHealth(settings.health, settings.usage);
         renderBrain(settings.brain);
+        const look = settings.appearance || {};
+        document.getElementById("appearance-text").textContent = look.text
+            || (look.pending ? "Looking at this avatar…" : "She learns her look the first time the avatar opens on the desktop.");
         micToggle.checked = settings.mic_enabled;
         const voicevox = settings.speech_engine === "voicevox";
         const subtitles = settings.translation_language === "id" ? "Indonesian" : "English";
@@ -719,6 +722,9 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("check-update").disabled = document.getElementById("apply-update").disabled = true;
             document.getElementById("update-state").textContent = text;
         });
+    document.getElementById("describe-again").addEventListener("click", () => {
+        if (sendControl({type: "describe_appearance"})) document.getElementById("appearance-text").textContent = "Looking at this avatar…";
+    });
     document.getElementById("load-voices").addEventListener("click", () => sendControl({type: "list_voices"}));
     document.getElementById("use-voice").addEventListener("click", () => {
         if (heardVoice && sendControl({type: "set_voice", style: heardVoice.id})) {

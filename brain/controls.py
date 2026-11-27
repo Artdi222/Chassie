@@ -16,6 +16,7 @@ from brain.bilingual import LANGUAGES
 from brain.config import ROOT, save_local
 from brain import updates
 from speech import voices
+from avatar.appearance import PROMPT as APPEARANCE_PROMPT, fingerprint
 
 logger=logging.getLogger('orchestrator')
 
@@ -71,7 +72,32 @@ class ControlsMixin:
                 'vision':self._vision.status() if self._vision else None,
                 'face_observation':self._face_tracker.get_observation() if self._face_tracker else None,
                 'usage':self._usage(),'health':self._health(),
-                'persona':str(self._config.get('companion',{}).get('persona') or ''),'brain':self._brain(),'voice':self._voice()}
+                'persona':str(self._config.get('companion',{}).get('persona') or ''),'brain':self._brain(),'voice':self._voice(),
+                'appearance':{'text':look if isinstance(look:=getattr(self._hermes,'appearance',''),str) else '',
+                              'pending':bool(self._appearance_task and not self._appearance_task.done())}}
+
+    def _current_design(self):
+        model_id=self._model_selection.state.get('model_id')
+        entry=self._catalog.get(model_id) if model_id else None
+        return (model_id,fingerprint(entry)) if entry else (None,None)
+
+    async def _sync_appearance(self):
+        """Use the cached look of the current avatar design, or ask the overlay for one picture of it."""
+        try: model_id,design=self._current_design()
+        except (OSError,KeyError,ValueError): return
+        text=self._appearance.get(model_id,design) if model_id else None
+        self._hermes.appearance=text or ''
+        if model_id and text is None and not (self._appearance_task and not self._appearance_task.done()):
+            await self._broadcast_to_ui({'type':'appearance_needed','model_id':model_id})
+
+    async def _describe_appearance(self,model_id,design,image):
+        try:
+            text=' '.join((await self._hermes.complete_once(APPEARANCE_PROMPT,'Describe this character.',images=[image])).split())[:600]
+        except RuntimeError as exc:
+            logger.warning('Avatar appearance not described: %s',exc);return
+        self._appearance.put(model_id,design,text)
+        if self._current_design()==(model_id,design): self._hermes.appearance=text
+        await self._broadcast_settings()
 
     def _voicevox_dir(self):
         root=getattr(self,'_voicevox_root',None)
@@ -208,6 +234,19 @@ class ControlsMixin:
                 except RuntimeError as exc: result={'type':'brain_test','ok':False,'error':str(exc)[:250]}
                 await self._broadcast_settings()  # Health follows the test (a past failure is not sticky).
                 return result
+            elif kind=='avatar_snapshot':
+                model_id,design=self._current_design()
+                image=data.get('image')
+                if data.get('model_id')!=model_id or not model_id: raise ValueError('The avatar changed; a new picture will be asked for')
+                if not isinstance(image,str) or not image.startswith('data:image/png;base64,') or len(image)>3_000_000:
+                    raise ValueError('Avatar picture must be a PNG under 3 MB')
+                if not (self._appearance_task and not self._appearance_task.done()):
+                    self._appearance_task=asyncio.create_task(self._describe_appearance(model_id,design,image))
+                    self._tasks.append(self._appearance_task)
+            elif kind=='describe_appearance':
+                model_id,_=self._current_design()
+                if model_id: self._appearance.forget(model_id)
+                await self._sync_appearance()
             elif kind=='list_voices':
                 return await self._voices_payload()
             elif kind=='download_voice':

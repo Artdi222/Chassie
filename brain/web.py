@@ -98,6 +98,7 @@ class WebMixin:
                     raise ValueError('Overlay must report its loaded expression filenames')
                 # Catalog models react through generated parameters, not expression files.
                 self._overlay_sockets[ws]=frozenset()
+                await self._sync_appearance()  # Her look follows whichever avatar just loaded.
         finally:
             await self._broadcast_avatar_inventory()
 

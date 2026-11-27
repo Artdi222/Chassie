@@ -129,6 +129,7 @@ class HermesBridge:
         self._pending=None
         self.usage={'requests':0,'prompt_tokens':0,'completion_tokens':0}  # This session, for the cost tile
         self.healthy=None  # None until the first request or health check
+        self.appearance=''  # What her current avatar looks like (avatar/appearance.py).
         self.clear_history()
 
     async def connect(self):
@@ -142,6 +143,13 @@ class HermesBridge:
         self._vision_model=vision_model or self._model
         # Diary, memory consolidation and her day: a cheaper model is enough; null = text_model.
         self._background_model=background_model or self._text_model
+
+    def _system_prompt(self,mode):
+        style='Keep the reply concise and task-focused.' if mode=='focus' else 'Use a relaxed conversational tone; do not invent personal facts.'
+        persona=(' Personality: '+self._persona) if self._persona else ''
+        look=(' Your current look (your Live2D avatar on screen; this overrides any other description of your appearance): '
+              +self.appearance) if self.appearance else ''
+        return style+persona+look+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')+' '+TOOL_GUIDANCE
 
     def _request_payload(self,messages,*,stream=False,background=False):
         has_images=any(isinstance(message.get('content'),list) and any(
@@ -181,9 +189,7 @@ class HermesBridge:
         if not self._session: raise RuntimeError('Hermes not connected')
         revision=self._revision
         messages=[dict(m) for m in self._messages]
-        style='Keep the reply concise and task-focused.' if mode=='focus' else 'Use a relaxed conversational tone; do not invent personal facts.'
-        persona=(' Personality: '+self._persona) if self._persona else ''
-        messages.append({'role':'system','content':style+persona+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')+' '+TOOL_GUIDANCE})
+        messages.append({'role':'system','content':self._system_prompt(mode)})
         user={'role':'user','content':text}
         messages.append({'role':'user','content':self._turn_content(text,context)})
         try:
@@ -210,10 +216,11 @@ class HermesBridge:
         self._trim()
         return response
 
-    async def complete_once(self,system,text,*,background=True):
+    async def complete_once(self,system,text,*,background=True,images=()):
         """One-off background request: no chat history, persona, speech protocol or personal memory header."""
         if not self._session: raise RuntimeError('Hermes not connected')
-        messages=[{'role':'system','content':system},{'role':'user','content':text}]
+        content=[{'type':'text','text':text},*({'type':'image_url','image_url':{'url':url}} for url in images)] if images else text
+        messages=[{'role':'system','content':system},{'role':'user','content':content}]
         try:
             async with self._session.post(self._base_url+self._endpoint,json=self._request_payload(messages,background=background),
                                           timeout=aiohttp.ClientTimeout(total=self._stream_timeout)) as resp:
@@ -243,9 +250,7 @@ class HermesBridge:
         if not self._session: raise RuntimeError('Hermes not connected')
         revision=self._revision
         messages=[dict(m) for m in self._messages]
-        style='Keep the reply concise and task-focused.' if mode=='focus' else 'Use a relaxed conversational tone; do not invent personal facts.'
-        persona=(' Personality: '+self._persona) if self._persona else ''
-        messages.append({'role':'system','content':style+persona+(' '+bilingual_prompt(self.translation_language) if self._bilingual else ' Always answer in English.')+' '+TOOL_GUIDANCE})
+        messages.append({'role':'system','content':self._system_prompt(mode)})
         user={'role':'user','content':text}
         if images:
             parts=[{'type':'text','text':self._turn_content(text,context)}]

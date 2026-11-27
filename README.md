@@ -299,6 +299,9 @@ She is always called Chassie, but who she is, is up to you. Two places shape her
    starter in `config.yaml`: warm, curious, a little playful.
 
 2. **`~/.hermes/SOUL.md`**: Hermes's own identity file, used for everything Hermes does (also its other chats).
+   Her **look** does not come from there: the first time an avatar opens on the desktop, Chassie sends one
+   picture of it (only the avatar) to the vision model and keeps the description per avatar design; it is
+   described again when you switch to a new avatar or its files change (Customize → How she sees herself).
    Put deeper background here if you like: her story, values, how she sees herself. Keep it consistent with the
    persona.
 

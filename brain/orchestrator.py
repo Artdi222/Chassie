@@ -6,6 +6,7 @@ import asyncio
 import datetime
 import json
 import logging
+from avatar.appearance import AppearanceCache
 from pathlib import Path
 import queue
 import time
@@ -149,6 +150,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._input_mode=config.get('conversation',{}).get('input_mode','review')
         if self._input_mode not in ('review','hands_free'): raise ValueError('Invalid input mode')
         self._speech_settings_path=selection_path.with_name('speech-settings.json')
+        self._appearance=AppearanceCache(selection_path.with_name('appearance.json'))
+        self._appearance_task=None
         self._sessions=SessionStore(selection_path.with_name('sessions'))
         self._reminders=ReminderStore(selection_path.with_name('reminders.json'))
         self._agenda=AgendaStore(selection_path.with_name('agenda.json'))
