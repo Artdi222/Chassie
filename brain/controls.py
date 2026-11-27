@@ -8,6 +8,7 @@ from uuid import uuid4
 from memory.store import bounded_text
 from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
+from brain.config import ROOT, save_local_persona
 
 logger=logging.getLogger('orchestrator')
 
@@ -40,7 +41,8 @@ class ControlsMixin:
                 'automatic_barge_in':self._barge_in,'pending_topic':bool(self._pending_topic),
                 'vision':self._vision.status() if self._vision else None,
                 'face_observation':self._face_tracker.get_observation() if self._face_tracker else None,
-                'usage':self._usage(),'health':self._health()}
+                'usage':self._usage(),'health':self._health(),
+                'persona':str(self._config.get('companion',{}).get('persona') or '')}
 
     def _usage(self):
         usage=getattr(self._hermes,'usage',None)
@@ -111,6 +113,13 @@ class ControlsMixin:
                 await self._cancel_turn()
                 self._translation_language=language;self._hermes.translation_language=language
                 self._save_speech_settings()
+            elif kind=='set_persona':
+                persona=data.get('persona')
+                if not isinstance(persona,str) or not persona.strip() or len(persona)>4000: raise ValueError('Personality must contain 1–4000 characters')
+                persona=persona.strip()
+                save_local_persona(persona,getattr(self,'_local_config_root',ROOT))
+                self._config.setdefault('companion',{})['persona']=persona
+                self._hermes._persona=' '.join(persona.split())  # Applied from the next reply on.
             elif kind=='set_initiative_mode':
                 await self._set_initiative_mode(data.get('mode'))
                 self._save_speech_settings()

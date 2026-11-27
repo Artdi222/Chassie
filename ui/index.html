@@ -39,6 +39,10 @@
     <select id="translation-language" disabled><option value="en">English</option><option value="id">Bahasa Indonesia</option></select>
     <label for="initiative-mode">When you go quiet</label>
     <select id="initiative-mode" disabled><option value="normal">Chassie may start talking</option><option value="rare">Chassie rarely starts talking</option><option value="off">Only reply when I talk</option></select>
+    <label for="persona">Her personality</label>
+    <textarea id="persona" rows="5" maxlength="4000" disabled aria-describedby="persona-help"></textarea>
+    <p id="persona-help" class="control-help">Sent with every reply, starting with the next one. Saved to config.local.yaml.</p>
+    <button id="save-persona" class="action-btn secondary-btn" disabled>Save personality</button>
     <div class="info-card"><p id="speech-language">Loading voice settings…</p><p class="control-help">You can speak Indonesian or English; the language is detected automatically. <span id="echo-help">The microphone pauses while Chassie talks to avoid echo.</span></p><p id="speech-credit" class="control-help" hidden>VOICEVOX:もち子(cv 明日葉よもぎ) · <a href="https://voicevox.hiroshiba.jp/product/mochikosan/" target="_blank" rel="noopener noreferrer">Mochiko-san</a></p></div>
     <div class="control-row"><button id="stop-btn" class="action-btn secondary-btn" disabled>Stop reply</button><button id="resume-btn" class="action-btn secondary-btn" disabled>Continue topic</button></div>
     <button id="clear-btn" class="action-btn secondary-btn danger-btn" title="Clear conversation history; saved memories remain">Clear conversation</button>

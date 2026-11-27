@@ -446,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function setControlsConnected(connected) {
-        ["mic-toggle", "input-mode", "companion-mode", "translation-language", "initiative-mode", "stop-btn", "profile-select"].forEach(id => {
+        ["mic-toggle", "input-mode", "companion-mode", "translation-language", "initiative-mode", "persona", "save-persona", "stop-btn", "profile-select"].forEach(id => {
             document.getElementById(id).disabled = !connected;
         });
         if (!connected) {
@@ -483,6 +483,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const subtitles = settings.translation_language === "id" ? "Indonesian" : "English";
         document.getElementById("translation-language").value = settings.translation_language || "en";
         document.getElementById("initiative-mode").value = settings.initiative_mode || "normal";
+        const persona = document.getElementById("persona");
+        if (document.activeElement !== persona) persona.value = settings.persona || "";  // Never overwrite while typing.
         document.getElementById("translation-language").hidden = document.querySelector('label[for="translation-language"]').hidden = !voicevox;
         document.getElementById("speech-language").textContent = voicevox
             ? `Voice: Mochiko-san (VOICEVOX) · speaks Japanese with ${subtitles} subtitles`
@@ -598,6 +600,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("companion-mode").addEventListener("change",e=>sendControl({type:"set_mode",mode:e.target.value}));
     document.getElementById("translation-language").addEventListener("change",e=>sendControl({type:"set_translation_language",language:e.target.value}));
     document.getElementById("initiative-mode").addEventListener("change",e=>sendControl({type:"set_initiative_mode",mode:e.target.value}));
+    document.getElementById("save-persona").addEventListener("click",()=>sendControl({type:"set_persona",persona:document.getElementById("persona").value}));
     document.getElementById("stop-btn").addEventListener("click",()=>sendControl({type:"stop"}));
     document.getElementById("resume-btn").addEventListener("click",()=>sendControl({type:"resume_topic"}));
     document.getElementById("profile-select").addEventListener("change",e=>sendControl({type:"select_profile",profile_id:e.target.value || null}));

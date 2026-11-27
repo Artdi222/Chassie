@@ -89,7 +89,8 @@ inside Chassie, without a terminal or editing files.
 
 ## Agreed order (owner, 2026-11-27: save Claude usage)
 
-1. Q2 light: Chassie's own persona only (skip the SOUL.md editor for now).
+1. ~~Q2 light: Chassie's own persona only (skip the SOUL.md editor for now).~~ Done 2026-11-27:
+   Settings → Voice & chat textarea, `set_persona` control, `brain.config.save_local_persona`.
 2. Q5 for git installs (check and update from GitHub releases).
 3. Q1, then Q3, then Q4.
 4. Windows port (`2026-11-26-windows-port.md`) and Q6 AppImage later: they cost the most tokens (no local

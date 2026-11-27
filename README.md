@@ -283,7 +283,8 @@ used. A reply with one malformed line now skips that line instead of failing the
 She is always called Chassie, but who she is, is up to you. Two places shape her:
 
 1. **`companion.persona`** in `config.local.yaml`: a short description added to every reply she gives. This is the
-   main knob. Write it like a character note, in English:
+   main knob. Edit it in **Settings → Voice & chat → Her personality** (saved here, used from the next reply), or
+   write it like a character note, in English:
 
    ```yaml
    companion:
