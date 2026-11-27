@@ -29,9 +29,9 @@ GitHub release, `chmod +x` it and open it. The first-run window does STEP 3 and 
 installs Hermes (or uses yours), connects it to Chassie, starts it, and lets you pick a provider, paste its API key
 and test it; **Voice** installs VOICEVOX once you accept its terms. Everything of hers lives in
 `~/.local/share/chassie` (`config.local.yaml`, `.chassie/`, `model/`). On first open she also adds herself to the
-application menu and downloads the vision, speaker and memory models in the background. The AppImage is CPU-only (no CUDA), needs a desktop from 2022 or later (glibc 2.34+) and
-PortAudio (`libportaudio2` on Debian/Ubuntu, `portaudio` on Arch/Fedora). To update, download the newer
-AppImage; Settings → Check for updates is for git installs.
+application menu and downloads the vision, speaker and memory models in the background. The AppImage runs on the processor; with an NVIDIA card, **Settings → System → Check setup** offers GPU
+acceleration (about 3 GB). It needs a desktop from 2022 or later (glibc 2.34+) and brings its own sound library.
+**Check setup** also lists anything missing in plain words, and **Check for updates** offers the newer AppImage.
 
 ### STEP 1 — Install git and uv
 

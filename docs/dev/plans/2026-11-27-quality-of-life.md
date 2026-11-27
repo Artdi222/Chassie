@@ -113,3 +113,13 @@ inside Chassie, without a terminal or editing files.
 
 Q1 → Q2 → Q3 → Q4 → Q5 (git updates) → Q6 → Q5 (AppImage updates). Q1–Q4 change only the app and help
 every user at once; Q6 is the largest and is what makes "just download it" true.
+
+## After Q6: setup for non-technical people (2026-11-27)
+
+Done: first-run window Brain step (`brain/hermes_setup.py`: official installer stage by stage with `--json`,
+shared API key, API server, memory plugin copied, gateway service started; provider/key/model picked and tested)
+and Voice step (VOICEVOX with its terms); plain error dialogs (backend's `[ERROR]` line, Open log folder);
+ALSA-only PortAudio built into the AppImage; Settings → System → Check setup (each part with reason and fix,
+first-run download state); AppImage update check against the latest GitHub release; GPU pack (`brain/gpu_pack.py`,
+DATA/gpu first on sys.path). Skipped by the owner: a bundled sample Live2D model, Windows, non-Japanese voices.
+Open: the release API answers only once the repository (or a release mirror) is public.

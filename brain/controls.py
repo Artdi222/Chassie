@@ -14,7 +14,7 @@ from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
 from brain.config import ROOT, save_local
 from scripts import install_voicevox
-from brain import updates, hermes_catalog, hermes_setup
+from brain import updates, hermes_catalog, hermes_setup, gpu_pack
 from speech import voices
 from avatar.appearance import PROMPT as APPEARANCE_PROMPT, fingerprint
 from paths import DATA
@@ -163,6 +163,13 @@ class ControlsMixin:
         except (RuntimeError,OSError,ValueError,subprocess.SubprocessError) as exc:
             await self._broadcast_to_ui(await self._hermes_state(error=str(exc)[:400]))
 
+    async def _install_gpu(self):
+        try:
+            await asyncio.to_thread(gpu_pack.install)
+            await self._broadcast_to_ui({'type':'gpu_status','busy':False,'progress':'Installed. Quit Chassie (tray → Quit) and open her again to use it.'})
+        except (RuntimeError,OSError,subprocess.SubprocessError) as exc:
+            await self._broadcast_to_ui({'type':'gpu_status','busy':False,'progress':str(exc)})
+
     async def _setup_check(self):
         """Each part of her setup in plain words: ok True/False/None (off), what is wrong and how to fix it."""
         from speech.voice_identity import MODEL as SPEAKER
@@ -182,6 +189,11 @@ class ControlsMixin:
                'detail':'Installed, connected and running.' if h['installed'] and h['connected'] and h['running'] else
                         'Hermes is not installed.' if not h['installed'] else 'Hermes is not connected to Chassie.' if not h['connected'] else 'Hermes is not running.'}
         if brain['ok']: brain.pop('action')
+        gpu={'name':'GPU acceleration','ok':None,'detail':'No NVIDIA graphics card found: she runs on the processor.'}
+        if await asyncio.to_thread(gpu_pack.cuda_active): gpu={'name':'GPU acceleration','ok':True,'detail':'On (NVIDIA CUDA).'}
+        elif gpu_pack.FOLDER.is_dir(): gpu['detail']='Downloaded. Quit Chassie and open her again to use it.'
+        elif gpu_pack.nvidia_present():
+            gpu={'name':'GPU acceleration','ok':None,'action':'install_gpu','detail':'Off. Download it (about 3 GB) so listening and seeing run faster on your NVIDIA card.'}
         speech=self._tts.status() if isinstance(self._tts,TTSEngine) else {}
         voice={'name':'Voice','ok':bool(speech.get('ready')),'detail':'Ready.' if speech.get('ready') else (speech.get('reason') or 'Not ready.')}
         ears={'name':'Microphone','ok':None,'detail':'Off. Turn it on in Voice & chat.'} if not self._mic_enabled else \
@@ -189,7 +201,7 @@ class ControlsMixin:
         return {'type':'setup_check','items':[brain,voice,ears,
             model('Eyes (face recognition)','vision models',(EYES/DETECTOR).is_file() and (EYES/RECOGNIZER).is_file()),
             model('Voice recognition','speaker model',SPEAKER.is_file()),
-            model('Memory search','memory model',(MEMORY/'tokenizer.json').is_file())]}
+            model('Memory search','memory model',(MEMORY/'tokenizer.json').is_file()),gpu]}
 
     async def _brain_lists(self,kind,data):
         if kind=='list_providers':
@@ -241,6 +253,9 @@ class ControlsMixin:
         if kind in ('list_providers','list_models'): return await self._brain_lists(kind,data)  # Read-only: no lock.
         if kind=='hermes_status': return await self._hermes_state()
         if kind=='check_setup': return await self._setup_check()
+        if kind=='install_gpu':
+            if not (getattr(self,'_gpu_job',None) and not self._gpu_job.done()): self._gpu_job=asyncio.create_task(self._install_gpu())
+            return {'type':'gpu_status','busy':True,'progress':'Downloading GPU acceleration (about 3 GB). This can take a while…'}
         if kind=='hermes_setup':  # Minutes long: runs beside the lock, reporting progress to every page.
             if not (getattr(self,'_hermes_job',None) and not self._hermes_job.done()):
                 self._hermes_job=asyncio.create_task(self._hermes_setup_job())

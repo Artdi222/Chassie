@@ -81,6 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 break;
             case "update": renderUpdate(data); break;
             case "setup_check": renderSetupCheck(data.items); break;
+            case "gpu_status": { const row = document.querySelector('#setup-check [data-action="install_gpu"]'); if (row) { row.querySelector(".setup-detail").textContent = data.progress; row.querySelector("button").disabled = data.busy; } break; }
             case "hermes_status":
                 if (data.busy) { const row = document.querySelector('#setup-check [data-action="hermes_setup"] .setup-detail'); if (row) row.textContent = data.progress || "Working…"; }
                 else if (document.getElementById("setup-check").children.length) sendControl({type: "check_setup"});
@@ -494,6 +495,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const detail = document.createElement("span"); detail.className = "setup-detail"; detail.textContent = item.detail;
             li.append(name, detail);
             if (item.action === "hermes_setup") li.append(action("Set up Hermes", () => sendControl({type: "hermes_setup"})));
+            if (item.action === "install_gpu") li.append(action("Download", () => sendControl({type: "install_gpu"})));
             return li;
         }));
     }

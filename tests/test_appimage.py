@@ -55,3 +55,21 @@ def test_launcher_dialog_names_the_backend_error(tmp_path):
     log.write_text('starting\n[ERROR] The sound library PortAudio is missing. Install it.\nTraceback ...\n')
     assert launch.last_error(log) == 'The sound library PortAudio is missing. Install it.'
     assert launch.last_error(tmp_path / 'missing.log') == ''
+
+
+def test_gpu_pack_installs_without_touching_bundled_packages(tmp_path, monkeypatch):
+    from brain import gpu_pack
+    import subprocess as sp
+    monkeypatch.setattr(gpu_pack, 'FOLDER', tmp_path / 'gpu')
+    calls = []
+    def pip(command, **kw):
+        calls.append(command); target = command[command.index('--target') + 1]
+        (tmp_path / 'gpu.partial' / 'onnxruntime').mkdir(parents=True); assert target == str(tmp_path / 'gpu.partial')
+        return sp.CompletedProcess(command, 0, '', '')
+    monkeypatch.setattr(gpu_pack.subprocess, 'run', pip)
+    gpu_pack.install()
+    assert '--no-deps' in calls[0] and 'onnxruntime-gpu==1.26.0' in calls[0]
+    assert (tmp_path / 'gpu/onnxruntime').is_dir() and not (tmp_path / 'gpu.partial').exists()
+    monkeypatch.setattr(gpu_pack.subprocess, 'run', lambda c, **kw: sp.CompletedProcess(c, 1, '', 'ERROR: No space left on device'))
+    with pytest.raises(RuntimeError, match='No space left'): gpu_pack.install()
+    assert (tmp_path / 'gpu/onnxruntime').is_dir()  # A failed retry keeps the working pack.

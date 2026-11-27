@@ -16,6 +16,11 @@ os.environ["GLOG_logtostderr"] = "0"
 os.environ["GLOG_stderrthreshold"] = "3"
 os.environ["GLOG_v"] = "0"
 
+from paths import DATA  # noqa: E402
+
+if (DATA / "gpu").is_dir():  # AppImage GPU pack (Settings → System → Check setup): CUDA ONNX Runtime and NVIDIA libraries.
+    sys.path.insert(0, str(DATA / "gpu"))
+
 if os.environ.get("CHASSIE_PORTAUDIO"):  # AppImage: the desktop's PortAudio first, else its own (ALSA only).
     import ctypes.util
     _find_library = ctypes.util.find_library
