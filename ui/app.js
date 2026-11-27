@@ -575,18 +575,43 @@ document.addEventListener("DOMContentLoaded", () => {
             : faces.face_count ? `${faces.face_count} face(s) visible; no saved match.` : 'No face recognized.');
     }
 
-    function renderMemories(items) {
-        const list = document.getElementById("memory-list");list.replaceChildren();
-        items.forEach(m => {
-            const row=document.createElement("div");row.className="memory-item";
-            const text=document.createElement("p");text.textContent=m.content;
-            const source=document.createElement("p");source.className="control-help";source.textContent=m.source;
-            if(m.editable === false){source.textContent += " · Edit this note in Obsidian";row.append(text,source);list.append(row);return;}
-            const edit=document.createElement("textarea");edit.value=m.content;edit.maxLength=2000;edit.hidden=true;edit.setAttribute("aria-label","Edit saved memory");
-            const save=action("Save correction",()=>{ if(edit.value.trim()) sendControl({type:"edit_memory",memory_id:m.id,content:edit.value}); });save.hidden=true;
-            row.append(text,source,action("Edit",()=>{edit.hidden=false;save.hidden=false;edit.focus();}),edit,save,action("Delete",()=>{sendControl({type:"delete_memory",memory_id:m.id});}));
-            list.append(row);
+    let memoryItems = [];
+    const memoryShown = {}, MEMORY_ORDER = ["People", "Events", "Plans", "Technical", "Learnings", "Reflections", "Notes"];
+    function renderMemories(items) { memoryItems = items; drawMemories(); }
+
+    function memoryRow(m) {
+        const row=document.createElement("div");row.className="memory-item";
+        const text=document.createElement("p");text.textContent=m.content;
+        const source=document.createElement("p");source.className="control-help";
+        source.textContent=[m.date, m.source, m.superseded ? "Replaced by a newer fact" : ""].filter(Boolean).join(" · ");
+        if(m.editable === false){source.textContent += " · Edit this note in Obsidian";row.append(text,source);return row;}
+        const edit=document.createElement("textarea");edit.value=m.content;edit.maxLength=2000;edit.hidden=true;edit.setAttribute("aria-label","Edit saved memory");
+        const save=action("Save correction",()=>{ if(edit.value.trim()) sendControl({type:"edit_memory",memory_id:m.id,content:edit.value}); });save.hidden=true;
+        row.append(text,source,action("Edit",()=>{edit.hidden=false;save.hidden=false;edit.focus();}),edit,save,action("Delete",()=>{sendControl({type:"delete_memory",memory_id:m.id});}));
+        return row;
+    }
+
+    function drawMemories() {
+        const list = document.getElementById("memory-list");
+        const query = document.getElementById("memory-search").value.trim().toLowerCase();
+        const replaced = document.getElementById("memory-replaced").checked;
+        const open = new Set([...list.querySelectorAll("details[open]")].map(d => d.dataset.category));
+        document.getElementById("memory-tools").hidden = !memoryItems.length;
+        list.replaceChildren();
+        const groups = {}, shown = memoryItems.filter(m => (replaced || !m.superseded) && (!query || m.content.toLowerCase().includes(query)))
+            .sort((a, b) => (b.date || "").localeCompare(a.date || ""));  // Newest first; undated keep the server order.
+        shown.forEach(m => (groups[m.category || "Notes"] ??= []).push(m));
+        const rank = c => (MEMORY_ORDER.indexOf(c) + 1 || 99);
+        Object.keys(groups).sort((a, b) => rank(a) - rank(b)).forEach(category => {
+            const items = groups[category], limit = memoryShown[category] || 20;
+            const group = document.createElement("details");group.className="memory-group";group.dataset.category = category;
+            group.open = open.has(category) || Boolean(query) || shown.length <= 20;  // Few memories: no need to unfold.
+            const summary = document.createElement("summary");summary.textContent = `${category} (${items.length})`;
+            group.append(summary, ...items.slice(0, limit).map(memoryRow));
+            if (items.length > limit) group.append(action(`Show more (${items.length - limit} left)`, () => { memoryShown[category] = limit + 20; drawMemories(); }));
+            list.append(group);
         });
+        if (!list.children.length && memoryItems.length) list.textContent = "No memories match.";
     }
 
     function renderExpressions() {
@@ -652,6 +677,8 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();if(sendControl({type:"add_memory",content:document.getElementById("memory-content").value,consent:document.getElementById("memory-consent").checked}))e.target.reset();
     });
     document.getElementById("load-memories").addEventListener("click",()=>sendControl({type:"list_memories"}));
+    document.getElementById("memory-search").addEventListener("input",drawMemories);
+    document.getElementById("memory-replaced").addEventListener("change",drawMemories);
     document.getElementById("expression-panel").addEventListener("toggle",()=>sendControl({type:"avatar_inventory"}));
     document.getElementById("emotion-select").addEventListener("change",expressionChanged);
     document.getElementById("preview-btn").addEventListener("click",()=>sendControl({type:"preview_emotion",emotion:document.getElementById("emotion-select").value}));

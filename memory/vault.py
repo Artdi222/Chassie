@@ -37,8 +37,16 @@ class VaultMemory:
 
     def list(self):
         # A saved memory note starts with its "# title"; the panel shows only the fact.
-        return [{'id':row['id'],'content':re.sub(r'\A(?:\[Note date: [^\]]*\]\n)?#\s[^\n]*\n+','',row['content']) if row['path'].startswith('_generated/chassie/') else row['content'],'source':row['path'],
-                 'editable':row['path'].startswith('_generated/chassie/')} for row in self.call('list',100)]
+        facts={f['path']:f for f in self.call('facts')}
+        items=[]
+        for row in self.call('list',1000):  # ponytail: one page of 1000; the panel pages and filters client-side.
+            managed=row['path'].startswith('_generated/chassie/')
+            fact=facts.get(row['path'],{})
+            items.append({'id':row['id'],'content':re.sub(r'\A(?:\[Note date: [^\]]*\]\n)?#\s[^\n]*\n+','',row['content']) if managed else row['content'],
+                          'source':row['path'],'editable':managed,
+                          'category':row['path'].split('/')[2] if managed and row['path'].count('/')>2 else 'Notes',
+                          'date':fact.get('date',''),'importance':fact.get('importance',2),'superseded':bool(fact.get('superseded_by'))})
+        return items
 
     def add(self,text):return self.call('remember',text,session='chassie-memory-panel')
     def update(self,identifier,text):return self.call('update',identifier,text,'chassie-memory-panel')

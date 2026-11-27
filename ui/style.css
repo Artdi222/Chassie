@@ -397,3 +397,6 @@ html.embedded-chat,body.embedded{background:transparent}
 .health-item.bad{color:var(--danger)}
 .health-item.bad::before{background:var(--danger)}
 .update-notes{white-space:pre-line}
+.memory-tools{display:flex;gap:10px;align-items:center;margin:10px 0}.memory-tools input[type=search]{flex:1}
+.memory-list{max-height:min(55vh,480px);overflow:auto;overscroll-behavior:contain}
+.memory-group>summary{padding:8px 0;font-weight:600;cursor:pointer}
