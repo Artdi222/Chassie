@@ -401,3 +401,4 @@ html.embedded-chat,body.embedded{background:transparent}
 .memory-list{max-height:min(55vh,480px);overflow:auto;overscroll-behavior:contain}
 .memory-group>summary{padding:8px 0;font-weight:600;cursor:pointer}
 .voice-list{max-height:min(50vh,420px);overflow:auto;overscroll-behavior:contain}
+.voice-list .memory-item{display:flex;flex-wrap:wrap;gap:6px}.voice-list .memory-item>p{flex-basis:100%;margin:0 0 2px}

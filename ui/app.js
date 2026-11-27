@@ -552,7 +552,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("brain-key-label").textContent = `API key (${brain.key_name})`;
         document.getElementById("brain-key-state").textContent = brain.key_saved
             ? "A key is saved in Hermes. Type a new one only to replace it. If Test fails after a change, restart Hermes."
-            : "No key saved for this provider yet.";
+            : `No ${brain.key_name} in Hermes's .env. If Hermes already reaches this provider through its own sign-in, leave this empty.`;
     }
 
     function renderSettings() {

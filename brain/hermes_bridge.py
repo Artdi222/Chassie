@@ -224,6 +224,8 @@ class HermesBridge:
         except asyncio.CancelledError: raise
         except (aiohttp.ClientError,asyncio.TimeoutError,ValueError,KeyError,IndexError,TypeError) as exc:
             self.healthy=False
+            if isinstance(exc,aiohttp.ClientConnectionError):
+                raise RuntimeError(f'Hermes is not running at {self._base_url}. Start Hermes, then try again.') from exc
             raise RuntimeError('Hermes could not complete the background request') from exc
         if not isinstance(response,str) or not response.strip() or re.match(r'^API call failed',response.strip()):
             raise RuntimeError('Hermes returned no usable text')
