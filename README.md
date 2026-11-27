@@ -1,37 +1,98 @@
-<div align="center">
+<p align="center">
+  <img src="docs/assets/banner.webp" alt="Chassie: a Live2D companion who lives on your desktop" width="100%">
+</p>
 
-<img src="ui/public/chassie-icon.png" alt="Chassie" width="160">
+<h1 align="center">Chassie</h1>
 
-# Chassie
+<p align="center"><b>A Live2D AI companion who lives on your Linux desktop.</b><br>
+She talks, sees, remembers, keeps a diary, and gets a little sulky when you work too late.</p>
 
-**A Live2D companion who lives on your Linux desktop**
+<p align="center">
+  [<a href="https://github.com/Artdi222/Chassie/releases/latest">Download</a>]
+  [<a href="#-whats-so-special">Why Chassie</a>]
+  [<a href="#-install-from-source">Install from source</a>]
+  [<a href="#-roadmap">Roadmap</a>]
+</p>
 
-She talks with you by voice or text, answers in Japanese with subtitles in your language,
-sees you through the camera when it matters, and remembers what you tell her.
+<p align="center">
+  <a href="https://github.com/Artdi222/Chassie/releases/latest"><img src="https://img.shields.io/github/v/release/Artdi222/Chassie?style=flat&colorA=080f12&colorB=e8879c&label=release"></a>
+  <img src="https://img.shields.io/badge/Linux-x86__64-FCC624?style=flat&logo=linux&logoColor=white&labelColor=080f12">
+  <img src="https://img.shields.io/badge/AppImage-ready-1fa669?style=flat&logo=appimage&logoColor=white&labelColor=080f12">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white&labelColor=080f12">
+  <img src="https://img.shields.io/badge/Live2D-Cubism%204-ff6f91?style=flat&labelColor=080f12">
+  <img src="https://img.shields.io/badge/brain-Hermes%20Agent-d97757?style=flat&labelColor=080f12">
+  <img src="https://img.shields.io/badge/voice-VOICEVOX-a3c972?style=flat&labelColor=080f12">
+  <img src="https://img.shields.io/badge/memory-Obsidian-7C3AED?style=flat&logo=obsidian&logoColor=white&labelColor=080f12">
+</p>
 
-![Platform: Linux](https://img.shields.io/badge/platform-Linux%20x86__64-FCC624?logo=linux&logoColor=black)
-![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
-![Brain: Hermes Agent](https://img.shields.io/badge/brain-Hermes%20Agent-d97757)
-![Voice: VOICEVOX](https://img.shields.io/badge/voice-VOICEVOX-a3c972)
+<p align="center">
+  <a href="https://github.com/Artdi222/Chassie/releases/latest"><img src="https://img.shields.io/badge/Download-AppImage%20for%20Linux-e8879c?style=for-the-badge&logo=linux&logoColor=white&labelColor=080f12" alt="Download the AppImage"></a>
+</p>
 
-</div>
+> [!NOTE]
+> Chassie is a hobby project, built with love on CachyOS + Hyprland. She is Linux-only for now (Windows is on the
+> [roadmap](#-roadmap)), and you bring your own Live2D model.
 
-## Install her: 6 steps
+Have you ever wished the character on your screen would actually *notice* you? Say "welcome back!" when you sit down,
+ask how the thing you mentioned yesterday went, remind you to drink water, and pout a little when you ignore her
+for three hours?
+
+**That is Chassie.** She lives in the corner of your desktop as a Live2D character, speaks Japanese with subtitles in
+English or Indonesian, hears you through the microphone, glances through the camera when it matters, and writes
+what she learns about you into a Markdown folder that **you** own and can read. Her thoughts come from whichever
+language model you like, through [Hermes Agent](https://github.com/NousResearch/hermes-agent). Everything else
+stays on your computer.
+
+## ✨ What's so special?
+
+- 🫧 **She lives on your desktop, not in a browser tab.** A transparent Live2D window that blinks, breathes,
+  follows your mouse, enjoys headpats, nods while you talk, and leans toward the chat when you type.
+- 🎙️ **Real conversations.** Talk or type. She answers sentence by sentence in a lively VOICEVOX voice whose
+  pitch and tempo follow each feeling, with lip-sync per syllable and a speech bubble you can actually read.
+- 🧠 **Any brain you like.** OpenRouter, Anthropic, OpenAI, Google, local servers… whatever Hermes supports, picked
+  from a searchable list in Settings, with a cheaper model for background chores if you want.
+- 📝 **A memory you can read.** She decides what is worth remembering and writes tidy notes into your own
+  Obsidian-friendly folder, plus a daily diary. No hidden vector database you can never look inside.
+- 💭 **A life of her own.** Moods, an agenda, things she wants to ask you about later. She may start a conversation
+  when you go quiet (or never, if you prefer).
+- 👀 **She can see you, politely.** Face and voice recognition run locally; camera snapshots go to the model only
+  when you ask or when she decides to look. Guests pause her personal memory.
+- 🪞 **She knows what she looks like.** Load any Live2D model and she describes her own appearance once, so she
+  talks about her look correctly.
+- 📦 **One download, no terminal.** An AppImage with a first-run window that installs her brain and voice for you,
+  and a **Check setup** page that says what is missing in plain words.
+
+## 🚀 Download
+
+> [!TIP]
+> **The easy way: the AppImage.** Download `Chassie-<version>-x86_64.AppImage` from the
+> [latest release](https://github.com/Artdi222/Chassie/releases/latest), make it executable and open it:
+>
+> ```bash
+> chmod +x Chassie-*-x86_64.AppImage && ./Chassie-*-x86_64.AppImage
+> ```
+>
+> The first-run window does the rest: **Brain** installs Hermes (or uses yours), connects and starts it, and lets
+> you pick a provider, paste its API key and test it; **Character** takes your Live2D model; **Voice** installs
+> VOICEVOX once you accept its terms. Models for her eyes, ears and memory download in the background.
+
+- 🗂️ Everything of hers lives in `~/.local/share/chassie` (`config.local.yaml`, `.chassie/`, `model/`).
+- ⚡ She runs on the processor; with an NVIDIA card, **Settings → System → Check setup** offers GPU acceleration
+  (about 3 GB). **Check setup** also lists anything missing in plain words.
+- 🔄 Needs a desktop from 2022 or later (glibc 2.34+). **Check for updates** offers each newer AppImage.
+
+> [!IMPORTANT]
+> Bring your own Live2D model (Cubism 3 or 4, with a `.model3.json`): Chassie does not ship one. Free and paid
+> models are on [BOOTH](https://booth.pm/en/search/Live2D%20model) and [nizima](https://nizima.com/en); please
+> respect each model's licence.
+
+## 🔧 Install from source
 
 **Before you start:** a Linux PC (x86_64) with about 8 GB of RAM and 6 GB of free disk, a microphone, and
 an account with an AI provider that Hermes supports (an API key). A webcam and an NVIDIA graphics
 card are optional: she works without them, a bit slower and without eyes.
 
 She was built on CachyOS with Hyprland. Other desktops work through X11 or XWayland.
-
-**Or the AppImage (no git, no setup script):** download `Chassie-<version>-x86_64.AppImage` from the
-GitHub release, `chmod +x` it and open it. The first-run window does STEP 3 and STEP 4 for you: **Brain**
-installs Hermes (or uses yours), connects it to Chassie, starts it, and lets you pick a provider, paste its API key
-and test it; **Voice** installs VOICEVOX once you accept its terms. Everything of hers lives in
-`~/.local/share/chassie` (`config.local.yaml`, `.chassie/`, `model/`). On first open she also adds herself to the
-application menu and downloads the vision, speaker and memory models in the background. The AppImage runs on the processor; with an NVIDIA card, **Settings → System → Check setup** offers GPU
-acceleration (about 3 GB). It needs a desktop from 2022 or later (glibc 2.34+) and brings its own sound library.
-**Check setup** also lists anything missing in plain words, and **Check for updates** offers the newer AppImage.
 
 ### STEP 1 — Install git and uv
 
@@ -75,7 +136,7 @@ hermes setup model
 ```
 
 In `hermes setup model`, choose your provider (OpenRouter, OpenAI, Anthropic, Google, a local server, …), paste
-its API key and pick a model. Chassie uses whatever model Hermes is set up with. [Which model?](#which-model)
+its API key and pick a model. Chassie uses whatever model Hermes is set up with. [Which model?](#-which-model)
 
 You see: `hermes --help` lists commands such as `chat`, `model` and `gateway`.
 
@@ -97,7 +158,7 @@ EOF
 ```
 
 Her memory is a folder of Markdown notes (it opens nicely in [Obsidian](https://obsidian.md), but any folder
-works; see [Her memory](#her-memory)). Tell her memory plugin where it lives, and switch Hermes's memory to it:
+works; see [Her memory](#-her-memory)). Tell her memory plugin where it lives, and switch Hermes's memory to it:
 
 ```bash
 mkdir -p ~/Documents/Chassie-Memory
@@ -185,10 +246,10 @@ model/
 **Remember face** (look at the camera alone) and the consent box, and press **Remember with permission**. The first
 person introduced is her owner: she remembers things about you only when it is you.
 
-- If nothing appears → read the end of `.chassie/launcher.log`; [If something goes wrong](#if-something-goes-wrong)
+- If nothing appears → read the end of `.chassie/launcher.log`; [If something goes wrong](#-if-something-goes-wrong)
   lists the usual reasons.
 
-## Talk to her
+## 💬 Talk to her
 
 Click her to open the round menu: **chat**, **model**, **outfit**, **settings** and **stop**. Drag her to move her.
 **Settings → Size −/+** makes her bigger or smaller. Her tray icon has **Open web studio** and **Quit Chassie**.
@@ -209,7 +270,7 @@ Click her to open the round menu: **chat**, **model**, **outfit**, **settings** 
 The **web studio** (`http://127.0.0.1:8000` while she runs) has the same chat and settings in a browser, plus a
 model preview. To run only the web studio without the desktop avatar: `.venv/bin/python start.py --text`.
 
-## Text her from your phone
+## 📱 Text her from your phone
 
 Hermes can carry her to Telegram (or Discord, WhatsApp…): the same personality from `~/.hermes/SOUL.md` and the
 same memory vault, as text.
@@ -222,7 +283,7 @@ same memory vault, as text.
 
 Her agenda, mood and diary live on the desktop, so they follow your desktop chats only.
 
-## What she can do
+## 🎀 What she can do
 
 **Conversation**
 - Replies stream sentence by sentence: the first sentence is spoken while the rest is still being written.
@@ -248,7 +309,7 @@ Her agenda, mood and diary live on the desktop, so they follow your desktop chat
   embedding search (multilingual-e5-small).
 - A daily diary in `_generated/chassie-daily/`: what happened and what to ask about again.
 
-## What you need
+## 🧰 What you need
 
 | part | needs | notes |
 |---|---|---|
@@ -256,11 +317,11 @@ Her agenda, mood and diary live on the desktop, so they follow your desktop chat
 | Memory | 8 GB RAM | She ran on a laptop with 7 GB usable |
 | Graphics | any OpenGL card; NVIDIA optional | With NVIDIA (4 GB is enough) her ears and memory search run on the GPU |
 | Disk | about 6 GB | Python packages, models in `.chassie/` |
-| Language model | any provider Hermes supports | Fast, image-capable models work best: [Which model?](#which-model) |
+| Language model | any provider Hermes supports | Fast, image-capable models work best: [Which model?](#-which-model) |
 | Microphone | any | PipeWire echo cancellation lets you interrupt her |
 | Webcam | optional | Without it she cannot see you or recognise your face |
 
-## Which model?
+## 🤖 Which model?
 
 Any model Hermes can use works, as long as it can do three things:
 
@@ -290,7 +351,7 @@ hermes:
 Settings → System shows her health (brain, voice, microphone, memory, camera) and how many tokens this session
 used. A reply with one malformed line now skips that line instead of failing the whole reply.
 
-## Her personality
+## 🌸 Her personality
 
 She is always called Chassie, but who she is, is up to you. Two places shape her:
 
@@ -320,7 +381,7 @@ What stays fixed: she speaks Japanese with subtitles, talks like a companion rat
 short, and only mentions your screen or camera when something is worth it. Those rules live in the code
 (`brain/bilingual.py`, `brain/hermes_bridge.py`) because her voice and avatar depend on them.
 
-## Her memory
+## 📓 Her memory
 
 Everything she remembers is plain files on your PC, in two places.
 
@@ -355,7 +416,7 @@ folder to start over (re-run the setup afterwards to download her models again).
 She only writes memories, chats and reminders when her owner is alone with her; conversations with guests are not
 saved.
 
-## Settings
+## ⚙️ Settings
 
 Defaults live in `config.yaml`. Put your own changes in **`config.local.yaml`** (create it; git ignores it), so
 updates never overwrite them. Any key there replaces the same key in `config.yaml`:
@@ -387,10 +448,10 @@ companion:
 | `vision.camera_always` | `false`: she decides when to look; `true`: a photo with every message (costly) |
 | `vision.screen_always` | Attach your screen when it changed and other apps are open |
 | `initiative.mode` | `normal`, `rare` or `off` |
-| `companion.persona` | Her personality, added to every reply: [Her personality](#her-personality) |
+| `companion.persona` | Her personality, added to every reply: [Her personality](#-her-personality) |
 | `companion.guest_privacy` | `true` pauses personal memory while someone else is around |
 
-## Updating her (keeps her memory)
+## 🔄 Updating her (keeps her memory)
 
 Her memories are in your memory folder (STEP 4), and her chats, reminders, recognised faces and downloaded models
 are in `.chassie/`. Updating touches neither.
@@ -407,14 +468,14 @@ bash scripts/setup_linux.sh
 
 Quit her first (tray → **Quit Chassie**), then start her again. Your `config.local.yaml` and `model/` are kept.
 
-## If something goes wrong
+## 🩹 If something goes wrong
 
 | what you see | what to do |
 |---|---|
 | `[FAIL] Hermes gateway unreachable` in `.chassie/launcher.log` | Hermes is not running or the key does not match: `hermes gateway status`, then STEP 4. |
 | Every reply says `Hermes model provider authentication failed` | Hermes has no valid key for its provider: `hermes setup model`. |
 | `Hermes model quota or rate limit reached (HTTP 429)` | Your provider account is out of credit or rate-limited. Add credit, wait a minute. |
-| Replies fail with `did not contain valid Japanese speech` | The model does not follow her reply format: pick a stronger one ([Which model?](#which-model)). |
+| Replies fail with `did not contain valid Japanese speech` | The model does not follow her reply format: pick a stronger one ([Which model?](#-which-model)). |
 | She says she cannot see, or replies fail when she looks | The model cannot read images: set an image-capable `hermes.vision_model`, or set `vision.camera_enabled` and `vision.screen_enabled` to `false`. |
 | She answers in text but you hear nothing | Run the setup again and type `yes` for VOICEVOX; check your speakers in your sound settings. |
 | `Voice input unavailable` | The microphone could not open: pick it in your sound settings, or set `audio.input_device` in `config.local.yaml`. |
@@ -429,7 +490,7 @@ Quit her first (tray → **Quit Chassie**), then start her again. Your `config.l
 
 Every part writes to `.chassie/launcher.log`. When you ask for help, attach its last lines.
 
-## Privacy
+## 🔒 Privacy
 
 Everything runs on your PC except the language model's replies (unless that runs locally too). Runtime data lives in `.chassie/` (git ignores it): `sessions/`
 (your chats), `reminders.json`, `transcripts/` (material for the daily diary), `memory.sqlite` (face and voice
@@ -437,7 +498,7 @@ templates, never photos or recordings) and her avatar settings. Chats, memories 
 her owner is alone with her; conversations with guests are not written down. The model receives text, plus a snapshot
 only for a turn that needs one.
 
-## How she is built
+## 🏗️ How she is built
 
 ```
  mic ─▶ speech/ (faster-whisper, VAD) ──┐                 ┌─▶ speech/ VOICEVOX ─▶ audio + lip-sync
@@ -467,7 +528,7 @@ Chassie/
 └── docs/                 overlay, vision and voice notes; docs/dev/ holds design history
 ```
 
-## Development
+## 🧪 Development
 
 ```bash
 uv pip install --python .venv/bin/python -r requirements-dev.txt
@@ -475,12 +536,64 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 .venv/bin/python -m pytest -q
 ```
 
-About 360 tests; the ones that render a real model run only when `model/Model_4` exists and are skipped otherwise.
+462 tests (pytest, Playwright for the web panels); the ones that render a real model run only when `model/Model_4` exists and are skipped otherwise. A tagged release (`v*`) builds the AppImage on GitHub Actions (`scripts/build_appimage.sh`).
 Desktop render check: `QT_QPA_PLATFORM=xcb .venv/bin/python -m desktop.smoke --output .test-artifacts/overlay.png`.
 
 More: [desktop overlay](docs/overlay.md), [automatic vision](docs/automatic-vision.md), [VOICEVOX](docs/voicevox.md).
 
-## Licenses
+## 🧭 Roadmap
+
+- [x] **Brain**: any model Hermes supports, chosen and tested from Settings
+  - [x] Personality from Hermes's `SOUL.md`, plus your own notes
+  - [x] Her own agenda, moods and a daily diary
+- [x] **Ears**: local speech recognition (faster-whisper), echo cancellation, voice recognition of the owner
+- [x] **Mouth**: VOICEVOX with per-sentence prosody and syllable lip-sync; every VOICEVOX voice in Settings
+  - [ ] Voices in other languages
+- [x] **Eyes**: camera and screen on demand, local face recognition, guest privacy mode
+- [x] **Body**: Live2D with 16 emotions, gestures, headpats, mouse-following; she learns what her avatar looks like
+- [x] **Memory**: Markdown notes in your own folder (Obsidian), local search
+- [x] **Setup**: AppImage, first-run window, Check setup, updates from Settings, optional GPU pack
+- [ ] Windows
+- [ ] A free sample Live2D model in the first-run window
+
+## 💞 Similar projects
+
+Chassie is one of many attempts to give AI characters a place in our world. Go say hi to her cousins:
+
+- [Project AIRI](https://github.com/moeru-ai/airi): a soul container for AI waifus and VTubers (web, desktop, games)
+- [OpenAmika](https://github.com/zeekk0/OpenAmika): MekaHime's AI companion Amika, open source: Live2D, real-time voice, long-term memory
+- [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber): talk to any LLM through a Live2D avatar, voice in and out
+- [Neuro-sama](https://www.youtube.com/@Neurosama): the AI VTuber who started the dream (not open source)
+
+## 🙏 Acknowledgements
+
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent): her brain, tools and memory plugin host
+- [VOICEVOX](https://voicevox.hiroshiba.jp/): her voice; credit `VOICEVOX:もち子(cv 明日葉よもぎ)`
+- [Live2D Cubism](https://www.live2d.com/), [live2d-py](https://github.com/EasyLive2D/live2d-py) and
+  [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display): her body on the desktop and in the panels
+- [faster-whisper](https://github.com/SYSTRAN/faster-whisper), [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
+  and [WeSpeaker](https://github.com/wenet-e2e/wespeaker): her ears
+- [models.dev](https://models.dev): the provider and model catalog behind the AI model picker
+- [python-appimage](https://github.com/niess/python-appimage) and [AppImage](https://appimage.org/): the download
+- [Project AIRI](https://github.com/moeru-ai/airi) and [OpenAmika](https://github.com/zeekk0/OpenAmika): the companion
+  projects that inspired Chassie
+
+## ⭐ Star history
+
+<a href="https://star-history.com/#Artdi222/Chassie&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Artdi222/Chassie&type=Date&theme=dark">
+    <img alt="Star history" src="https://api.star-history.com/svg?repos=Artdi222/Chassie&type=Date" width="600">
+  </picture>
+</a>
+
+## 🤝 Contributors
+
+<a href="https://github.com/Artdi222/Chassie/graphs/contributors"><img src="https://contrib.rocks/image?repo=Artdi222/Chassie&max=100" alt="Contributors"></a>
+
+Ideas, bug reports and pull requests are welcome. If Chassie made your desk a little less lonely, a ⭐ helps others find her.
+
+## 📜 Licenses
 
 Chassie's code belongs to its author. Third-party parts keep their own terms:
 
