@@ -614,6 +614,41 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         return {refresh: () => { if (!list.hidden) render(); }};
     }
+    // Same look as the comboboxes for a fixed list; the hidden <select> keeps the value.
+    function enhanceSelect(select) {
+        const wrap = document.createElement("div"), button = document.createElement("button"), list = document.createElement("ul");
+        wrap.className = "combo"; button.type = "button"; button.className = "field combo-button";
+        list.className = "combo-list"; list.id = `${select.id}-options`; list.setAttribute("role", "listbox"); list.hidden = true;
+        button.setAttribute("aria-haspopup", "listbox"); button.setAttribute("aria-controls", list.id); button.setAttribute("aria-expanded", "false");
+        const label = document.querySelector(`label[for="${select.id}"]`);
+        if (label) { button.id = `${select.id}-button`; label.htmlFor = button.id; }
+        select.hidden = true; select.after(wrap); wrap.append(button, list);
+        let active = -1;
+        const sync = () => { button.textContent = select.selectedOptions[0]?.text || ""; };
+        const close = () => { list.hidden = true; button.setAttribute("aria-expanded", "false"); };
+        const mark = i => { active = i; [...list.children].forEach((li, n) => li.setAttribute("aria-selected", String(n === i))); list.children[i]?.scrollIntoView({block: "nearest"}); };
+        const choose = i => { select.selectedIndex = i; sync(); close(); select.dispatchEvent(new Event("change")); button.focus(); };
+        const open = () => {
+            list.replaceChildren(...[...select.options].map((option, i) => {
+                const li = document.createElement("li"); li.setAttribute("role", "option"); li.textContent = option.text;
+                li.addEventListener("mousedown", e => { e.preventDefault(); choose(i); });
+                return li;
+            }));
+            list.hidden = false; button.setAttribute("aria-expanded", "true"); mark(select.selectedIndex);
+        };
+        button.addEventListener("click", () => list.hidden ? open() : close());
+        button.addEventListener("blur", close);
+        button.addEventListener("keydown", e => {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault(); if (list.hidden) return open();
+                mark((active + (e.key === "ArrowDown" ? 1 : -1) + select.options.length) % select.options.length);
+            } else if ((e.key === "Enter" || e.key === " ") && !list.hidden && active >= 0) { e.preventDefault(); choose(active); }
+            else if (e.key === "Escape" && !list.hidden) { e.preventDefault(); close(); }
+        });
+        sync();
+        return {sync};
+    }
+    const effortSelect = enhanceSelect(document.getElementById("brain-reasoning_effort"));
     const brainCombos = {
         provider: combobox(document.getElementById("brain-provider"), () => brainItems.providers, () => "Loading providers from Hermes…"),
         text_model: combobox(document.getElementById("brain-text_model"), () => brainItems.models, () => "Choose a provider to see its models."),
@@ -627,8 +662,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (document.activeElement !== input) input.value = brain[key] || "";
         }
         const effort = document.getElementById("brain-reasoning_effort");
-        if (effort.options.length === 1) brain.efforts.forEach(e => effort.add(new Option(e[0].toUpperCase() + e.slice(1), e)));
+        if (effort.options.length === 1) brain.efforts.forEach(e => effort.add(new Option(e === "xhigh" ? "Extra high" : e[0].toUpperCase() + e.slice(1), e)));
         effort.value = brain.reasoning_effort || "";
+        effortSelect.sync();
         askModels(brain.provider);
         document.getElementById("brain-key").hidden = !brain.key_name;
         document.getElementById("brain-key-label").textContent = `API key (${brain.key_name})`;

@@ -169,13 +169,8 @@ class StudioControls(QObject):
             b.clicked.connect(lambda checked=False,n=name:self.action(n));self.bubbles[name]=b
         self.update_mic()
         self.status=QLabel('')
-        self.subtitle=QLabel('',window,Qt.WindowType.Tool)
-        self.subtitle.setWindowTitle('Chassie subtitle')
-        self.subtitle.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowTransparentForInput)
-        self.subtitle.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-        self.subtitle.setWordWrap(True);self.subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.subtitle.setStyleSheet('QLabel{background:#3b2c30;color:white;padding:12px 18px;border-radius:12px;font-size:15px;}')
-        self.subtitle.setFixedWidth(340)
+        from desktop.bubble import SpeechBubble
+        self.subtitle=SpeechBubble(window)
         self.tray=QSystemTrayIcon(QIcon(str(Path(__file__).resolve().parents[1]/'ui/public/chassie-icon.png')),self);self.tray.setToolTip('Chassie')
         menu=QMenu();self.tray_menu=menu
         for title,callback in [('Show controls',self.toggle),('Conversation',lambda:self.action('chat')),('Customize',lambda:self.action('models')),('Settings',lambda:self.action('settings')),('Add a model…',lambda:self.action('models')),('Open web studio',self.open_web),('Show / hide model',lambda:window.setVisible(not window.isVisible())),('Click through avatar',self.click_through),('Stop reply',lambda:self.send({'type':'stop'})),('Quit Chassie',QApplication.instance().quit)]:
@@ -302,8 +297,9 @@ class StudioControls(QObject):
         self.panels[name].setGeometry(x,y,width,height)
 
     def place_subtitle(self):
-        self.subtitle.adjustSize();r=self.window.geometry();s=screens()[0]
-        self.subtitle.move(max(s.x,min(r.center().x()-170,s.x+s.width-340)),max(s.y,r.y()-self.subtitle.height()-8))
+        r=self.window.geometry();s=screens()[0];w=self.subtitle.width()
+        # Centred over her, tail down; kept on screen (it may overlap her head when she fills the screen height).
+        self.subtitle.move(max(s.x,min(r.center().x()-w//2,s.x+s.width-w)),max(s.y,r.y()-self.subtitle.height()+6))
 
     def on_connected(self):
         self.connected=True;self.retry.stop();self.announce_renderer()

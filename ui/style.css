@@ -413,3 +413,4 @@ html.embedded-chat,body.embedded{background:transparent}
 .combo>input{padding-right:36px}
 .combo::after{content:"";position:absolute;right:14px;top:20px;width:7px;height:7px;border-right:1.6px solid var(--ink-3);border-bottom:1.6px solid var(--ink-3);transform:translateY(-70%) rotate(45deg);transition:transform .15s var(--ease);pointer-events:none}
 .combo:has(>input[aria-expanded=true])::after{transform:translateY(-20%) rotate(-135deg)}
+.combo-button{display:block;text-align:left;cursor:pointer;padding-right:36px}

@@ -106,7 +106,14 @@ async def test_model_picker_lists_hermes_providers_and_models(app, tmp_path):
                 assert await page.locator('#brain-text_model-options [role=option]').count() == 1  # Search narrows the list.
                 await page.keyboard.press('Escape')
                 assert await page.locator('#brain-text_model-options').is_hidden()
-                await page.select_option('#brain-reasoning_effort', 'medium')
+                await page.get_by_role('button', name='Thinking effort').click()
+                await page.get_by_role('option', name='Medium').wait_for()
+                await page.locator('#brain-reasoning_effort-button').screenshot(path='.test-artifacts/effort-button.png')
+                await page.evaluate("document.getElementById('brain-reasoning_effort-button').scrollIntoView({block: 'start'})")
+                box = await page.locator('#brain-reasoning_effort-button').bounding_box()
+                await page.screenshot(path='.test-artifacts/effort-open.png', clip={'x': 0, 'y': max(0, box['y'] - 30), 'width': 640, 'height': 360})
+                await page.get_by_role('option', name='Medium').click()
+                assert await page.locator('#brain-reasoning_effort-button').text_content() == 'Medium'
                 await page.locator('#save-brain').click()
                 await page.wait_for_timeout(300)
                 assert app._config['hermes']['reasoning_effort'] == 'medium' and not errors
