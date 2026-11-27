@@ -519,11 +519,15 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderUpdate(data) {
         const state = document.getElementById("update-state"), notes = document.getElementById("update-notes");
         document.getElementById("check-update").disabled = document.getElementById("apply-update").disabled = false;
-        document.getElementById("apply-update").hidden = !data.available || data.local_changes.length > 0;
+        document.getElementById("apply-update").hidden = !data.available || data.local_changes.length > 0 || !!data.appimage;
+        const download = document.getElementById("download-update");  // AppImage: the new file, opened next to the old one.
+        download.hidden = !(data.appimage && data.available);
+        if (data.download) { download.href = data.download; download.textContent = `Download ${data.latest}`; }
         notes.hidden = !data.available || !data.notes;
         notes.textContent = data.latest ? `${data.latest}: ${data.notes}` : "";
         state.textContent = data.updated ? "Updated. Chassie is restarting…"
             : data.local_changes.length ? `Files changed on this computer block updating: ${data.local_changes.join(", ")}`
+            : data.available && data.appimage ? `Chassie ${data.latest} is available (you have ${data.current}). Download it, quit Chassie and open the new file; her memory and settings are kept.`
             : data.available ? `${data.behind} new change${data.behind === 1 ? "" : "s"} available (you have ${data.current}).`
             : `Chassie is up to date (${data.current}).`;
     }

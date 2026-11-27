@@ -8,6 +8,7 @@ from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor, QPen, QShor
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWebSockets import QWebSocket
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from desktop.links import ExternalLinks
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QToolButton, QAbstractButton, QSystemTrayIcon, QMenu)
 
@@ -60,6 +61,7 @@ class FloatingPanel(QWidget):
             self.close_shortcut=QShortcut(QKeySequence('Escape'),self)
             self.close_shortcut.activated.connect(self.hide)
         self.web=QWebEngineView(self)
+        self.web.setPage(ExternalLinks(self.web))
         if transparent:
             self.web.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.web.page().setBackgroundColor(QColor(Qt.GlobalColor.transparent))

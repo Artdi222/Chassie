@@ -24,8 +24,17 @@ async def test_settings_installs_voicevox_when_missing(app, tmp_path, monkeypatc
     assert result['voices'] == [] and result['terms'].startswith('Unofficial English translation')
 
 
-def test_appimage_points_to_releases_instead_of_git(tmp_path):
-    with pytest.raises(ValueError, match='AppImage'): updates.check(tmp_path)
+def test_appimage_offers_the_newer_release_download(tmp_path, monkeypatch):
+    import io, json
+    (tmp_path / 'VERSION').write_text('v1.0.0-23-gd6e0c8f\n')
+    release = {'tag_name': 'v1.1.0', 'body': 'Brain setup', 'html_url': 'https://github.com/x/releases/v1.1.0',
+               'assets': [{'name': 'Chassie-v1.1.0-x86_64.AppImage', 'browser_download_url': 'https://github.com/x/Chassie-v1.1.0-x86_64.AppImage'}]}
+    monkeypatch.setattr(updates, 'urlopen', lambda request, timeout: io.BytesIO(json.dumps(release).encode()))
+    status = updates.check(tmp_path)
+    assert status['available'] and status['appimage'] and status['download'].endswith('.AppImage') and status['notes'] == 'Brain setup'
+    with pytest.raises(ValueError, match='Download the new AppImage'): updates.apply(tmp_path)
+    (tmp_path / 'VERSION').write_text('v1.1.0')
+    assert not updates.check(tmp_path)['available']
 
 
 def test_first_run_keeps_the_git_install_menu_entry(tmp_path, monkeypatch):

@@ -11,6 +11,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication
 
 from desktop.compositor import APPLICATION_ID
+from desktop.links import ExternalLinks
 
 DONE_TITLE = 'chassie:onboarding-complete'
 
@@ -22,6 +23,7 @@ class OnboardingWindow(QWebEngineView):
         self.setWindowTitle('Welcome to Chassie')
         self.resize(1080, 720)
         self.setMinimumSize(760, 560)
+        self.setPage(ExternalLinks(self))
         self.titleChanged.connect(self.on_title)
         self.setUrl(QUrl(url))
 
