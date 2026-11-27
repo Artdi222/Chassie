@@ -205,8 +205,10 @@ class ControlsMixin:
                 started=time.monotonic()
                 try:
                     await self._hermes.complete_once('Reply with the single word OK.','Test',background=False)
-                    return {'type':'brain_test','ok':True,'seconds':round(time.monotonic()-started,1)}
-                except RuntimeError as exc: return {'type':'brain_test','ok':False,'error':str(exc)[:250]}
+                    result={'type':'brain_test','ok':True,'seconds':round(time.monotonic()-started,1)}
+                except RuntimeError as exc: result={'type':'brain_test','ok':False,'error':str(exc)[:250]}
+                await self._broadcast_settings()  # Health follows the test (a past failure is not sticky).
+                return result
             elif kind=='list_voices':
                 return await self._voices_payload()
             elif kind=='download_voice':

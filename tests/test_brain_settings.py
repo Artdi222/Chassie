@@ -43,8 +43,9 @@ async def test_api_key_written_private_and_never_shown(app, tmp_path):
 
 @pytest.mark.asyncio
 async def test_brain_test_reports_time_or_error(app):
-    app._hermes.complete_once = AsyncMock(return_value='OK')
+    app._hermes.complete_once = AsyncMock(return_value='OK'); app._broadcast_settings = AsyncMock()
     result = await app.handle_control({'type': 'test_brain'})
+    app._broadcast_settings.assert_awaited()  # Health panel refreshes after a test.
     assert result['type'] == 'brain_test' and result['ok'] and isinstance(result['seconds'], float)
     assert app._hermes.complete_once.call_args.kwargs == {'background': False}
     app._hermes.complete_once = AsyncMock(side_effect=RuntimeError('Hermes returned HTTP 401: invalid x-api-key'))
