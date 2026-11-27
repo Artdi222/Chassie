@@ -40,8 +40,8 @@
     <label for="initiative-mode">When you go quiet</label>
     <select id="initiative-mode" disabled><option value="normal">Chassie may start talking</option><option value="rare">Chassie rarely starts talking</option><option value="off">Only reply when I talk</option></select>
     <label for="persona">Her personality</label>
-    <textarea id="persona" rows="5" maxlength="4000" disabled aria-describedby="persona-help"></textarea>
-    <p id="persona-help" class="control-help">Sent with every reply, starting with the next one. Saved to config.local.yaml.</p>
+    <textarea id="persona" rows="5" maxlength="4000" disabled aria-describedby="persona-help" placeholder="Empty: she follows only Hermes's SOUL.md"></textarea>
+    <p id="persona-help" class="control-help">Hermes's ~/.hermes/SOUL.md always shapes her. Text here is added on top of it for Chassie only, from her next reply; leave it empty to use SOUL.md alone.</p>
     <button id="save-persona" class="action-btn secondary-btn" disabled>Save personality</button>
     <div class="info-card"><p id="speech-language">Loading voice settings…</p><p class="control-help">You can speak Indonesian or English; the language is detected automatically. <span id="echo-help">The microphone pauses while Chassie talks to avoid echo.</span></p><p id="speech-credit" class="control-help" hidden></p></div>
     <details id="voice-panel"><summary>Her voice</summary>

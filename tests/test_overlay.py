@@ -7,8 +7,10 @@ from desktop.state import OverlayState, Rect, bottom_right, fit_to_screens, vali
 
 
 def test_bottom_right_uses_available_work_area_and_negative_monitors():
-    assert bottom_right(Rect(0, 0, 1920, 1040), 360, 480) == Rect(1544, 544, 360, 480)
-    assert bottom_right(Rect(-1920, 0, 1920, 1040), 360, 480).x == -376
+    assert bottom_right(Rect(0, 0, 1920, 1040), 360, 480) == Rect(1560, 560, 360, 480)  # Flush in the corner.
+    assert bottom_right(Rect(-1920, 0, 1920, 1040), 360, 480).x == -360
+    assert fit_to_screens(Rect(1544, 544, 360, 480), [Rect(0, 0, 1920, 1040)]) == Rect(1560, 560, 360, 480)
+    assert fit_to_screens(Rect(1000, 300, 360, 480), [Rect(0, 0, 1920, 1040)]) == Rect(1000, 300, 360, 480)
 
 
 def test_removed_monitor_restores_visible_position_and_small_screen_fits():
@@ -85,7 +87,7 @@ def test_avatar_window_scales_about_its_corner_up_to_the_screen():
     assert (bigger.x+bigger.width,bigger.y+bigger.height)==(start.x+start.width,start.y+start.height)
     huge=start
     for _ in range(20):huge=scaled_window(huge,1.15,screen)
-    assert huge.y>=8 and huge.y+huge.height<=1024 and huge.height>=1000  # Up to the screen height.
+    assert huge.y>=0 and huge.y+huge.height<=1032 and huge.height>=1000  # Up to the screen height, no margin.
     tiny=scaled_window(start,.01,screen)
     assert (tiny.width,tiny.height)>=(200,260)
     assert Framing(5.9,-1).adjust(zoom=1).zoom==6.0

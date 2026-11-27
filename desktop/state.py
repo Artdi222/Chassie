@@ -16,7 +16,7 @@ class Rect:
     height: int
 
 
-def bottom_right(screen: Rect, width: int = 360, height: int = 480, margin: int = 16) -> Rect:
+def bottom_right(screen: Rect, width: int = 360, height: int = 480, margin: int = 0) -> Rect:
     width = max(1, min(width, screen.width - 2 * margin))
     height = max(1, min(height, screen.height - 2 * margin))
     return Rect(screen.x + max(0, screen.width - width - margin),
@@ -26,7 +26,7 @@ def bottom_right(screen: Rect, width: int = 360, height: int = 480, margin: int 
 MIN_WINDOW = (200, 260)
 
 
-def scaled_window(rect: Rect, factor: float, screen: Rect, margin: int = 8) -> Rect:
+def scaled_window(rect: Rect, factor: float, screen: Rect, margin: int = 0) -> Rect:
     """Scale the avatar window about its bottom-right corner, kept within the screen.
 
     The upper bound is the screen itself (the model fills whatever space it gets),
@@ -50,6 +50,9 @@ def fit_to_screens(rect: Rect, screens: list[Rect]) -> Rect:
         if (screen.x <= rect.x and screen.y <= rect.y
                 and rect.x + rect.width <= screen.x + screen.width
                 and rect.y + rect.height <= screen.y + screen.height):
+            right, bottom = screen.x + screen.width - rect.width, screen.y + screen.height - rect.height
+            if right - rect.x <= 24 and bottom - rect.y <= 24:
+                return Rect(right, bottom, rect.width, rect.height)  # Near the corner: sit in it (older 16 px margin).
             return rect
     return bottom_right(screens[0], rect.width, rect.height)
 

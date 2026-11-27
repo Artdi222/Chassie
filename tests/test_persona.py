@@ -34,5 +34,7 @@ async def test_set_persona_control(app, tmp_path):
     assert app._settings()['persona'] == 'Shy\n but kind.'
     assert app._hermes._persona == 'Shy but kind.'
     assert yaml.safe_load((tmp_path / 'config.local.yaml').read_text())['companion']['persona'] == 'Shy\n but kind.'
-    for bad in ('', 'x' * 4001, 5):
+    await app.handle_control({'type': 'set_persona', 'persona': '  '})
+    assert app._hermes._persona == '' and app._settings()['persona'] == ''  # Empty: SOUL.md alone.
+    for bad in ('x' * 4001, 5):
         with pytest.raises(ValueError): await app.handle_control({'type': 'set_persona', 'persona': bad})

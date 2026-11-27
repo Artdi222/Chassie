@@ -180,7 +180,7 @@ class ControlsMixin:
                 self._save_speech_settings()
             elif kind=='set_persona':
                 persona=data.get('persona')
-                if not isinstance(persona,str) or not persona.strip() or len(persona)>4000: raise ValueError('Personality must contain 1–4000 characters')
+                if not isinstance(persona,str) or len(persona)>4000: raise ValueError('Personality can be at most 4000 characters')  # Empty: SOUL.md only.
                 persona=persona.strip()
                 save_local('companion',{'persona':persona},getattr(self,'_local_config_root',ROOT))
                 self._config.setdefault('companion',{})['persona']=persona
