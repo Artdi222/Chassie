@@ -22,6 +22,7 @@ import live2d.v3 as live2d
 from desktop.state import OverlayState, Rect, Framing, bottom_right, fit_to_screens
 from desktop.compositor import APPLICATION_ID, configure_hyprland
 from desktop.pointer import PointerInteraction
+from paths import DATA
 
 
 def screens():
@@ -407,7 +408,7 @@ def run(args):
     from desktop.studio import StudioControls
     catalog = ModelCatalog(args.model_dir)
     if not catalog.models: raise ValueError('No Live2D model found: put one inside model/ (see model/README.md)')
-    selection = ModelSelection(catalog,Path(__file__).resolve().parents[1]/'.chassie/model-selection.json')
+    selection = ModelSelection(catalog,DATA/'.chassie/model-selection.json')
     selected = catalog.get(selection.state['model_id'])
     prepared = prepare_entry(selected,args.cache_dir)
     live2d.init()
@@ -417,7 +418,7 @@ def run(args):
     window.selection = selection.state
     controls = StudioControls(window,state,args.endpoint,args.cache_dir,catalog)
     from desktop.activation import activation_path, listen_for_activation
-    activation = listen_for_activation(activation_path(Path(__file__).resolve().parents[1]),
+    activation = listen_for_activation(activation_path(DATA),
                                        controls.activate_desktop, app)
     if compositor_warning:
         controls.status.setText(compositor_warning)

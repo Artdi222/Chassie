@@ -3,8 +3,9 @@ from pathlib import Path
 import threading
 import time
 import numpy as np
+from paths import DATA
 
-MODEL=Path(__file__).resolve().parents[1]/'.chassie/speaker-models/wespeaker_en_voxceleb_resnet34.onnx'
+MODEL=DATA/'.chassie/speaker-models/wespeaker_en_voxceleb_resnet34.onnx'
 
 
 def match_voice(feature,templates,threshold=.7,margin=.12):

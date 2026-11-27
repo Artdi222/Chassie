@@ -10,6 +10,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 from desktop.activation import activation_path, request_activation
 from brain.updates import RESTART_CODE
+from paths import DATA
 
 ROOT = Path(__file__).resolve().parent
 
@@ -35,16 +36,18 @@ def main():
     from brain.config import load_config
     config = load_config(ROOT)
     port = config.get('ui', {}).get('port', 8000)
-    data_dir=ROOT/'.chassie';data_dir.mkdir(exist_ok=True)
+    data_dir=DATA/'.chassie';data_dir.mkdir(parents=True,exist_ok=True)
     lock=(data_dir/'launcher.lock').open('a')
     try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
     except BlockingIOError:
         lock.close()
-        if request_activation(activation_path(ROOT)): return 0
+        if request_activation(activation_path(DATA)): return 0
         print('Chassie is already running but could not be shown. Quit Chassie from the tray and reopen it.',file=sys.stderr)
         return 1
     backend=None
     log=(data_dir/'launcher.log').open('a',buffering=1)
+    if os.environ.get('APPIMAGE'):  # Models, Hermes plugin and menu entry; skipped once done for this version.
+        subprocess.Popen([sys.executable,str(ROOT/'scripts/first_run.py')],stdout=log,stderr=log)
     try:
         existing=status(port)
         if existing is not None and (existing.get('application')!='chassie' or existing.get('protocol')!=2):

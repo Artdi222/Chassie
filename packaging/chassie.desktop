@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Chassie
+Comment=Local Live2D companion
+Exec=AppRun
+Icon=chassie
+Terminal=false
+Categories=Utility;
+StartupWMClass=chassie-overlay

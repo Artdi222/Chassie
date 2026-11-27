@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 from aiohttp import web
 from brain.initiative import PREFIX as INITIATIVE_PREFIX
+from paths import DATA
 
 logger=logging.getLogger('orchestrator')
 
@@ -160,7 +161,7 @@ class WebMixin:
 
     def _onboarding_path(self):
         path=getattr(self._model_selection,'path',None)
-        return (path.parent if path else Path(__file__).resolve().parents[1]/'.chassie')/'onboarding.json'
+        return (path.parent if path else DATA/'.chassie')/'onboarding.json'
 
     def _onboarding_state(self):
         try: done=bool(json.loads(self._onboarding_path().read_text()).get('completed'))

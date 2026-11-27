@@ -55,6 +55,7 @@ from brain.controls import ControlsMixin
 from brain.presence import PresenceMixin
 from brain.initiative import InitiativeMixin
 from brain.web import WebMixin
+from paths import DATA
 
 ROOT=Path(__file__).resolve().parents[1]  # Repository root (config, ui/, .chassie/)
 
@@ -97,7 +98,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._audio_player=c.get('player') or AudioPlayer(config)
         self._audio_analyzer=c.get('analyzer') or AudioAnalyzer(sample_rate=config['audio']['output_sample_rate'])
         self._face_tracker=c.get('face')
-        self._memory=MemoryStore(config.get('companion',{}).get('memory_path',str(ROOT/'.chassie/memory.sqlite')))
+        self._memory=MemoryStore(config.get('companion',{}).get('memory_path',str(DATA/'.chassie/memory.sqlite')))
         self._vision=c.get('vision')
         if self._vision is None and any(config.get('vision',{}).get(key,False) for key in ('camera_enabled','screen_enabled')):
             self._vision=VisualContext(config,self._memory)
@@ -110,7 +111,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
         self._previous_user_text=''
         self._semantic=None
         self._fact_importance={}  # Saved fact path -> importance 1-3, from consolidation
-        self._transcripts=Path(config.get('companion',{}).get('memory_path',str(ROOT/'.chassie/memory.sqlite'))).parent/'transcripts'
+        self._transcripts=Path(config.get('companion',{}).get('memory_path',str(DATA/'.chassie/memory.sqlite'))).parent/'transcripts'
         self._face_command_result=None
         self._session_context=SessionContext()
         self._automatic_memory=config.get('companion',{}).get('automatic_memory',False) is True
@@ -128,7 +129,7 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
             self._speaker=self._speaker or VoiceIdentity(self._memory,presence=lambda:self._vision.status() if self._vision else {})
             self._stt.speaker_identity=self._speaker
         self._catalog=ModelCatalog()
-        selection_path=Path(config.get('companion',{}).get('memory_path',str(ROOT/'.chassie/memory.sqlite'))).parent/'model-selection.json'
+        selection_path=Path(config.get('companion',{}).get('memory_path',str(DATA/'.chassie/memory.sqlite'))).parent/'model-selection.json'
         self._model_selection=ModelSelection(self._catalog,selection_path)
         self._subtitle=None
         self._ui_sockets=set()

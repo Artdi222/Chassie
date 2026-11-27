@@ -1,10 +1,13 @@
 """Install hash-checked face models (YuNet detector, ArcFace recognizer) into Chassie's local cache."""
 import hashlib
 from pathlib import Path
+import sys
 import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from paths import DATA  # noqa: E402
 DETECTOR = ('face_detection_yunet', 'face_detection_yunet_2023mar.onnx',
             '8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4')
 # InsightFace publishes ArcFace only inside the buffalo_l pack; only w600k_r50 is kept.
@@ -40,7 +43,7 @@ def download(url, path, limit):
 
 
 def install():
-    target = ROOT / '.chassie' / 'vision-models'
+    target = DATA / '.chassie' / 'vision-models'
     target.mkdir(parents=True, exist_ok=True)
     folder, name, expected = DETECTOR
     path = target / name
@@ -92,7 +95,7 @@ def install():
 
 
 def check_open_vocabulary():
-    target = ROOT / '.chassie' / 'vision-models'
+    target = DATA / '.chassie' / 'vision-models'
     if (target / 'yoloe-11s-pf-416.onnx').exists() and (target / 'yoloe-11s-pf.names.json').exists():
         print('Ready: yoloe-11s-pf-416.onnx', flush=True)
     else:

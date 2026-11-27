@@ -20,6 +20,7 @@ import numpy as np
 
 from vision.ambient import ChangeWatcher, SceneWatcher, create_detector
 from vision.face_identity import FaceIdentity, MODEL_DIR
+from paths import DATA
 
 logger = logging.getLogger('vision')
 # Mean grayscale difference (0-255) on a 64x36 thumbnail before the screen is sent again.
@@ -85,7 +86,7 @@ class VisualContext:
         self.freshness = max(self.interval * 2, 5.0)
         self.model_dir = Path(cfg.get('model_dir', MODEL_DIR))
         if not self.model_dir.is_absolute():
-            self.model_dir = Path(__file__).resolve().parents[1] / self.model_dir
+            self.model_dir = DATA / self.model_dir
         self.memory, self.clock = memory, clock
         self._lock = threading.RLock()
         self._stop = threading.Event()

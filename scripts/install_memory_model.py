@@ -5,12 +5,15 @@ fp16 runs on the GPU (CUDA); the int8 file is the CPU fallback.
 """
 import hashlib
 from pathlib import Path
+import sys
 import shutil
 
 from huggingface_hub import hf_hub_download
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET = ROOT / '.chassie' / 'memory-models' / 'multilingual-e5-small'
+sys.path.insert(0, str(ROOT))
+from paths import DATA  # noqa: E402
+TARGET = DATA / '.chassie' / 'memory-models' / 'multilingual-e5-small'
 REPO = 'Xenova/multilingual-e5-small'
 REVISION = '761b726dd34fb83930e26aab4e9ac3899aa1fa78'
 FILES = {

@@ -5,13 +5,14 @@ from pathlib import Path
 import sys
 
 from desktop.state import validate_endpoint
+from paths import DATA
 
 
 def main():
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description='Chassie optional transparent Live2D overlay')
-    parser.add_argument('--model-dir', type=Path, default=root / 'model')
-    parser.add_argument('--cache-dir', type=Path, default=root / '.chassie' / 'overlay')
+    parser.add_argument('--model-dir', type=Path, default=DATA / 'model')
+    parser.add_argument('--cache-dir', type=Path, default=DATA / '.chassie' / 'overlay')
     parser.add_argument('--endpoint', default='ws://127.0.0.1:8000/ws')
     parser.add_argument('--fps', type=int, choices=(15, 30, 60), default=30)
     parser.add_argument('--check', action='store_true', help='Check optional dependencies without opening a window')

@@ -101,6 +101,13 @@ inside Chassie, without a terminal or editing files.
    choosing plays a sample; download progress is a status line, no resume).
 4. Windows port (`2026-11-26-windows-port.md`) and Q6 AppImage later: they cost the most tokens (no local
    Windows testing; CI build loops). Build the AppImage on GitHub Actions, not locally (no large upload).
+5. ~~Q6~~ (done 2026-11-27, first cut): `paths.py` (APP = code, DATA = `CHASSIE_DATA` or the repo), so the
+   AppImage keeps data in `~/.local/share/chassie`; `scripts/build_appimage.sh` (python-appimage 3.12
+   manylinux_2_28, CPU onnxruntime, voicevox_core wheel bundled) and `.github/workflows/appimage.yml` (v* tag →
+   release asset; manual run = build check). First run: `scripts/first_run.py` (vision/speaker/memory models,
+   Hermes plugin copied not linked, menu entry); VOICEVOX installs from Settings → Voice (terms checkbox); speech
+   starts without VOICEVOX (text only until installed). Not done: the "Download GPU acceleration" pack, AppImage
+   self-update (Q5 AppImage), bundling PortAudio (host library).
 
 ## Suggested order (original)
 

@@ -22,3 +22,7 @@ model/*
 
 # Local design-tool output
 .impeccable/
+
+# AppImage build output
+build/
+dist/

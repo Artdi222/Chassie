@@ -10,6 +10,7 @@ from brain.bilingual import JAPANESE
 from speech.speech_polish import clean_speech
 from speech.speech_prosody import ProsodyPlanner
 from speech.voices import DEFAULT_STYLE, voice
+from paths import DATA
 
 # One chosen style always (switching styles sounded like another person); per-sentence
 # prosody in speech_prosody.py makes the delivery follow each line instead.
@@ -21,7 +22,7 @@ class VoicevoxTTS:
     def __init__(self, config):
         cfg = config['tts']
         self.root = Path(cfg.get('voicevox_dir', '.chassie/voicevox')).expanduser()
-        if not self.root.is_absolute(): self.root = Path(__file__).resolve().parents[1] / self.root
+        if not self.root.is_absolute(): self.root = DATA / self.root
         self.threads = cfg.get('cpu_threads', 2)
         self.sample_rate = cfg['sample_rate']
         self.speed = cfg.get('speed_scale', 1.0)
@@ -42,7 +43,7 @@ class VoicevoxTTS:
     def check_installation(self):
         paths = ('dict/open_jtalk_dic_utf_8-1.11/sys.dic', 'onnxruntime/lib/libvoicevox_onnxruntime.so.1.17.3')
         if importlib.util.find_spec('voicevox_core') is None or any(not (self.root / p).is_file() for p in paths):
-            raise RuntimeError('VOICEVOX is not installed. Run .venv/bin/python scripts/install_voicevox.py.')
+            raise RuntimeError('VOICEVOX is not installed. Install it in Settings → Voice & chat (or run scripts/install_voicevox.py).')
         if not (voice(self.root, self.style) or {}).get('installed'):
             raise RuntimeError(f'VOICEVOX voice style {self.style} is not installed. Choose one in Settings → Voice & chat.')
 

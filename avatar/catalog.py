@@ -7,8 +7,9 @@ from pathlib import Path
 from urllib.parse import quote
 from .interaction import interaction_settings
 from .reactions import generated_reactions, expression_id
+from paths import DATA
 
-ROOT = Path(__file__).resolve().parents[1] / 'model'
+ROOT = DATA / 'model'
 # VTube Studio-style rigs take face tracking on custom inputs and let physics drive the
 # standard ParamAngle*; writing ParamAngle* directly is overwritten every frame.
 PARAM_ALIASES = {'DeepSeek': {'ParamAngleX': 'AngleX', 'ParamAngleY': 'AngleY', 'ParamAngleZ': 'AngleZ',

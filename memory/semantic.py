@@ -13,9 +13,10 @@ import threading
 import numpy as np
 
 from vision.onnx_gpu import create_session
+from paths import DATA
 
 logger = logging.getLogger('memory')
-MODEL_DIR = Path(__file__).resolve().parents[1] / '.chassie' / 'memory-models' / 'multilingual-e5-small'
+MODEL_DIR = DATA / '.chassie' / 'memory-models' / 'multilingual-e5-small'
 
 
 def _digest(text):

@@ -5,8 +5,9 @@ import json
 from pathlib import Path
 
 import yaml
+from paths import APP, DATA
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = APP
 
 
 def merge(base, override):
@@ -20,13 +21,13 @@ def merge(base, override):
 def load_config(root=ROOT):
     root = Path(root)
     config = yaml.safe_load((root / 'config.yaml').read_text(encoding='utf-8')) or {}
-    local = root / 'config.local.yaml'
+    local = (DATA if root == ROOT else root) / 'config.local.yaml'  # Personal settings live with her data.
     if local.is_file():
         config = merge(config, yaml.safe_load(local.read_text(encoding='utf-8')))
     return config
 
 
-def save_local(section, values, root=ROOT):
+def save_local(section, values, root=DATA):
     """Rewrite only section.<key> for each key in values in config.local.yaml; other keys and comments stay."""
     # ponytail: line-based edit (no ruamel); refuses unless the result parses back as expected.
     path = Path(root) / 'config.local.yaml'

@@ -47,12 +47,16 @@ class TTSEngine:
         self._max_samples=int(cfg.get('max_audio_seconds',60)*self._sample_rate)
         if self._max_samples<=0: raise ValueError('max_audio_seconds must be positive')
         self._ready=False
+        self._reason=None
         self._warm_task=None
 
     def load_model(self):
-        self._voicevox.check_installation()
+        """Ready when VOICEVOX is installed; otherwise she chats in text until a voice is installed (Settings)."""
         import av  # noqa: F401
-        self._ready=True
+        try: self._voicevox.check_installation()
+        except RuntimeError as exc:
+            self._reason=str(exc);logger.warning('%s',exc);return
+        self._reason=None;self._ready=True
 
     def start(self):
         self._warm()
@@ -86,10 +90,11 @@ class TTSEngine:
         return normalize_loudness(await asyncio.to_thread(self._decode,data),self._sample_rate)
 
     def status(self):
-        return {'selected':self.engine,'active':self.engine,'ready':self._ready,'reason':None}
+        return {'selected':self.engine,'active':self.engine,'ready':self._ready,'reason':self._reason}
 
     async def synthesize_stream(self,text,*,emotion='neutral'):
-        if not self._ready: raise RuntimeError('TTS not initialized')
+        if not self._ready: self.load_model()  # A voice may have been installed since start.
+        if not self._ready: raise RuntimeError(self._reason or 'TTS not initialized')
         if not text or not text.strip(): return
         try:
             data=await self._voicevox.synthesize(text,emotion)

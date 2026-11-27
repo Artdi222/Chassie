@@ -538,6 +538,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 list.append(row);
             }
         }
+        if (!voiceData.voices.length) {  // Fresh install (AppImage): VOICEVOX itself comes first.
+            const row = document.createElement("div");row.className = "memory-item";
+            const text = document.createElement("p");
+            text.textContent = "VOICEVOX is not installed yet. Install it with Mochiko-san's voice (about 190 MB) so she can speak.";
+            row.append(text, action("Install", () => {
+                if (!document.getElementById("voice-terms-accept").checked) { state.textContent = "Accept the VOICEVOX terms below first."; return; }
+                if (sendControl({type: "download_voice", pack: "15.vvm", accept_terms: true}))
+                    state.textContent = "Installing VOICEVOX… this can take a few minutes.";
+            }));
+            list.append(row);
+        }
         const use = document.getElementById("use-voice");
         use.hidden = !heardVoice || heardVoice.id === chosen;
         if (heardVoice) use.textContent = `Use ${heardVoice.name} · ${heardVoice.style_name}`;
@@ -559,7 +570,7 @@ document.addEventListener("DOMContentLoaded", () => {
             list.append(more);
         }
         list.scrollTop = scroll;
-        document.getElementById("voice-terms").hidden = !missing.length;
+        document.getElementById("voice-terms").hidden = !missing.length && voiceData.voices.length > 0;
         document.getElementById("voice-terms-text").textContent = voiceData.terms;
     }
 

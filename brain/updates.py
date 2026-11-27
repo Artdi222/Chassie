@@ -5,6 +5,7 @@ Memory, models and config.local.yaml are git-ignored, so an update never touches
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 
 from brain.config import ROOT
 
@@ -21,6 +22,8 @@ def _git(root, *args, timeout=60):
 
 
 def check(root=ROOT):
+    if not (Path(root) / '.git').exists():
+        raise ValueError('This Chassie is the AppImage: download the newest Chassie AppImage from the GitHub releases page')
     _git(root, 'fetch', '--tags', '--force', '--quiet', 'origin')
     latest = next(iter(_git(root, 'tag', '-l', 'v*', '--sort=-v:refname').split()), None)
     behind = int(_git(root, 'rev-list', '--count', 'HEAD..@{u}'))

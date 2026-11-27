@@ -13,9 +13,11 @@ from memory.store import bounded_text
 from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
 from brain.config import ROOT, save_local
+from scripts import install_voicevox
 from brain import updates, hermes_catalog
 from speech import voices
 from avatar.appearance import PROMPT as APPEARANCE_PROMPT, fingerprint
+from paths import DATA
 
 logger=logging.getLogger('orchestrator')
 
@@ -104,7 +106,7 @@ class ControlsMixin:
         root=getattr(self,'_voicevox_root',None)
         if root: return Path(root)
         root=Path(self._config.get('tts',{}).get('voicevox_dir','.chassie/voicevox')).expanduser()
-        return root if root.is_absolute() else ROOT/root
+        return root if root.is_absolute() else DATA/root
 
     def _voice(self):
         style=self._config.get('tts',{}).get('style') or voices.DEFAULT_STYLE
@@ -222,7 +224,7 @@ class ControlsMixin:
                 persona=data.get('persona')
                 if not isinstance(persona,str) or len(persona)>4000: raise ValueError('Personality can be at most 4000 characters')  # Empty: SOUL.md only.
                 persona=persona.strip()
-                save_local('companion',{'persona':persona},getattr(self,'_local_config_root',ROOT))
+                save_local('companion',{'persona':persona},getattr(self,'_local_config_root',DATA))
                 self._config.setdefault('companion',{})['persona']=persona
                 self._hermes._persona=' '.join(persona.split())  # Applied from the next reply on.
             elif kind=='set_brain':
@@ -232,7 +234,7 @@ class ControlsMixin:
                 if values['reasoning_effort'] not in (None,*EFFORTS): raise ValueError('Unknown reasoning effort')
                 if not values['provider'] and any(values[k] for k in MODEL_KEYS):
                     raise ValueError("Choose a provider for these models, or leave every model on Hermes's default")
-                save_local('hermes',values,getattr(self,'_local_config_root',ROOT))
+                save_local('hermes',values,getattr(self,'_local_config_root',DATA))
                 self._config.setdefault('hermes',{}).update(values)
                 self._hermes.set_models(**values)
             elif kind=='set_api_key':
@@ -267,9 +269,11 @@ class ControlsMixin:
                 return await self._voices_payload()
             elif kind=='download_voice':
                 if data.get('accept_terms') is not True: raise ValueError('Accept the VOICEVOX terms before downloading a voice')
-                pack=data.get('pack')
-                if pack not in {v['pack'] for v in voices.catalog(self._voicevox_dir())}: raise ValueError('Unknown voice pack')
-                try: await asyncio.to_thread(voices.download,self._voicevox_dir(),pack)
+                root,pack=self._voicevox_dir(),data.get('pack')
+                packs={v['pack'] for v in voices.catalog(root)}
+                if packs and pack not in packs: raise ValueError('Unknown voice pack')
+                # No catalog yet: VOICEVOX itself is missing (fresh AppImage); install it with Mochiko-san's voice.
+                try: await (asyncio.to_thread(voices.download,root,pack) if packs else asyncio.to_thread(install_voicevox.install,root))
                 except (OSError,subprocess.SubprocessError) as exc: raise ValueError('The voice could not be downloaded; check the connection and try again') from exc
                 return await self._voices_payload()
             elif kind=='preview_voice':
@@ -283,7 +287,7 @@ class ControlsMixin:
                 entry=voices.voice(self._voicevox_dir(),style) if type(style) is int else None
                 if not entry: raise ValueError('Unknown voice')
                 if not entry['installed']: raise ValueError('Download this voice first')
-                save_local('tts',{'style':style},getattr(self,'_local_config_root',ROOT))
+                save_local('tts',{'style':style},getattr(self,'_local_config_root',DATA))
                 self._config.setdefault('tts',{})['style']=style
                 await self._tts.set_style(style)
                 try: await self._preview_voice()

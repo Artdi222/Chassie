@@ -15,12 +15,15 @@ pruned. Ultralytics YOLOE weights are AGPL-3.0.
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET = ROOT / '.chassie' / 'vision-models'
+sys.path.insert(0, str(ROOT))
+from paths import DATA  # noqa: E402
+TARGET = DATA / '.chassie' / 'vision-models'
 SIZE = 416
 
 

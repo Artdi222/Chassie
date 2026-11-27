@@ -80,7 +80,7 @@ Voice library terms (each character's own terms apply; read them before use):"""
 def terms_en(root):
     """English terms: translated general part, then each character's required credit and terms link."""
     try: text = (Path(root) / 'models/TERMS.txt').read_text(encoding='utf-8')
-    except OSError: return ''
+    except OSError: return TERMS_EN  # Not installed yet: the general part, shown before the first download.
     lines = [TERMS_EN]
     for character, body in re.findall(r'^## (.+?)\n(.*?)(?=^## |\Z)', text.split('# 音声ライブラリ利用規約', 1)[-1], re.M | re.S):
         credits = re.findall(r'「(VOICEVOX:[^」]+)」', body)
