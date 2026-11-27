@@ -111,6 +111,7 @@ class AvatarWindow(QOpenGLWidget):
         try:
             live2d.clearBuffer(0.0, 0.0, 0.0, 0.0)
             if self.entry:
+                self.state.settle(time.monotonic())
                 emotion=self.state.emotion
                 if self.entry.generated:
                     emotion={'thinking':'waiting','listening':'curious','idle':'neutral','disconnected':'neutral'}.get(self.state.status,emotion)

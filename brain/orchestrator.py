@@ -602,8 +602,8 @@ class Orchestrator(ControlsMixin,WebMixin,PresenceMixin,InitiativeMixin):
                 pacing.completed(sentence,chunks,now=time.monotonic())
                 self._spoken+=' '+sentence
                 await self._avatar.set_mouth_open(0)
-                self._subtitle=None
-                await self._broadcast_to_ui({'type':'subtitle','text':'','generation':generation})
+                # The subtitle stays until the next sentence replaces it or the turn ends: clearing it
+                # between sentences made the bubble flash while the next one was being synthesized.
         finally:
             if prefetch is not None:
                 prefetch.cancel()

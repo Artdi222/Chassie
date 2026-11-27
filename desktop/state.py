@@ -68,6 +68,9 @@ def validate_endpoint(endpoint: str) -> str:
     return endpoint
 
 
+EMOTION_HOLD = 1.5  # Seconds each expression stays before the next one.
+
+
 @dataclass
 class OverlayState:
     emotion: str = 'neutral'
@@ -78,6 +81,8 @@ class OverlayState:
     status: str = 'disconnected'
     mic_enabled: bool | None = None
     gaze: tuple | None = None  # Owner's face position in the camera, [-1, 1] each axis.
+    pending_emotion: str | None = None  # Next feeling, shown once the current one has had its moment.
+    emotion_at: float = -1e9
     nod_at: float | None = None  # Last backchannel cue: nod while the owner talks.
 
     def receive(self, message: dict, now: float) -> bool:
@@ -96,10 +101,8 @@ class OverlayState:
                 or message.get('emotion') not in VALID_EMOTIONS):
             return False
         self.generation = generation
-        if message['emotion'] != self.emotion:
-            # A fresh look each time the feeling changes; steady while it stays the same.
-            self.variant = random.randrange(1000)
-        self.emotion = message['emotion']
+        self.pending_emotion = message['emotion']
+        self.settle(now)
         self.mouth = max(0.0, min(1.0, mouth))
         self.status = str(message.get('status', 'idle'))
         gaze = message.get('gaze')
@@ -109,11 +112,23 @@ class OverlayState:
         self.updated_at = now
         return True
 
+    def settle(self, now: float):
+        """Apply the pending feeling, but keep each face for EMOTION_HOLD seconds: short sentences with
+        different feelings otherwise flicker her expression. Called on every message and every frame."""
+        if self.pending_emotion is None: return
+        if self.pending_emotion != self.emotion:
+            if now - self.emotion_at < EMOTION_HOLD: return
+            # A fresh look each time the feeling changes; steady while it stays the same.
+            self.variant = random.randrange(1000)
+            self.emotion, self.emotion_at = self.pending_emotion, now
+        self.pending_emotion = None
+
     def mouth_at(self, now: float) -> float:
         return self.mouth if now - self.updated_at <= 0.75 else 0.0
 
     def disconnected(self):
         self.emotion, self.mouth, self.generation = 'neutral', 0.0, -1
+        self.pending_emotion, self.emotion_at = None, -1e9
         self.status, self.mic_enabled, self.gaze = 'disconnected', None, None
 
 

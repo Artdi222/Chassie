@@ -98,3 +98,15 @@ def test_subtitle_stays_long_enough_to_read():
     assert subtitle_linger(4, 0.3) == 1.5  # "Hai!": still a moment after her voice stops.
     assert subtitle_linger(80, 2.0) == pytest.approx(3.8)  # A long line: reading time counted from when it appeared.
     assert subtitle_linger(400, 0.0) == 8.0 and subtitle_linger(80, 9.0) == 1.5
+
+
+def test_expression_holds_before_the_next_feeling():
+    from desktop.state import OverlayState
+    state = OverlayState()
+    msg = lambda emotion, gen: {"type": "avatar_state", "emotion": emotion, "mouth": 0, "generation": gen, "status": "speaking"}
+    state.receive(msg("happy", 1), now=10)
+    state.receive(msg("teasing", 2), now=10.4); state.receive(msg("love", 3), now=10.8)
+    assert state.emotion == "happy"  # Short sentences: no flicker through every feeling.
+    state.settle(11.2); assert state.emotion == "happy"
+    state.settle(11.6); assert state.emotion == "love" and state.pending_emotion is None  # Latest feeling wins.
+    state.receive(msg("love", 4), now=11.7); assert state.emotion == "love"
