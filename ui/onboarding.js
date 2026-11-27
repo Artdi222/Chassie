@@ -19,7 +19,21 @@
                 if (!state.settings) applySettings(d);
                 state.settings = d;
             }
+            else if (d.type === 'hermes_status') renderHermes(d);
+            else if (d.type === 'providers') { brain.providers = d.providers; combos.provider.refresh(); showKey(); }
+            else if (d.type === 'models' && d.provider === $('ob-provider').value.trim()) {
+                brain.models = d.models.map(m => ({value: m.id, label: m.name})); combos.model.refresh();
+                $('ob-model').placeholder = brain.models.length ? 'Type to search models' : 'Type the model name';
+            }
+            else if (d.type === 'brain_test') {
+                $('ob-test').disabled = false;
+                $('ob-test-status').className = 'import-status' + (d.ok ? '' : ' error');
+                $('ob-test-status').textContent = d.ok ? `She can think: the model answered in ${d.seconds} s.` : `Not working yet: ${d.error}`;
+            }
+            else if (d.type === 'voices') renderVoice(d);
+            else if (d.type === 'notice') { const line = state.step === 1 ? $('ob-test-status') : $('ob-voice-text'); line.textContent = d.text; $('ob-test').disabled = $('ob-voice-button').disabled = false; }
         };
+        ws.onopen = () => { if (state.step === 1) askBrain(); if (state.step === 3) send({type: 'list_voices'}); };
         ws.onclose = () => setTimeout(connect, 1500);
     }
     const send = data => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(data));
@@ -31,10 +45,75 @@
     document.querySelectorAll('input[name=initiative]').forEach(i => i.onchange = () => send({type: 'set_initiative_mode', mode: i.value}));
     document.querySelectorAll('input[name=input]').forEach(i => i.onchange = () => send({type: 'set_input_mode', mode: i.value}));
 
+    // ---- Brain: Hermes setup, then provider, key and model (same controls as Settings → AI model) ----
+    const brain = {providers: [], models: [], status: null, testing: false};
+    const {combobox} = window.ChassieCombobox;
+    const combos = {
+        provider: combobox($('ob-provider'), () => brain.providers.map(p => ({value: p.id, label: p.label, badge: p.signed_in ? 'Signed in' : ''})), () => 'Loading providers from Hermes…'),
+        model: combobox($('ob-model'), () => brain.models, () => 'Choose a provider to see its models.'),
+    };
+    const askBrain = () => { send({type: 'hermes_status'}); send({type: 'list_providers'}); };
+    const chosenProvider = () => brain.providers.find(p => p.id === $('ob-provider').value.trim());
+    function showKey() {
+        const p = chosenProvider();
+        $('ob-key-row').hidden = !p?.key_name || p.signed_in;
+        if (p?.key_name) $('ob-key-label').textContent = `API key (${p.key_name})`;
+    }
+    $('ob-provider').addEventListener('change', () => {
+        brain.models = []; $('ob-model').value = ''; showKey();
+        const provider = $('ob-provider').value.trim();
+        if (provider) send({type: 'list_models', provider});
+    });
+    function renderHermes(d) {
+        if (d.busy) { $('hermes-setup').disabled = true; $('hermes-progress').className = 'import-status'; $('hermes-progress').textContent = d.progress || 'Working…'; return; }
+        brain.status = d;
+        for (const li of $('hermes-checks').children) li.dataset.ok = String(!!d[li.dataset.check]);
+        const ready = d.installed && d.connected && d.running;
+        const button = $('hermes-setup');
+        button.hidden = ready; button.disabled = false;
+        button.textContent = !d.installed ? 'Install Hermes (a few minutes)' : !d.connected ? 'Connect Hermes to Chassie' : 'Start Hermes';
+        $('hermes-progress').className = 'import-status' + (d.error ? ' error' : '');
+        $('hermes-progress').textContent = d.error || (ready ? 'Hermes is ready. Now choose which AI she uses.' : '');
+        $('ob-brain-pick').hidden = !ready;
+        if (ready && !brain.providers.length) send({type: 'list_providers'});
+        if (ready && brain.testing) { brain.testing = false; $('ob-test-status').textContent = 'Asking the model a test question…'; send({type: 'test_brain'}); }
+        else if (brain.testing) { brain.testing = false; $('ob-test').disabled = false; }
+        render();
+    }
+    $('hermes-setup').onclick = () => send({type: 'hermes_setup'});
+    $('ob-test').onclick = () => {
+        const provider = $('ob-provider').value.trim(), model = $('ob-model').value.trim(), key = $('ob-key').value.trim();
+        if (!provider || !model) { $('ob-test-status').textContent = 'Choose a provider and a model first.'; return; }
+        $('ob-test').disabled = true; $('ob-test-status').className = 'import-status'; $('ob-test-status').textContent = 'Saving…';
+        send({type: 'set_brain', provider, text_model: model});
+        if (key && !$('ob-key-row').hidden) { send({type: 'set_api_key', key}); $('ob-key').value = ''; }  // Never kept in the page.
+        brain.testing = true;
+        send({type: 'hermes_setup'});  // Restarts Hermes so it reads the new key, then the test runs (renderHermes).
+    };
+
+    // ---- Voice: VOICEVOX with Mochiko-san, installed here once its terms are accepted ----
+    function renderVoice(d) {
+        const installed = d.voices.filter(v => v.installed);
+        $('ob-voice-button').disabled = false;
+        $('ob-voice-install').hidden = installed.length > 0;
+        $('ob-voice-terms').textContent = d.terms;
+        $('ob-voice-text').textContent = installed.length
+            ? `Her voice is installed: ${installed.find(v => v.id === state.settings?.voice?.style)?.name || installed[0].name}. She speaks Japanese, with subtitles in your language. More voices are in Settings.`
+            : 'She speaks Japanese through VOICEVOX, a free voice engine, with subtitles in your language. Without it she only writes.';
+    }
+    $('ob-voice-button').onclick = () => {
+        if (!$('ob-voice-accept').checked) { $('ob-voice-text').textContent = 'Tick the box to accept the VOICEVOX terms first.'; return; }
+        $('ob-voice-button').disabled = true;
+        $('ob-voice-text').textContent = 'Installing her voice… this takes a few minutes. You can continue meanwhile.';
+        send({type: 'download_voice', pack: '15.vvm', accept_terms: true});
+    };
+
     // ---- Steps ----
     const current = () => state.models.find(m => m.id === state.selected);
     function go(step) {
-        state.step = Math.max(0, Math.min(3, step));
+        state.step = Math.max(0, Math.min(4, step));
+        if (state.step === 1) askBrain();
+        if (state.step === 3) send({type: 'list_voices'});
         views.forEach((v, i) => v.hidden = i !== state.step);
         steps.forEach((s, i) => { s.classList.toggle('done', i < state.step); if (i === state.step) s.setAttribute('aria-current', 'step'); else s.removeAttribute('aria-current'); });
         render();
@@ -45,10 +124,12 @@
         const name = m?.name || 'Chassie';
         $('ob-back').hidden = state.step === 0;
         const next = $('ob-next');
-        const label = ['Get started', 'Continue', 'Continue', `Meet ${name}`][state.step];
+        const label = ['Get started', 'Continue', 'Continue', 'Continue', `Meet ${name}`][state.step];
         next.firstChild.textContent = label;
-        next.disabled = state.step === 1 && !m;
-        $('ob-hint').textContent = state.step === 1 && !m ? 'Add a model to continue' : '';
+        next.disabled = state.step === 2 && !m;
+        const thinking = brain.status && brain.status.installed && brain.status.connected && brain.status.running;
+        $('ob-hint').textContent = state.step === 2 && !m ? 'Add a model to continue'
+            : state.step === 1 && !thinking ? 'You can do this later in Settings, but she cannot answer until Hermes runs' : '';
         $('ready-title').textContent = `${name} is ready to meet you.`;
         $('character-title').textContent = state.models.length ? 'Choose her look.' : 'Give her a look.';
         const list = $('ob-models');
@@ -127,7 +208,7 @@
     // ---- Navigation ----
     $('ob-back').onclick = () => go(state.step - 1);
     $('ob-next').onclick = async () => {
-        if (state.step < 3) { go(state.step + 1); return; }
+        if (state.step < 4) { go(state.step + 1); return; }
         const button = $('ob-next'); button.disabled = true;
         $('finish-status').textContent = 'Starting…';
         try {
@@ -147,5 +228,5 @@
     });
     views.forEach(v => v.querySelector('h1')?.setAttribute('tabindex', '-1'));
 
-    connect(); go(location.hash === '#model' ? 1 : 0);
+    connect(); go(location.hash === '#model' ? 2 : 0);
 })();

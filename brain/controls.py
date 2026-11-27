@@ -14,7 +14,7 @@ from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
 from brain.config import ROOT, save_local
 from scripts import install_voicevox
-from brain import updates, hermes_catalog
+from brain import updates, hermes_catalog, hermes_setup
 from speech import voices
 from avatar.appearance import PROMPT as APPEARANCE_PROMPT, fingerprint
 from paths import DATA
@@ -135,6 +135,34 @@ class ControlsMixin:
         return {**{k:hermes.get(k) for k in BRAIN_KEYS},'efforts':list(EFFORTS),'key_name':key,
                 'key_saved':bool(key) and key in env_names(self._env_path())}  # Never the key itself.
 
+    async def _hermes_state(self,busy=False,error=None):
+        state=await asyncio.to_thread(hermes_setup.status,self._hermes_home(),self._config)
+        running=bool(state['installed']) and await self._hermes.health_check()
+        return {'type':'hermes_status',**state,'running':running,'busy':busy,'error':error}
+
+    async def _hermes_setup_job(self):
+        """Install Hermes if needed, connect it to Chassie, start its gateway (onboarding → Brain)."""
+        loop=asyncio.get_running_loop()
+        say=lambda text:asyncio.run_coroutine_threadsafe(self._broadcast_to_ui({'type':'hermes_status','busy':True,'progress':text}),loop)
+        try:
+            if not hermes_setup.hermes_bin(): await asyncio.to_thread(hermes_setup.install,say)
+            await self._broadcast_to_ui({'type':'hermes_status','busy':True,'progress':'Connecting Hermes to Chassie…'})
+            self._hermes.set_api_key(await asyncio.to_thread(hermes_setup.connect,self._hermes_home(),self._config,write_env))
+            if not (self._hermes_home()/'models_dev_cache.json').is_file():
+                try: await asyncio.to_thread(hermes_setup.fetch_models_dev)
+                except (OSError,ValueError): pass  # The picker still takes typed names.
+            self._providers_cache=None
+            await self._broadcast_to_ui({'type':'hermes_status','busy':True,'progress':'Starting Hermes…'})
+            await asyncio.to_thread(hermes_setup.start_gateway)
+            for _ in range(30):
+                if await self._hermes.health_check(): break
+                await asyncio.sleep(2)
+            state=await self._hermes_state()
+            if not state['running']: state['error']='Hermes was set up but did not start. Open Chassie again, or run: hermes gateway restart'
+            await self._broadcast_to_ui(state)
+        except (RuntimeError,OSError,ValueError,subprocess.SubprocessError) as exc:
+            await self._broadcast_to_ui(await self._hermes_state(error=str(exc)[:400]))
+
     async def _brain_lists(self,kind,data):
         if kind=='list_providers':
             if getattr(self,'_providers_cache',None) is None:
@@ -183,6 +211,11 @@ class ControlsMixin:
         if not isinstance(data,dict): raise ValueError('Expected an object')
         kind=data.get('type')
         if kind in ('list_providers','list_models'): return await self._brain_lists(kind,data)  # Read-only: no lock.
+        if kind=='hermes_status': return await self._hermes_state()
+        if kind=='hermes_setup':  # Minutes long: runs beside the lock, reporting progress to every page.
+            if not (getattr(self,'_hermes_job',None) and not self._hermes_job.done()):
+                self._hermes_job=asyncio.create_task(self._hermes_setup_job())
+            return {'type':'hermes_status','busy':True,'progress':'Starting…'}
         async with self._control_lock:
             if kind in ('select_model','set_model_options'):
                 model_id=data.get('model_id')

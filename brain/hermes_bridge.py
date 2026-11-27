@@ -460,6 +460,11 @@ class HermesBridge:
         for key in ('prompt_tokens','completion_tokens'):
             if isinstance(usage.get(key),int): self.usage[key]+=usage[key]
 
+    def set_api_key(self,key):
+        """A new shared key (onboarding set Hermes up): used from the next request on."""
+        self._api_key=key
+        if self._session: self._session.headers['Authorization']=f'Bearer {key}'
+
     async def health_check(self):
         try:
             if self._session:

@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Welcome to Chassie</title>
 <link rel="icon" type="image/png" href="public/chassie-icon.png">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 <div class="onboarding">
@@ -21,9 +21,10 @@
   <main class="ob-main">
     <ol class="ob-steps" aria-label="Setup progress">
       <li data-step="0"><b>1</b><span>Welcome</span></li>
-      <li data-step="1"><b>2</b><span>Character</span></li>
-      <li data-step="2"><b>3</b><span>Voice &amp; chat</span></li>
-      <li data-step="3"><b>4</b><span>Ready</span></li>
+      <li data-step="1"><b>2</b><span>Brain</span></li>
+      <li data-step="2"><b>3</b><span>Character</span></li>
+      <li data-step="3"><b>4</b><span>Voice</span></li>
+      <li data-step="4"><b>5</b><span>Ready</span></li>
     </ol>
 
     <section class="ob-view" data-view="0">
@@ -35,11 +36,36 @@
         <li><svg class="icon"><use href="icons.svg#heart"/></svg><div><strong>She remembers you</strong><span>Clear facts and preferences are kept as notes you can read and edit.</span></div></li>
         <li><svg class="icon"><use href="icons.svg#lock"/></svg><div><strong>Stays on this computer</strong><span>Her memory, voice, and camera never leave your machine.</span></div></li>
       </ul>
-      <p class="ob-lead" style="margin-top:26px;font-size:14px">Setup takes about a minute. First, she needs a body.</p>
+      <p class="ob-lead" style="margin-top:26px;font-size:14px">Setup takes a few minutes. First, she needs a brain and a body.</p>
     </section>
 
     <section class="ob-view" data-view="1" hidden>
-      <p class="ob-eyebrow">Step 2 of 4</p>
+      <p class="ob-eyebrow">Step 2 of 5</p>
+      <h1>Give her a brain.</h1>
+      <p class="ob-lead">Chassie thinks through Hermes Agent, a free program that runs on this computer and talks to the AI provider you choose.</p>
+      <ul class="ob-checks" id="hermes-checks" aria-label="Hermes setup">
+        <li data-check="installed">Hermes is installed</li>
+        <li data-check="connected">Hermes is connected to Chassie</li>
+        <li data-check="running">Hermes is running</li>
+      </ul>
+      <button type="button" class="button-primary" id="hermes-setup" hidden>Set up Hermes</button>
+      <p class="import-status" id="hermes-progress" role="status" aria-live="polite"></p>
+      <div id="ob-brain-pick" hidden>
+        <label class="ob-label" for="ob-provider">Your AI provider</label>
+        <div class="combo"><input id="ob-provider" class="field" placeholder="Type to search: OpenRouter, Anthropic, OpenAI…" autocomplete="off" spellcheck="false"></div>
+        <div id="ob-key-row" hidden>
+          <label class="ob-label" for="ob-key" id="ob-key-label">API key</label>
+          <input id="ob-key" class="field" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the key from your provider's website">
+        </div>
+        <label class="ob-label" for="ob-model">Model</label>
+        <div class="combo"><input id="ob-model" class="field" placeholder="Choose a provider first" autocomplete="off" spellcheck="false"></div>
+        <button type="button" class="action-btn secondary-btn ob-test" id="ob-test">Save and test</button>
+        <p class="import-status" id="ob-test-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="ob-view" data-view="2" hidden>
+      <p class="ob-eyebrow">Step 3 of 5</p>
       <h1 id="character-title">Choose her look.</h1>
       <p class="ob-lead" id="character-lead">Chassie uses Live2D models — the same kind VTubers use. Add the model you downloaded; no need to unzip it.</p>
       <div class="ob-section">
@@ -57,10 +83,19 @@
       </div>
     </section>
 
-    <section class="ob-view" data-view="2" hidden>
-      <p class="ob-eyebrow">Step 3 of 4</p>
+    <section class="ob-view" data-view="3" hidden>
+      <p class="ob-eyebrow">Step 4 of 5</p>
       <h1>How should she talk with you?</h1>
       <p class="ob-lead">You can change all of this later in Settings.</p>
+      <span class="ob-label">Her voice</span>
+      <div id="ob-voice">
+        <p class="control-help" id="ob-voice-text" role="status" aria-live="polite">Checking her voice…</p>
+        <div id="ob-voice-install" hidden>
+          <details class="ob-help"><summary>VOICEVOX terms (English)</summary><p class="control-help update-notes" id="ob-voice-terms"></p></details>
+          <label class="consent-label"><input id="ob-voice-accept" type="checkbox"><span>I accept the VOICEVOX terms and the voice's own terms (see <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener noreferrer">voicevox.hiroshiba.jp</a>).</span></label>
+          <button type="button" class="action-btn secondary-btn" id="ob-voice-button">Install her voice (about 190 MB)</button>
+        </div>
+      </div>
       <span class="ob-label" id="lang-label">Chat and subtitles in</span>
       <div class="ob-choice" role="radiogroup" aria-labelledby="lang-label">
         <label class="ob-option"><input type="radio" name="language" value="en" checked><div><strong>English</strong><span>Her words appear in English.</span></div></label>
@@ -79,7 +114,7 @@
       </div>
     </section>
 
-    <section class="ob-view" data-view="3" hidden>
+    <section class="ob-view" data-view="4" hidden>
       <p class="ob-eyebrow">All set</p>
       <h1 id="ready-title">She's ready to meet you.</h1>
       <p class="ob-lead">Chassie will appear in the corner of your screen. A few things worth knowing:</p>
@@ -101,6 +136,6 @@
   </main>
 </div>
 <script src="vendor/live2dcubismcore.min.js"></script><script src="vendor/pixi-7.4.3.min.js"></script><script src="vendor/pixi-live2d-0.5.0-ls-8.min.js"></script>
-<script src="pointer.js?v=7"></script><script src="importer.js?v=1"></script><script src="onboarding.js?v=2"></script>
+<script src="pointer.js?v=7"></script><script src="importer.js?v=1"></script><script src="combobox.js?v=1"></script><script src="onboarding.js?v=3"></script>
 </body>
 </html>

@@ -26,6 +26,12 @@ def _json(path):
     return data if isinstance(data, dict) else {}
 
 
+def _dev(home):
+    """Hermes's models.dev cache, or Chassie's own copy on a fresh Hermes (brain/hermes_setup.py)."""
+    from brain.hermes_setup import DEV_CACHE
+    return _json(Path(home) / 'models_dev_cache.json') or _json(DEV_CACHE)
+
+
 def signed_in(auth_output=None):
     """Provider ids with a Hermes credential. Only ids are read: account names and e-mails are skipped."""
     if auth_output is None:
@@ -38,7 +44,7 @@ def signed_in(auth_output=None):
 def providers(home=None, auth_output=None):
     """[{id, label, signed_in, key_name}]: signed-in providers first, then every provider models.dev knows."""
     home = Path(home or hermes_home())
-    dev, hermes = _json(home / 'models_dev_cache.json'), _json(home / 'cache/model_catalog.json').get('providers', {})
+    dev, hermes = _dev(home), _json(home / 'cache/model_catalog.json').get('providers', {})
     def label(pid):
         info = dev.get(MODELS_DEV_IDS.get(pid, pid)) or {}
         return info.get('name') or (hermes.get(pid) or {}).get('metadata', {}).get('display_name') or pid
@@ -48,14 +54,14 @@ def providers(home=None, auth_output=None):
 
 
 def key_name(home, provider):
-    env = (_json(Path(home) / 'models_dev_cache.json').get(MODELS_DEV_IDS.get(provider, provider)) or {}).get('env') or []
+    env = (_dev(home).get(MODELS_DEV_IDS.get(provider, provider)) or {}).get('env') or []
     return env[0] if env else None
 
 
 def models(home, provider):
     """[{id, name, vision, reasoning}] for one provider; vision/reasoning None when the catalog does not say."""
     home = Path(home)
-    info = _json(home / 'models_dev_cache.json').get(MODELS_DEV_IDS.get(provider, provider))
+    info = _dev(home).get(MODELS_DEV_IDS.get(provider, provider))
     if info:
         return [{'id': mid, 'name': m.get('name') or mid, 'vision': 'image' in (m.get('modalities') or {}).get('input', []),
                  'reasoning': bool(m.get('reasoning'))} for mid, m in (info.get('models') or {}).items()]

@@ -25,12 +25,11 @@ card are optional: she works without them, a bit slower and without eyes.
 She was built on CachyOS with Hyprland. Other desktops work through X11 or XWayland.
 
 **Or the AppImage (no git, no setup script):** download `Chassie-<version>-x86_64.AppImage` from the
-GitHub release, `chmod +x` it and open it. Do STEP 3 and STEP 4 as below, but put the key file in
-`~/.local/share/chassie/.chassie/hermes-api-key` (the AppImage keeps everything of hers in
-`~/.local/share/chassie`: `config.local.yaml`, `.chassie/`, `model/`). On first open she adds herself to the
-application menu, copies her memory plugin into Hermes and downloads the vision, speaker and memory models in
-the background; install her voice in **Settings → Voice & chat → Show voices → Install** (accepting the
-VOICEVOX terms). The AppImage is CPU-only (no CUDA), needs a desktop from 2022 or later (glibc 2.34+) and
+GitHub release, `chmod +x` it and open it. The first-run window does STEP 3 and STEP 4 for you: **Brain**
+installs Hermes (or uses yours), connects it to Chassie, starts it, and lets you pick a provider, paste its API key
+and test it; **Voice** installs VOICEVOX once you accept its terms. Everything of hers lives in
+`~/.local/share/chassie` (`config.local.yaml`, `.chassie/`, `model/`). On first open she also adds herself to the
+application menu and downloads the vision, speaker and memory models in the background. The AppImage is CPU-only (no CUDA), needs a desktop from 2022 or later (glibc 2.34+) and
 PortAudio (`libportaudio2` on Debian/Ubuntu, `portaudio` on Arch/Fedora). To update, download the newer
 AppImage; Settings → Check for updates is for git installs.
 
