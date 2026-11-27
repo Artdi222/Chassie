@@ -4,6 +4,7 @@ import pytest
 import yaml
 from brain import hermes_setup
 from brain.controls import write_env
+from test_orchestrator import app  # noqa: F401
 
 
 @pytest.fixture
@@ -55,3 +56,23 @@ esac""")
     (tmp_path / 'fail').touch()
     with pytest.raises(RuntimeError, match=r'Install command: no git\). You can also install it in a terminal'):
         hermes_setup.install(said.append)
+
+
+@pytest.mark.asyncio
+async def test_check_setup_says_what_is_missing_and_why(app, tmp_path, monkeypatch):
+    import json as _json
+    from brain import controls
+    monkeypatch.setattr(controls, 'DATA', tmp_path)
+    (tmp_path / '.chassie').mkdir()
+    (tmp_path / '.chassie/first-run.json').write_text(_json.dumps({'running': False, 'at': 0, 'failed': {'speaker model': 'timed out'}}))
+    monkeypatch.setattr(hermes_setup, 'status', lambda home, config: {'installed': True, 'connected': False})
+    app._hermes.health_check = lambda: _ok(False)
+    import speech.voice_identity as vi
+    monkeypatch.setattr(vi, 'MODEL', tmp_path / 'missing.onnx')
+    items = {i['name']: i for i in (await app.handle_control({'type': 'check_setup'}))['items']}
+    assert items['Brain (Hermes)'] == {'name': 'Brain (Hermes)', 'ok': False, 'detail': 'Hermes is not connected to Chassie.', 'action': 'hermes_setup'}
+    assert items['Voice recognition']['ok'] is False and items['Voice recognition']['detail'].endswith('Last try: timed out')
+
+
+async def _ok(value):
+    return value

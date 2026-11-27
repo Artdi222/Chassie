@@ -1,9 +1,11 @@
-"""AppImage first run (again after each new AppImage): the models that need no terms prompt, the Hermes
+"""First run (again after each new version): the models that need no terms prompt, the Hermes
 memory plugin and the application-menu entry. launch.py starts it in the background; output goes to
 .chassie/launcher.log. VOICEVOX is not here: its terms are accepted in Settings → Voice & chat, which installs it.
 """
+import json
 import os
 from pathlib import Path
+import time
 import shutil
 import sys
 
@@ -13,6 +15,7 @@ from paths import DATA  # noqa: E402
 import install_memory_model, install_speaker, install_vision  # noqa: E402
 
 MARKER = DATA / '.chassie' / 'first-run'
+STATE = DATA / '.chassie' / 'first-run.json'  # Read by Settings → System → Check setup.
 
 
 def version():
@@ -23,7 +26,7 @@ def version():
 def plugin():
     """Copy (not link: the AppImage mount path changes each run) the memory plugin into Hermes."""
     hermes = Path(os.environ.get('HERMES_HOME') or Path.home() / '.hermes')
-    if not hermes.is_dir(): raise RuntimeError(f'Hermes not found at {hermes}; open Chassie again after installing it')
+    if not hermes.is_dir(): return  # Not installed yet: the first-run window's Brain step copies it.
     target = hermes / 'plugins' / 'chassie'
     if target.is_symlink(): return  # A git install of Chassie owns the plugin.
     shutil.copytree(ROOT / 'hermes_plugin' / 'chassie', target, dirs_exist_ok=True,
@@ -45,12 +48,16 @@ def menu_entry():
 
 def main():
     if MARKER.is_file() and MARKER.read_text() == version(): return 0
-    failed = []
+    failed = {}
+    def note(**state):
+        STATE.parent.mkdir(parents=True, exist_ok=True); STATE.write_text(json.dumps({**state, 'at': time.time()}))
     for name, step in [('vision models', install_vision.install), ('speaker model', install_speaker.install),
                        ('memory model', install_memory_model.install), ('Hermes memory plugin', plugin),
                        ('application menu', menu_entry)]:
+        note(running=True, step=name, failed=failed)
         try: step(); print(f'first run: {name} ready', flush=True)
-        except Exception as exc: failed.append(name); print(f'first run: {name} failed: {exc}', flush=True)
+        except Exception as exc: failed[name] = str(exc)[:200]; print(f'first run: {name} failed: {exc}', flush=True)
+    note(running=False, failed=failed)
     if not failed: MARKER.parent.mkdir(parents=True, exist_ok=True); MARKER.write_text(version())
     return 1 if failed else 0  # Failed steps run again next time Chassie opens.
 

@@ -80,6 +80,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderVision(data);
                 break;
             case "update": renderUpdate(data); break;
+            case "setup_check": renderSetupCheck(data.items); break;
+            case "hermes_status":
+                if (data.busy) { const row = document.querySelector('#setup-check [data-action="hermes_setup"] .setup-detail'); if (row) row.textContent = data.progress || "Working…"; }
+                else if (document.getElementById("setup-check").children.length) sendControl({type: "check_setup"});
+                break;
             case "voice_preview": document.getElementById("voice-pick-state").textContent = ""; break;
             case "voices": voiceData = data; document.getElementById("voice-pick-state").textContent = ""; drawVoices(); break;
             case "providers":
@@ -478,6 +483,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // One line per part of her: working, broken, or off/unknown.
+    // Settings → System → Check setup: each part in plain words, with a fix where Chassie can do it herself.
+    document.getElementById("check-setup").addEventListener("click", () => sendControl({type: "check_setup"}));
+    function renderSetupCheck(items) {
+        document.getElementById("setup-check").replaceChildren(...items.map(item => {
+            const li = document.createElement("li");
+            li.className = "health-item " + (item.ok === true ? "ok" : item.ok === false ? "bad" : "off");
+            if (item.action) li.dataset.action = item.action;
+            const name = document.createElement("strong"); name.textContent = item.name;
+            const detail = document.createElement("span"); detail.className = "setup-detail"; detail.textContent = item.detail;
+            li.append(name, detail);
+            if (item.action === "hermes_setup") li.append(action("Set up Hermes", () => sendControl({type: "hermes_setup"})));
+            return li;
+        }));
+    }
     function renderHealth(health, usage) {
         const list = document.getElementById("health-state");
         if (!list || !health) return;

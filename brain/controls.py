@@ -163,6 +163,34 @@ class ControlsMixin:
         except (RuntimeError,OSError,ValueError,subprocess.SubprocessError) as exc:
             await self._broadcast_to_ui(await self._hermes_state(error=str(exc)[:400]))
 
+    async def _setup_check(self):
+        """Each part of her setup in plain words: ok True/False/None (off), what is wrong and how to fix it."""
+        from speech.voice_identity import MODEL as SPEAKER
+        from vision.face_identity import MODEL_DIR as EYES, DETECTOR, RECOGNIZER
+        from memory.semantic import MODEL_DIR as MEMORY
+        try: downloads=json.loads((DATA/'.chassie/first-run.json').read_text())
+        except (OSError,ValueError): downloads={}
+        fetching=downloads.get('running') and time.time()-downloads.get('at',0)<3600
+        failed=downloads.get('failed') or {}
+        def model(label,step,ok):
+            if ok: return {'name':label,'ok':True,'detail':'Installed.'}
+            if fetching: return {'name':label,'ok':None,'detail':'Downloading now (first start). This can take a few minutes.'}
+            why=f' Last try: {failed[step]}' if step in failed else ''
+            return {'name':label,'ok':False,'detail':'Not downloaded yet. Check the internet connection, then quit and open Chassie again.'+why}
+        h=await self._hermes_state()
+        brain={'name':'Brain (Hermes)','ok':bool(h['installed'] and h['connected'] and h['running']),'action':'hermes_setup',
+               'detail':'Installed, connected and running.' if h['installed'] and h['connected'] and h['running'] else
+                        'Hermes is not installed.' if not h['installed'] else 'Hermes is not connected to Chassie.' if not h['connected'] else 'Hermes is not running.'}
+        if brain['ok']: brain.pop('action')
+        speech=self._tts.status() if isinstance(self._tts,TTSEngine) else {}
+        voice={'name':'Voice','ok':bool(speech.get('ready')),'detail':'Ready.' if speech.get('ready') else (speech.get('reason') or 'Not ready.')}
+        ears={'name':'Microphone','ok':None,'detail':'Off. Turn it on in Voice & chat.'} if not self._mic_enabled else \
+             {'name':'Microphone','ok':self._stt.is_listening() is True,'detail':'Listening.' if self._stt.is_listening() else (self._stt.error or 'Starting, or no microphone found.')}
+        return {'type':'setup_check','items':[brain,voice,ears,
+            model('Eyes (face recognition)','vision models',(EYES/DETECTOR).is_file() and (EYES/RECOGNIZER).is_file()),
+            model('Voice recognition','speaker model',SPEAKER.is_file()),
+            model('Memory search','memory model',(MEMORY/'tokenizer.json').is_file())]}
+
     async def _brain_lists(self,kind,data):
         if kind=='list_providers':
             if getattr(self,'_providers_cache',None) is None:
@@ -212,6 +240,7 @@ class ControlsMixin:
         kind=data.get('type')
         if kind in ('list_providers','list_models'): return await self._brain_lists(kind,data)  # Read-only: no lock.
         if kind=='hermes_status': return await self._hermes_state()
+        if kind=='check_setup': return await self._setup_check()
         if kind=='hermes_setup':  # Minutes long: runs beside the lock, reporting progress to every page.
             if not (getattr(self,'_hermes_job',None) and not self._hermes_job.done()):
                 self._hermes_job=asyncio.create_task(self._hermes_setup_job())

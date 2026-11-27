@@ -31,7 +31,7 @@ class SemanticIndex:
         use_gpu = prefer_gpu and gpu_available()
         model = model_dir / ('model_fp16.onnx' if use_gpu else 'model_quantized.onnx')
         if not model.is_file() or not (model_dir / 'tokenizer.json').is_file():
-            raise FileNotFoundError('Memory model missing. Run scripts/install_memory_model.py.')
+            raise FileNotFoundError('Memory model missing. It downloads when Chassie starts; Settings → System → Check setup shows why it is missing.')
         self.tokenizer = Tokenizer.from_file(str(model_dir / 'tokenizer.json'))
         self.tokenizer.enable_truncation(512)
         self.tokenizer.enable_padding()

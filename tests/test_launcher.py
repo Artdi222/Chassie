@@ -12,7 +12,7 @@ def with_model(root):
 def test_launcher_starts_and_cleans_up_only_its_own_backend(tmp_path, monkeypatch):
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
     with_model(tmp_path)
-    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path)
+    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path);monkeypatch.setenv('CHASSIE_NO_FIRST_RUN','1')
     monkeypatch.setattr(launch,'onboarding',lambda _: {'completed':True,'has_model':True})
     monkeypatch.setattr(launch,'status',Mock(side_effect=[None,{'application':'chassie','protocol':2}]))
     child=Mock();child.poll.return_value=None
@@ -29,7 +29,7 @@ def test_launcher_starts_and_cleans_up_only_its_own_backend(tmp_path, monkeypatc
 def test_launcher_preserves_an_existing_compatible_backend(tmp_path, monkeypatch):
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
     with_model(tmp_path)
-    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path)
+    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path);monkeypatch.setenv('CHASSIE_NO_FIRST_RUN','1')
     monkeypatch.setattr(launch,'onboarding',lambda _: {'completed':True,'has_model':True})
     monkeypatch.setattr(launch,'status',lambda _: {'application':'chassie','protocol':2})
     popen=Mock();monkeypatch.setattr(launch.subprocess,'Popen',popen)
@@ -42,7 +42,7 @@ def test_second_launch_restores_desktop_without_opening_browser(tmp_path,monkeyp
     import fcntl
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
     (tmp_path/'.chassie').mkdir()
-    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path)
+    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path);monkeypatch.setenv('CHASSIE_NO_FIRST_RUN','1')
     activation=Mock(return_value=True)
     monkeypatch.setattr(launch,'request_activation',activation)
     popen=Mock();monkeypatch.setattr(launch.subprocess,'Popen',popen)
@@ -71,7 +71,7 @@ def test_activation_restores_hidden_qt_window_twice(tmp_path):
 
 def test_first_run_opens_onboarding_before_the_desktop(tmp_path, monkeypatch):
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
-    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path)
+    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path);monkeypatch.setenv('CHASSIE_NO_FIRST_RUN','1')
     monkeypatch.setattr(launch,'status',lambda _: {'application':'chassie','protocol':2})
     states=iter([{'completed':False,'has_model':False},{'completed':True,'has_model':True}])
     monkeypatch.setattr(launch,'onboarding',lambda _: next(states))
@@ -84,7 +84,7 @@ def test_first_run_opens_onboarding_before_the_desktop(tmp_path, monkeypatch):
 
 def test_closing_onboarding_quits_without_an_error(tmp_path, monkeypatch):
     (tmp_path/'config.yaml').write_text('ui:\n  port: 18765\n')
-    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path)
+    monkeypatch.setattr(launch,'ROOT',tmp_path);monkeypatch.setattr(launch,'DATA',tmp_path);monkeypatch.setenv('CHASSIE_NO_FIRST_RUN','1')
     monkeypatch.setattr(launch,'status',lambda _: {'application':'chassie','protocol':2})
     monkeypatch.setattr(launch,'onboarding',lambda _: {'completed':False,'has_model':False})
     calls=Mock(return_value=1);monkeypatch.setattr(launch.subprocess,'call',calls)

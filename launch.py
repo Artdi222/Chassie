@@ -53,7 +53,7 @@ def main():
         return 1
     backend=None
     log=(data_dir/'launcher.log').open('a',buffering=1)
-    if os.environ.get('APPIMAGE'):  # Models, Hermes plugin and menu entry; skipped once done for this version.
+    if not os.environ.get('CHASSIE_NO_FIRST_RUN'):  # Missing models, Hermes plugin, menu entry; skipped once done for this version.
         subprocess.Popen([sys.executable,str(ROOT/'scripts/first_run.py')],stdout=log,stderr=log)
     try:
         existing=status(port)
