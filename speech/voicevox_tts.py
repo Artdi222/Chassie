@@ -9,10 +9,10 @@ from pathlib import Path
 from brain.bilingual import JAPANESE
 from speech.speech_polish import clean_speech
 from speech.speech_prosody import ProsodyPlanner
+from speech.voices import DEFAULT_STYLE, voice
 
-# One Normal style always (switching styles sounded like another person); per-sentence
+# One chosen style always (switching styles sounded like another person); per-sentence
 # prosody in speech_prosody.py makes the delivery follow each line instead.
-NORMAL_STYLE = 20
 # Short, medium and long sentences: ONNX Runtime reaches full speed after a few passes.
 WARMUP_PHRASES = ('こんにちは。', '今日もよろしくお願いします。', 'お疲れ様、今日は何をして過ごしていたの？ゆっくり聞かせてね。')
 
@@ -28,6 +28,7 @@ class VoicevoxTTS:
         if type(self.speed) not in (int, float) or not 0.5 <= self.speed <= 2.0:
             raise ValueError('VOICEVOX speed_scale must be between 0.5 and 2.0')
         self.timeout = cfg.get('timeout', 30)
+        self.style = cfg.get('style') or DEFAULT_STYLE
         self._process = None
         self._warmed = False
         self._lock = asyncio.Lock()
@@ -39,10 +40,17 @@ class VoicevoxTTS:
             raise ValueError('VOICEVOX cpu_threads must be between 1 and 8')
 
     def check_installation(self):
-        paths = ('models/vvms/15.vvm', 'dict/open_jtalk_dic_utf_8-1.11/sys.dic',
-                 'onnxruntime/lib/libvoicevox_onnxruntime.so.1.17.3')
+        paths = ('dict/open_jtalk_dic_utf_8-1.11/sys.dic', 'onnxruntime/lib/libvoicevox_onnxruntime.so.1.17.3')
         if importlib.util.find_spec('voicevox_core') is None or any(not (self.root / p).is_file() for p in paths):
             raise RuntimeError('VOICEVOX is not installed. Run .venv/bin/python scripts/install_voicevox.py.')
+        if not (voice(self.root, self.style) or {}).get('installed'):
+            raise RuntimeError(f'VOICEVOX voice style {self.style} is not installed. Choose one in Settings → Voice & chat.')
+
+    async def set_style(self, style):
+        """Use another installed style from the next sentence on (its pack loads in a new worker)."""
+        async with self._lock:
+            self.style = style
+            await self._stop()
 
     async def _stop(self):
         process, self._process = self._process, None
@@ -63,7 +71,7 @@ class VoicevoxTTS:
             # Shield creation so a Stop cannot orphan a just-started native process.
             start = asyncio.create_task(asyncio.create_subprocess_exec(
                 sys.executable, '-u', str(Path(__file__).with_name('voicevox_worker.py')),
-                str(self.root), str(self.threads), str(self.sample_rate),
+                str(self.root), str(self.threads), str(self.sample_rate), str(self.style),
                 stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL, limit=12 * 1024 * 1024))
             try: self._process = await asyncio.shield(start)
@@ -78,7 +86,7 @@ class VoicevoxTTS:
 
     async def _request(self, text, emotion):
         await self._ensure_process()
-        payload = {'text': clean_speech(text), 'style': NORMAL_STYLE, 'speed': self.speed}
+        payload = {'text': clean_speech(text), 'style': self.style, 'speed': self.speed}
         if self.lively and emotion is not None:
             # The shape comes from the original text: cleaning turns "…" into a comma.
             payload['prosody'] = self.prosody.plan(text, emotion)

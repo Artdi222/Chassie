@@ -43,7 +43,15 @@
     <textarea id="persona" rows="5" maxlength="4000" disabled aria-describedby="persona-help"></textarea>
     <p id="persona-help" class="control-help">Sent with every reply, starting with the next one. Saved to config.local.yaml.</p>
     <button id="save-persona" class="action-btn secondary-btn" disabled>Save personality</button>
-    <div class="info-card"><p id="speech-language">Loading voice settings…</p><p class="control-help">You can speak Indonesian or English; the language is detected automatically. <span id="echo-help">The microphone pauses while Chassie talks to avoid echo.</span></p><p id="speech-credit" class="control-help" hidden>VOICEVOX:もち子(cv 明日葉よもぎ) · <a href="https://voicevox.hiroshiba.jp/product/mochikosan/" target="_blank" rel="noopener noreferrer">Mochiko-san</a></p></div>
+    <div class="info-card"><p id="speech-language">Loading voice settings…</p><p class="control-help">You can speak Indonesian or English; the language is detected automatically. <span id="echo-help">The microphone pauses while Chassie talks to avoid echo.</span></p><p id="speech-credit" class="control-help" hidden></p></div>
+    <details id="voice-panel"><summary>Her voice</summary>
+    <p class="control-help">Choosing a voice plays a short sample. Emotions change how she speaks, never the voice.</p>
+    <button id="load-voices" class="action-btn secondary-btn">Show voices</button>
+    <div id="voice-list" class="voice-list"></div>
+    <div id="voice-terms" hidden><details><summary>VOICEVOX terms</summary><p id="voice-terms-text" class="control-help update-notes"></p></details>
+    <label class="consent-label"><input id="voice-terms-accept" type="checkbox"> I accept the VOICEVOX terms and the terms of the character I download (see <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener noreferrer">voicevox.hiroshiba.jp</a>).</label></div>
+    <p id="voice-pick-state" class="control-help" role="status"></p>
+    </details>
     <div class="control-row"><button id="stop-btn" class="action-btn secondary-btn" disabled>Stop reply</button><button id="resume-btn" class="action-btn secondary-btn" disabled>Continue topic</button></div>
     <button id="clear-btn" class="action-btn secondary-btn danger-btn" title="Clear conversation history; saved memories remain">Clear conversation</button>
     <p class="control-help">Clearing the conversation keeps saved memories.</p>

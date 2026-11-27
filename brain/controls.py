@@ -7,6 +7,7 @@ import json
 import logging
 from pathlib import Path
 import re
+import subprocess
 import time
 from uuid import uuid4
 from memory.store import bounded_text
@@ -14,6 +15,7 @@ from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
 from brain.config import ROOT, save_local
 from brain import updates
+from speech import voices
 
 logger=logging.getLogger('orchestrator')
 
@@ -69,7 +71,35 @@ class ControlsMixin:
                 'vision':self._vision.status() if self._vision else None,
                 'face_observation':self._face_tracker.get_observation() if self._face_tracker else None,
                 'usage':self._usage(),'health':self._health(),
-                'persona':str(self._config.get('companion',{}).get('persona') or ''),'brain':self._brain()}
+                'persona':str(self._config.get('companion',{}).get('persona') or ''),'brain':self._brain(),'voice':self._voice()}
+
+    def _voicevox_dir(self):
+        root=getattr(self,'_voicevox_root',None)
+        if root: return Path(root)
+        root=Path(self._config.get('tts',{}).get('voicevox_dir','.chassie/voicevox')).expanduser()
+        return root if root.is_absolute() else ROOT/root
+
+    def _voice(self):
+        style=self._config.get('tts',{}).get('style') or voices.DEFAULT_STYLE
+        entry=voices.voice(self._voicevox_dir(),style) or {}
+        character=entry.get('character','もち子さん')
+        return {'style':style,'character':character,'style_name':entry.get('style','ノーマル'),'credit':voices.credit(character)}
+
+    async def _voices_payload(self):
+        if getattr(self,'_voice_sizes',None) is None:
+            try: self._voice_sizes=await asyncio.to_thread(voices.pack_sizes)
+            except (OSError,ValueError,KeyError): self._voice_sizes={}  # Offline: sizes unknown, list still shown.
+        root=self._voicevox_dir()
+        try: terms=(root/'models/TERMS.txt').read_text(encoding='utf-8')
+        except OSError: terms=''
+        return {'type':'voices','voices':voices.catalog(root),'sizes':self._voice_sizes,'terms':terms}
+
+    async def _preview_voice(self):
+        await self._cancel_turn()
+        chunks=await self._synthesize_sentence('こんにちは。これからこの声でお話しするね。','happy')
+        job=await self._begin_playback()
+        for pcm in chunks: await self._audio_player.enqueue(pcm,emotion='happy',generation=job)
+        self._audio_player.mark_end(job)
 
     def _brain(self):
         hermes=self._config.get('hermes',{})
@@ -177,6 +207,25 @@ class ControlsMixin:
                     await self._hermes.complete_once('Reply with the single word OK.','Test',background=False)
                     return {'type':'brain_test','ok':True,'seconds':round(time.monotonic()-started,1)}
                 except RuntimeError as exc: return {'type':'brain_test','ok':False,'error':str(exc)[:250]}
+            elif kind=='list_voices':
+                return await self._voices_payload()
+            elif kind=='download_voice':
+                if data.get('accept_terms') is not True: raise ValueError('Accept the VOICEVOX terms before downloading a voice')
+                pack=data.get('pack')
+                if pack not in {v['pack'] for v in voices.catalog(self._voicevox_dir())}: raise ValueError('Unknown voice pack')
+                try: await asyncio.to_thread(voices.download,self._voicevox_dir(),pack)
+                except (OSError,subprocess.SubprocessError) as exc: raise ValueError('The voice could not be downloaded; check the connection and try again') from exc
+                return await self._voices_payload()
+            elif kind=='set_voice':
+                style=data.get('style')
+                entry=voices.voice(self._voicevox_dir(),style) if type(style) is int else None
+                if not entry: raise ValueError('Unknown voice')
+                if not entry['installed']: raise ValueError('Download this voice first')
+                save_local('tts',{'style':style},getattr(self,'_local_config_root',ROOT))
+                self._config.setdefault('tts',{})['style']=style
+                await self._tts.set_style(style)
+                try: await self._preview_voice()
+                except RuntimeError as exc: raise ValueError(f'Voice saved, but the sample could not play: {exc}') from exc
             elif kind in ('check_update','apply_update'):
                 result=await asyncio.to_thread(updates.check if kind=='check_update' else updates.apply,getattr(self,'_update_root',ROOT))
                 await self._broadcast_to_ui({'type':'update',**result})

@@ -221,7 +221,7 @@ Her agenda, mood and diary live on the desktop, so they follow your desktop chat
   whatever language you speak.
 
 **Voice and body**
-- One VOICEVOX voice (Mochiko-san) whose pitch, intonation range and tempo follow each sentence and its feeling:
+- One VOICEVOX voice (Mochiko-san by default; pick or download another in **Settings → Voice & chat → Her voice**) whose pitch, intonation range and tempo follow each sentence and its feeling:
   questions rise, excitement speeds up, "…" slows down.
 - Lip-sync per syllable from VOICEVOX's timing (a/i/u/e/o shapes, lips close on m/b/p).
 - 16 emotions with smooth crossfades; common ones have several looks.
@@ -470,7 +470,8 @@ More: [desktop overlay](docs/overlay.md), [automatic vision](docs/automatic-visi
 Chassie's code belongs to its author. Third-party parts keep their own terms:
 
 - **VOICEVOX** runtime and the **Mochiko-san** voice: VOICEVOX terms; credit `VOICEVOX:もち子(cv 明日葉よもぎ)`. The
-  full terms are downloaded to `.chassie/voicevox/models/TERMS.txt`.
+  full terms are downloaded to `.chassie/voicevox/models/TERMS.txt`. Another chosen voice needs its own credit,
+  `VOICEVOX:<character>`, which Settings shows under the voice; follow that character's terms too.
 - **WeSpeaker** speaker model: CC BY 4.0. **multilingual-e5-small**: MIT.
 - **YuNet** face detector and **ArcFace** (InsightFace buffalo_l): see `scripts/install_vision.py`; the InsightFace
   weights are for non-commercial research use.

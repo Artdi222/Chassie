@@ -72,6 +72,10 @@ class TTSEngine:
         try: self._warm_task=asyncio.get_running_loop().create_task(warm())
         except RuntimeError: pass  # No running loop (synchronous callers); synthesis starts the worker.
 
+    async def set_style(self,style):
+        await self._voicevox.set_style(style)
+        self._warm()
+
     def status(self):
         return {'selected':self.engine,'active':self.engine,'ready':self._ready,'reason':None}
 

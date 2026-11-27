@@ -96,7 +96,9 @@ inside Chassie, without a terminal or editing files.
    message; restart through exit code 75 → `launch.py` execs itself. Tray entry skipped (Settings only).
 3. ~~Q1~~ (done 2026-11-27: grouped, searchable, paged panel; groups open by themselves when ≤ 20 are shown),
    then ~~Q3~~ (done 2026-11-27: Settings → System → AI model; provider list with the key variable Hermes
-   reads; "Make this Hermes's default too" skipped), then Q4.
+   reads; "Make this Hermes's default too" skipped), then ~~Q4~~ (done 2026-11-27: catalog from
+   `models/README.txt`, sizes from the release assets, download into a scratch folder then move the pack;
+   choosing plays a sample; download progress is a status line, no resume).
 4. Windows port (`2026-11-26-windows-port.md`) and Q6 AppImage later: they cost the most tokens (no local
    Windows testing; CI build loops). Build the AppImage on GitHub Actions, not locally (no large upload).
 

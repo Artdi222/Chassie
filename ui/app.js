@@ -79,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderVision(data);
                 break;
             case "update": renderUpdate(data); break;
+            case "voices": voiceData = data; document.getElementById("voice-pick-state").textContent = ""; drawVoices(); break;
             case "brain_test":
                 document.getElementById("test-brain").disabled = false;
                 document.getElementById("brain-state").textContent = data.ok ? `Working: answered in ${data.seconds} s.` : `Not working: ${data.error}`;
@@ -492,6 +493,53 @@ document.addEventListener("DOMContentLoaded", () => {
             : `Chassie is up to date (${data.current}).`;
     }
 
+    let voiceData = null, pendingVoice = null;
+    function drawVoices() {
+        const list = document.getElementById("voice-list"), chosen = settings?.voice?.style;
+        if (pendingVoice !== null && pendingVoice === chosen) { pendingVoice = null; document.getElementById("voice-pick-state").textContent = ""; }
+        const mb = bytes => bytes ? ` · ${Math.round(bytes / 1e6)} MB` : "";
+        const packs = {};
+        voiceData.voices.forEach(v => (packs[v.pack] ??= []).push(v));
+        list.replaceChildren();
+        const missing = [];
+        for (const [pack, styles] of Object.entries(packs)) {
+            const characters = [...new Set(styles.map(v => v.character))];
+            if (!styles[0].installed) { missing.push([pack, characters]); continue; }
+            for (const character of characters) {
+                const row = document.createElement("div");row.className = "memory-item";
+                const name = document.createElement("p");name.textContent = character;
+                row.append(name, ...styles.filter(v => v.character === character).map(v => {
+                    const button = action(v.id === chosen ? `${v.style} ✓` : v.style, () => {
+                        if (sendControl({type: "set_voice", style: v.id})) { pendingVoice = v.id; document.getElementById("voice-pick-state").textContent = "Loading this voice…"; }
+                    });
+                    button.setAttribute("aria-pressed", String(v.id === chosen));
+                    return button;
+                }));
+                list.append(row);
+            }
+        }
+        if (missing.length) {
+            const more = document.createElement("details");
+            const summary = document.createElement("summary");summary.textContent = `More voices to download (${missing.length} packs)`;
+            more.append(summary, ...missing.map(([pack, characters]) => {
+                const row = document.createElement("div");row.className = "memory-item";
+                const text = document.createElement("p");
+                text.textContent = `Pack ${pack.replace(".vvm", "")} · ${characters.length} character${characters.length === 1 ? "" : "s"}${mb(voiceData.sizes[pack])}: ${characters.join(", ")}`;
+                row.append(text, action("Download", () => {
+                    if (!document.getElementById("voice-terms-accept").checked) {
+                        document.getElementById("voice-pick-state").textContent = "Accept the VOICEVOX terms below first.";return;
+                    }
+                    if (sendControl({type: "download_voice", pack, accept_terms: true}))
+                        document.getElementById("voice-pick-state").textContent = `Downloading pack ${pack.replace(".vvm", "")}${mb(voiceData.sizes[pack])}… this can take a few minutes.`;
+                }));
+                return row;
+            }));
+            list.append(more);
+        }
+        document.getElementById("voice-terms").hidden = !missing.length;
+        document.getElementById("voice-terms-text").textContent = voiceData.terms;
+    }
+
     const BRAIN_KEYS = ["provider", "text_model", "vision_model", "background_model"];
     function renderBrain(brain) {
         if (!brain) return;
@@ -521,13 +569,15 @@ document.addEventListener("DOMContentLoaded", () => {
         if (document.activeElement !== persona) persona.value = settings.persona || "";  // Never overwrite while typing.
         document.getElementById("translation-language").hidden = document.querySelector('label[for="translation-language"]').hidden = !voicevox;
         document.getElementById("speech-language").textContent = voicevox
-            ? `Voice: Mochiko-san (VOICEVOX) · speaks Japanese with ${subtitles} subtitles`
+            ? `Voice: ${settings.voice?.character || "もち子さん"} (VOICEVOX) · speaks Japanese with ${subtitles} subtitles`
             : "English voice and subtitles";
         document.getElementById("echo-help").textContent = settings.automatic_barge_in
             ? "Echo cancellation is on: you can interrupt Chassie just by speaking."
             : "The microphone pauses while Chassie talks to avoid echo.";
         document.getElementById("input-caption").textContent = voicevox ? `Japanese voice · ${subtitles} subtitles` : "English voice and subtitles";
         document.getElementById("speech-credit").hidden = !voicevox;
+        document.getElementById("speech-credit").textContent = settings.voice?.credit || "";
+        if (voiceData) drawVoices();
         document.getElementById("input-mode").value = settings.input_mode;
         document.getElementById("companion-mode").value = settings.mode;
         document.getElementById("voice-state").textContent = !settings.mic_enabled ? "Microphone muted" : settings.capture_paused ? "Microphone paused during reply — echo protection" : settings.voice_ready ? "Microphone listening" : (settings.voice_error || "Microphone is starting or unavailable");
@@ -665,6 +715,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("check-update").disabled = document.getElementById("apply-update").disabled = true;
             document.getElementById("update-state").textContent = text;
         });
+    document.getElementById("load-voices").addEventListener("click", () => sendControl({type: "list_voices"}));
     document.getElementById("save-brain").addEventListener("click", () => {
         const values = Object.fromEntries(BRAIN_KEYS.map(k => [k, document.getElementById(`brain-${k}`).value]));
         sendControl({type: "set_brain", ...values});
