@@ -79,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderVision(data);
                 break;
             case "update": renderUpdate(data); break;
+            case "voice_preview": document.getElementById("voice-pick-state").textContent = ""; break;
             case "voices": voiceData = data; document.getElementById("voice-pick-state").textContent = ""; drawVoices(); break;
             case "brain_test":
                 document.getElementById("test-brain").disabled = false;
@@ -493,44 +494,47 @@ document.addEventListener("DOMContentLoaded", () => {
             : `Chassie is up to date (${data.current}).`;
     }
 
-    let voiceData = null, pendingVoice = null;
+    let voiceData = null, pendingVoice = null, heardVoice = null;
     function drawVoices() {
-        const list = document.getElementById("voice-list"), chosen = settings?.voice?.style;
-        if (pendingVoice !== null && pendingVoice === chosen) { pendingVoice = null; document.getElementById("voice-pick-state").textContent = ""; }
+        const list = document.getElementById("voice-list"), chosen = settings?.voice?.style, state = document.getElementById("voice-pick-state");
+        if (pendingVoice !== null && pendingVoice === chosen) { pendingVoice = null; state.textContent = ""; }
         const mb = bytes => bytes ? ` · ${Math.round(bytes / 1e6)} MB` : "";
         const packs = {};
         voiceData.voices.forEach(v => (packs[v.pack] ??= []).push(v));
         list.replaceChildren();
         const missing = [];
         for (const [pack, styles] of Object.entries(packs)) {
-            const characters = [...new Set(styles.map(v => v.character))];
-            if (!styles[0].installed) { missing.push([pack, characters]); continue; }
-            for (const character of characters) {
+            const names = [...new Set(styles.map(v => v.name))];
+            if (!styles[0].installed) { missing.push([pack, names]); continue; }
+            for (const name of names) {
                 const row = document.createElement("div");row.className = "memory-item";
-                const name = document.createElement("p");name.textContent = character;
-                row.append(name, ...styles.filter(v => v.character === character).map(v => {
-                    const button = action(v.id === chosen ? `${v.style} ✓` : v.style, () => {
-                        if (sendControl({type: "set_voice", style: v.id})) { pendingVoice = v.id; document.getElementById("voice-pick-state").textContent = "Loading this voice…"; }
+                const label = document.createElement("p");label.textContent = name;
+                row.append(label, ...styles.filter(v => v.name === name).map(v => {
+                    const button = action(`▶ ${v.style_name}${v.id === chosen ? " ✓" : ""}`, () => {
+                        if (!sendControl({type: "preview_voice", style: v.id})) return;
+                        heardVoice = v; state.textContent = `Playing ${v.name} · ${v.style_name}…`; drawVoices();
                     });
-                    button.setAttribute("aria-pressed", String(v.id === chosen));
+                    button.title = v.id === chosen ? "Her voice now · listen" : "Listen";
+                    button.setAttribute("aria-pressed", String(v.id === heardVoice?.id));
                     return button;
                 }));
                 list.append(row);
             }
         }
+        const use = document.getElementById("use-voice");
+        use.hidden = !heardVoice || heardVoice.id === chosen;
+        if (heardVoice) use.textContent = `Use ${heardVoice.name} · ${heardVoice.style_name}`;
         if (missing.length) {
             const more = document.createElement("details");
             const summary = document.createElement("summary");summary.textContent = `More voices to download (${missing.length} packs)`;
-            more.append(summary, ...missing.map(([pack, characters]) => {
+            more.append(summary, ...missing.map(([pack, names]) => {
                 const row = document.createElement("div");row.className = "memory-item";
                 const text = document.createElement("p");
-                text.textContent = `Pack ${pack.replace(".vvm", "")} · ${characters.length} character${characters.length === 1 ? "" : "s"}${mb(voiceData.sizes[pack])}: ${characters.join(", ")}`;
+                text.textContent = `Pack ${pack.replace(".vvm", "")} · ${names.length} character${names.length === 1 ? "" : "s"}${mb(voiceData.sizes[pack])}: ${names.join(", ")}`;
                 row.append(text, action("Download", () => {
-                    if (!document.getElementById("voice-terms-accept").checked) {
-                        document.getElementById("voice-pick-state").textContent = "Accept the VOICEVOX terms below first.";return;
-                    }
+                    if (!document.getElementById("voice-terms-accept").checked) { state.textContent = "Accept the VOICEVOX terms below first."; return; }
                     if (sendControl({type: "download_voice", pack, accept_terms: true}))
-                        document.getElementById("voice-pick-state").textContent = `Downloading pack ${pack.replace(".vvm", "")}${mb(voiceData.sizes[pack])}… this can take a few minutes.`;
+                        state.textContent = `Downloading pack ${pack.replace(".vvm", "")}${mb(voiceData.sizes[pack])}… this can take a few minutes.`;
                 }));
                 return row;
             }));
@@ -569,7 +573,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (document.activeElement !== persona) persona.value = settings.persona || "";  // Never overwrite while typing.
         document.getElementById("translation-language").hidden = document.querySelector('label[for="translation-language"]').hidden = !voicevox;
         document.getElementById("speech-language").textContent = voicevox
-            ? `Voice: ${settings.voice?.character || "もち子さん"} (VOICEVOX) · speaks Japanese with ${subtitles} subtitles`
+            ? `Voice: ${settings.voice?.name || "Mochiko-san"} · ${settings.voice?.style_name || "Normal"} (VOICEVOX) · speaks Japanese with ${subtitles} subtitles`
             : "English voice and subtitles";
         document.getElementById("echo-help").textContent = settings.automatic_barge_in
             ? "Echo cancellation is on: you can interrupt Chassie just by speaking."
@@ -716,6 +720,11 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("update-state").textContent = text;
         });
     document.getElementById("load-voices").addEventListener("click", () => sendControl({type: "list_voices"}));
+    document.getElementById("use-voice").addEventListener("click", () => {
+        if (heardVoice && sendControl({type: "set_voice", style: heardVoice.id})) {
+            pendingVoice = heardVoice.id; document.getElementById("voice-pick-state").textContent = "Switching her voice…";
+        }
+    });
     document.getElementById("save-brain").addEventListener("click", () => {
         const values = Object.fromEntries(BRAIN_KEYS.map(k => [k, document.getElementById(`brain-${k}`).value]));
         sendControl({type: "set_brain", ...values});

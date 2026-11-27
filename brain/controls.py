@@ -83,20 +83,19 @@ class ControlsMixin:
         style=self._config.get('tts',{}).get('style') or voices.DEFAULT_STYLE
         entry=voices.voice(self._voicevox_dir(),style) or {}
         character=entry.get('character','もち子さん')
-        return {'style':style,'character':character,'style_name':entry.get('style','ノーマル'),'credit':voices.credit(character)}
+        return {'style':style,'name':entry.get('name','Mochiko-san'),'style_name':entry.get('style_name','Normal'),'credit':voices.credit(character)}
 
     async def _voices_payload(self):
         if getattr(self,'_voice_sizes',None) is None:
             try: self._voice_sizes=await asyncio.to_thread(voices.pack_sizes)
             except (OSError,ValueError,KeyError): self._voice_sizes={}  # Offline: sizes unknown, list still shown.
         root=self._voicevox_dir()
-        try: terms=(root/'models/TERMS.txt').read_text(encoding='utf-8')
-        except OSError: terms=''
-        return {'type':'voices','voices':voices.catalog(root),'sizes':self._voice_sizes,'terms':terms}
+        return {'type':'voices','voices':voices.catalog(root),'sizes':self._voice_sizes,'terms':voices.terms_en(root)}
 
-    async def _preview_voice(self):
+    async def _preview_voice(self,style=None):
+        """Her current voice (just chosen), or a sample of another installed one without switching."""
         await self._cancel_turn()
-        chunks=await self._synthesize_sentence('こんにちは。これからこの声でお話しするね。','happy')
+        chunks=[await self._tts.preview(style,voices.SAMPLE)] if style else await self._synthesize_sentence(voices.SAMPLE,'happy')
         job=await self._begin_playback()
         for pcm in chunks: await self._audio_player.enqueue(pcm,emotion='happy',generation=job)
         self._audio_player.mark_end(job)
@@ -218,6 +217,12 @@ class ControlsMixin:
                 try: await asyncio.to_thread(voices.download,self._voicevox_dir(),pack)
                 except (OSError,subprocess.SubprocessError) as exc: raise ValueError('The voice could not be downloaded; check the connection and try again') from exc
                 return await self._voices_payload()
+            elif kind=='preview_voice':
+                entry=voices.voice(self._voicevox_dir(),data.get('style')) if type(data.get('style')) is int else None
+                if not entry or not entry['installed']: raise ValueError('Download this voice first')
+                try: await self._preview_voice(entry['id'])
+                except Exception as exc: raise ValueError('The sample could not play. Try again in a moment.') from exc
+                return {'type':'voice_preview','style':entry['id']}
             elif kind=='set_voice':
                 style=data.get('style')
                 entry=voices.voice(self._voicevox_dir(),style) if type(style) is int else None

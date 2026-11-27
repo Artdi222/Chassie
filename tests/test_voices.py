@@ -16,7 +16,7 @@ TABLE = '''| VVM | キャラクター | スタイル | ID |
 def root(tmp_path):
     (tmp_path / 'models/vvms').mkdir(parents=True)
     (tmp_path / 'models/README.txt').write_text('intro\n' + TABLE, encoding='utf-8')
-    (tmp_path / 'models/TERMS.txt').write_text('Terms text', encoding='utf-8')
+    (tmp_path / 'models/TERMS.txt').write_text('# 規約\n\n# 音声ライブラリ利用規約\n\n## 波音リツ\n\n「VOICEVOX:波音リツ」とクレジット\nhttps://example.test/ritsu\n', encoding='utf-8')
     (tmp_path / 'models/vvms/15.vvm').write_bytes(b'x')
     fake = tmp_path / 'download'  # Stands in for the official tool: writes <output>/models/vvms/<pattern>.
     fake.write_text('#!/bin/sh\nread answer\n[ "$answer" = y ] || exit 3\nmkdir -p "$8/models/vvms" && echo voice > "$8/models/vvms/$4"\n')
@@ -26,9 +26,9 @@ def root(tmp_path):
 
 def test_catalog_lists_every_voice_with_install_state(root):
     assert voices.catalog(root) == [
-        {'pack': '3.vvm', 'character': '波音リツ', 'style': 'ノーマル', 'id': 9, 'installed': False},
-        {'pack': '3.vvm', 'character': '波音リツ', 'style': 'クイーン', 'id': 65, 'installed': False},
-        {'pack': '15.vvm', 'character': 'もち子さん', 'style': 'ノーマル', 'id': 20, 'installed': True}]
+        {'pack': '3.vvm', 'character': '波音リツ', 'style': 'ノーマル', 'id': 9, 'name': 'Namine Ritsu', 'style_name': 'Normal', 'installed': False},
+        {'pack': '3.vvm', 'character': '波音リツ', 'style': 'クイーン', 'id': 65, 'name': 'Namine Ritsu', 'style_name': 'Queen', 'installed': False},
+        {'pack': '15.vvm', 'character': 'もち子さん', 'style': 'ノーマル', 'id': 20, 'name': 'Mochiko-san', 'style_name': 'Normal', 'installed': True}]
     assert voices.credit('もち子さん') == 'VOICEVOX:もち子(cv 明日葉よもぎ)' and voices.credit('波音リツ') == 'VOICEVOX:波音リツ'
     assert voices.voice(root, 65)['character'] == '波音リツ' and voices.voice(root, 999) is None
 
@@ -49,11 +49,16 @@ async def test_set_voice_saves_style_and_previews(app, root, tmp_path):
     with pytest.raises(ValueError, match='terms'): await app.handle_control({'type': 'download_voice', 'pack': '3.vvm'})
     app._voice_sizes = {'3.vvm': 58_000_000}
     result = await app.handle_control({'type': 'download_voice', 'pack': '3.vvm', 'accept_terms': True})
-    assert result['type'] == 'voices' and result['sizes'] == {'3.vvm': 58_000_000} and result['terms'] == 'Terms text'
+    assert result['type'] == 'voices' and result['sizes'] == {'3.vvm': 58_000_000} and result['terms'].startswith('Unofficial English translation')
+    assert result['terms'].endswith('- Namine Ritsu: credit "VOICEVOX:波音リツ"; terms: https://example.test/ritsu')
     await app.handle_control({'type': 'set_voice', 'style': 65})
     app._tts.set_style.assert_awaited_once_with(65); app._preview_voice.assert_awaited_once()
     assert yaml.safe_load((tmp_path / 'config.local.yaml').read_text()) == {'tts': {'style': 65}}
-    assert app._settings()['voice'] == {'style': 65, 'character': '波音リツ', 'style_name': 'クイーン', 'credit': 'VOICEVOX:波音リツ'}
+    assert app._settings()['voice'] == {'style': 65, 'name': 'Namine Ritsu', 'style_name': 'Queen', 'credit': 'VOICEVOX:波音リツ'}
+    app._preview_voice.reset_mock(); app._tts.set_style.reset_mock()
+    assert await app.handle_control({'type': 'preview_voice', 'style': 9}) == {'type': 'voice_preview', 'style': 9}
+    app._preview_voice.assert_awaited_once_with(9); app._tts.set_style.assert_not_awaited()  # Listening never switches.
+    assert app._config['tts']['style'] == 65
 
 
 @pytest.mark.asyncio
@@ -73,14 +78,18 @@ async def test_voice_panel_download_and_choose(app, root, tmp_path):
             await page.get_by_text('Her voice', exact=True).click()
             await page.locator('#load-voices').click()
             await page.get_by_text('More voices to download (1 packs)', exact=True).click()
-            await page.get_by_text('Pack 3 · 1 character · 58 MB: 波音リツ', exact=True).wait_for()
+            await page.get_by_text('Pack 3 · 1 character · 58 MB: Namine Ritsu', exact=True).wait_for()
             await page.get_by_role('button', name='Download').click()
             await page.get_by_text('Accept the VOICEVOX terms below first.', exact=True).wait_for()
             await page.locator('#voice-terms-accept').check()
             await page.get_by_role('button', name='Download').click()
-            await page.get_by_role('button', name='クイーン').click()
+            await page.get_by_role('button', name='▶ Queen').click()
+            await page.get_by_role('button', name='Use Namine Ritsu · Queen').click()
             await page.wait_for_function("document.getElementById('speech-credit').textContent==='VOICEVOX:波音リツ'")
-            await page.get_by_role('button', name='クイーン ✓').wait_for()
+            await page.get_by_role('button', name='▶ Queen ✓').wait_for()
+            assert not await page.get_by_role('button', name='Use Namine Ritsu · Queen').is_visible()
+            text = await page.locator('#voice-panel').inner_text()
+            assert not any('\u3040' <= ch <= '\u30ff' for ch in text)  # No kana in the picker.
             assert (root / 'models/vvms/3.vvm').is_file() and not errors
             await browser.close()
     finally:

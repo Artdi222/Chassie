@@ -40,6 +40,7 @@ class TTSEngine:
         cfg=config['tts']
         if cfg.get('engine','voicevox')!='voicevox': raise ValueError('Unknown TTS engine; only VOICEVOX is supported')
         self.engine='voicevox'
+        self._config=config
         from speech.voicevox_tts import VoicevoxTTS
         self._voicevox=VoicevoxTTS(config)
         self._sample_rate=cfg['sample_rate']
@@ -75,6 +76,14 @@ class TTSEngine:
     async def set_style(self,style):
         await self._voicevox.set_style(style)
         self._warm()
+
+    async def preview(self,style,text):
+        """One sentence in another installed style, from a short-lived worker; her own voice stays loaded."""
+        from speech.voicevox_tts import VoicevoxTTS
+        other=VoicevoxTTS({**self._config,'tts':{**self._config['tts'],'style':style}})
+        try: data=await other.synthesize(text,None)
+        finally: await other.close()
+        return normalize_loudness(await asyncio.to_thread(self._decode,data),self._sample_rate)
 
     def status(self):
         return {'selected':self.engine,'active':self.engine,'ready':self._ready,'reason':None}
