@@ -68,7 +68,7 @@ def validate_endpoint(endpoint: str) -> str:
     return endpoint
 
 
-EMOTION_HOLD = 1.5  # Seconds each expression stays before the next one.
+EMOTION_HOLD = 2.0  # Seconds each expression stays before the next one.
 
 
 @dataclass
@@ -176,6 +176,6 @@ def left_arc(avatar: Rect, screen: Rect, diameter: int = 44) -> list[Rect]:
 
 
 def subtitle_linger(chars: int, shown_for: float) -> float:
-    """Seconds a finished sentence stays readable: about 1 s plus 60 ms a character, counted from when it
-    appeared; at least 1.5 s after her voice stops and never more than 8 s in all."""
-    return max(1.5, min(8.0, 1.0 + 0.06 * chars) - shown_for)
+    """Seconds the last sentence stays readable after she stops: about 1.5 s plus 70 ms a character,
+    counted from when it appeared; at least 2.5 s after her voice stops and never more than 10 s in all."""
+    return max(2.5, min(10.0, 1.5 + 0.07 * chars) - shown_for)
