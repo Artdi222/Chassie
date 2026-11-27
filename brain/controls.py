@@ -1,17 +1,43 @@
 """UI control commands and the settings snapshot broadcast to every client."""
 from __future__ import annotations
 import asyncio
+import os
 from dataclasses import asdict
 import json
 import logging
+from pathlib import Path
+import re
+import time
 from uuid import uuid4
 from memory.store import bounded_text
 from speech.tts_engine import TTSEngine
 from brain.bilingual import LANGUAGES
-from brain.config import ROOT, save_local_persona
+from brain.config import ROOT, save_local
 from brain import updates
 
 logger=logging.getLogger('orchestrator')
+
+
+BRAIN_KEYS=('provider','text_model','vision_model','background_model')
+# Key variable Hermes reads for each provider (hermes_cli.providers, checked 2026-11-27). Others: set up in Hermes.
+PROVIDER_KEYS={'anthropic':'ANTHROPIC_API_KEY','openrouter':'OPENROUTER_API_KEY','deepseek':'DEEPSEEK_API_KEY',
+               'gemini':'GOOGLE_API_KEY','xai':'XAI_API_KEY','groq':'GROQ_API_KEY','mistral':'MISTRAL_API_KEY'}
+
+
+def env_names(path):
+    try: return {line.split('=',1)[0].strip() for line in Path(path).read_text(encoding='utf-8').splitlines() if '=' in line and line.split('=',1)[1].strip()}
+    except OSError: return set()
+
+
+def write_env(path,name,value):
+    """Set one NAME=value line in Hermes's .env (private file); other lines stay."""
+    path=Path(path)
+    lines=path.read_text(encoding='utf-8').splitlines() if path.is_file() else []
+    lines=[line for line in lines if line.split('=',1)[0].strip()!=name]+[f'{name}={value}']
+    pending=path.with_suffix('.tmp')
+    pending.touch(mode=0o600);pending.chmod(0o600)
+    pending.write_text('\n'.join(lines)+'\n',encoding='utf-8')
+    pending.replace(path)
 
 
 AVATAR_WINDOW_ACTIONS=('smaller','larger','zoom_out','zoom_in','frame_up','frame_down','reset','click_through')
@@ -43,7 +69,16 @@ class ControlsMixin:
                 'vision':self._vision.status() if self._vision else None,
                 'face_observation':self._face_tracker.get_observation() if self._face_tracker else None,
                 'usage':self._usage(),'health':self._health(),
-                'persona':str(self._config.get('companion',{}).get('persona') or '')}
+                'persona':str(self._config.get('companion',{}).get('persona') or ''),'brain':self._brain()}
+
+    def _brain(self):
+        hermes=self._config.get('hermes',{})
+        key=PROVIDER_KEYS.get(hermes.get('provider'))
+        return {**{k:hermes.get(k) for k in BRAIN_KEYS},'providers':list(PROVIDER_KEYS),'key_name':key,
+                'key_saved':bool(key) and key in env_names(self._env_path())}  # Never the key itself.
+
+    def _env_path(self):
+        return getattr(self,'_hermes_env_path',None) or Path(os.environ.get('HERMES_HOME','~/.hermes')).expanduser()/'.env'
 
     def _usage(self):
         usage=getattr(self._hermes,'usage',None)
@@ -118,9 +153,30 @@ class ControlsMixin:
                 persona=data.get('persona')
                 if not isinstance(persona,str) or not persona.strip() or len(persona)>4000: raise ValueError('Personality must contain 1–4000 characters')
                 persona=persona.strip()
-                save_local_persona(persona,getattr(self,'_local_config_root',ROOT))
+                save_local('companion',{'persona':persona},getattr(self,'_local_config_root',ROOT))
                 self._config.setdefault('companion',{})['persona']=persona
                 self._hermes._persona=' '.join(persona.split())  # Applied from the next reply on.
+            elif kind=='set_brain':
+                values={k:(data[k].strip() or None) if isinstance(data.get(k),str) else data.get(k) for k in BRAIN_KEYS}  # '' = Hermes default.
+                if any(v is not None and not (isinstance(v,str) and re.fullmatch(r'[\w.:/@+-]{1,120}',v)) for v in values.values()):
+                    raise ValueError('Provider and model names use only letters, numbers and . : / @ + - _')
+                if not values['provider'] and any(values[k] for k in BRAIN_KEYS[1:]):
+                    raise ValueError("Choose a provider for these models, or leave every model on Hermes's default")
+                save_local('hermes',values,getattr(self,'_local_config_root',ROOT))
+                self._config.setdefault('hermes',{}).update(values)
+                self._hermes.set_models(**values)
+            elif kind=='set_api_key':
+                name=PROVIDER_KEYS.get(self._config.get('hermes',{}).get('provider'))
+                if not name: raise ValueError('Choose a listed provider first; other providers are set up in Hermes')
+                key=data.get('key')
+                if not isinstance(key,str) or not re.fullmatch(r'[\x21-\x7e]{8,500}',key.strip()): raise ValueError('That does not look like an API key')
+                await asyncio.to_thread(write_env,self._env_path(),name,key.strip())
+            elif kind=='test_brain':
+                started=time.monotonic()
+                try:
+                    await self._hermes.complete_once('Reply with the single word OK.','Test',background=False)
+                    return {'type':'brain_test','ok':True,'seconds':round(time.monotonic()-started,1)}
+                except RuntimeError as exc: return {'type':'brain_test','ok':False,'error':str(exc)[:250]}
             elif kind in ('check_update','apply_update'):
                 result=await asyncio.to_thread(updates.check if kind=='check_update' else updates.apply,getattr(self,'_update_root',ROOT))
                 await self._broadcast_to_ui({'type':'update',**result})

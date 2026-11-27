@@ -1,6 +1,10 @@
 import pytest
 import yaml
-from brain.config import save_local_persona
+from brain.config import save_local
+
+
+def save_local_persona(text, root):
+    save_local('companion', {'persona': text}, root)
 from test_orchestrator import app  # noqa: F401
 
 

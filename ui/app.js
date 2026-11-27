@@ -79,6 +79,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderVision(data);
                 break;
             case "update": renderUpdate(data); break;
+            case "brain_test":
+                document.getElementById("test-brain").disabled = false;
+                document.getElementById("brain-state").textContent = data.ok ? `Working: answered in ${data.seconds} s.` : `Not working: ${data.error}`;
+                break;
             case "notice":
                 document.getElementById("control-notice").textContent = data.text;
                 document.getElementById("check-update").disabled = document.getElementById("apply-update").disabled = false;
@@ -488,10 +492,26 @@ document.addEventListener("DOMContentLoaded", () => {
             : `Chassie is up to date (${data.current}).`;
     }
 
+    const BRAIN_KEYS = ["provider", "text_model", "vision_model", "background_model"];
+    function renderBrain(brain) {
+        if (!brain) return;
+        for (const key of BRAIN_KEYS) {
+            const input = document.getElementById(`brain-${key}`);
+            if (document.activeElement !== input) input.value = brain[key] || "";
+        }
+        document.getElementById("brain-providers").replaceChildren(...brain.providers.map(p => new Option(p)));
+        document.getElementById("brain-key").hidden = !brain.key_name;
+        document.getElementById("brain-key-label").textContent = `API key (${brain.key_name})`;
+        document.getElementById("brain-key-state").textContent = brain.key_saved
+            ? "A key is saved in Hermes. Type a new one only to replace it. If Test fails after a change, restart Hermes."
+            : "No key saved for this provider yet.";
+    }
+
     function renderSettings() {
         setControlsConnected(true);
         renderVision(settings.vision);
         renderHealth(settings.health, settings.usage);
+        renderBrain(settings.brain);
         micToggle.checked = settings.mic_enabled;
         const voicevox = settings.speech_engine === "voicevox";
         const subtitles = settings.translation_language === "id" ? "Indonesian" : "English";
@@ -645,6 +665,19 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("check-update").disabled = document.getElementById("apply-update").disabled = true;
             document.getElementById("update-state").textContent = text;
         });
+    document.getElementById("save-brain").addEventListener("click", () => {
+        const values = Object.fromEntries(BRAIN_KEYS.map(k => [k, document.getElementById(`brain-${k}`).value]));
+        sendControl({type: "set_brain", ...values});
+    });
+    document.getElementById("test-brain").addEventListener("click", () => {
+        if (!sendControl({type: "test_brain"})) return;
+        document.getElementById("test-brain").disabled = true;
+        document.getElementById("brain-state").textContent = "Asking the model…";
+    });
+    document.getElementById("save-key").addEventListener("click", () => {
+        const input = document.getElementById("brain-key-input");
+        if (input.value.trim() && sendControl({type: "set_api_key", key: input.value})) input.value = "";  // Never kept in the page.
+    });
     document.getElementById("save-persona").addEventListener("click",()=>sendControl({type:"set_persona",persona:document.getElementById("persona").value}));
     document.getElementById("stop-btn").addEventListener("click",()=>sendControl({type:"stop"}));
     document.getElementById("resume-btn").addEventListener("click",()=>sendControl({type:"resume_topic"}));
