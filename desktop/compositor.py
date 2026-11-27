@@ -26,7 +26,7 @@ end
 if not _G.chassie_controls_rule then
     _G.chassie_controls_rule = hl.window_rule({
         name = "chassie-avatar-controls",
-        match = { class = "^chassie-overlay$", title = "^Chassie (controls|subtitle)$" },
+        match = { class = "^chassie-overlay$", title = "^Chassie controls$" },
         float = true,
         pin = true,
         no_blur = true,
@@ -40,6 +40,15 @@ if not _G.chassie_bubbles_rule then
         name = "chassie-avatar-bubbles",
         match = { class = "^chassie-overlay$", title = "^Chassie bubble .*$" },
         float = true, pin = true, no_blur = true, no_shadow = true,
+        border_size = 0, rounding = 0,
+    })
+end
+if not _G.chassie_subtitle_rule then
+    -- The speech bubble fades itself; a compositor open/close/move animation on top looks like a double flash.
+    _G.chassie_subtitle_rule = hl.window_rule({
+        name = "chassie-speech-bubble",
+        match = { class = "^chassie-overlay$", title = "^Chassie subtitle$" },
+        float = true, pin = true, no_blur = true, no_shadow = true, no_anim = true,
         border_size = 0, rounding = 0,
     })
 end

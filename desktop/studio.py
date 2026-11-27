@@ -356,7 +356,7 @@ class StudioControls(QObject):
                 self.native_subtitle_generation=data['generation']
                 if text:
                     self.subtitle_hide.stop();self.subtitle_shown=(time.monotonic(),len(text))
-                    self.subtitle.setText(text);self.subtitle.setVisible(True);self.place_subtitle()
+                    self.subtitle.setText(text);self.place_subtitle();self.subtitle.setVisible(True)  # Placed before it maps.
                 elif cancelled:  # Stop or interruption: gone at once.
                     self.subtitle_hide.stop();self.subtitle.setVisible(False)
                 elif self.subtitle.isVisible() and not self.subtitle_hide.isActive():  # Sentence spoken: leave time to read it.
