@@ -34,6 +34,7 @@ rm -rf "$APPDIR"/usr/share/applications "$APPDIR"/usr/share/metainfo
 cp packaging/AppRun "$APPDIR/AppRun"
 cp packaging/chassie.desktop "$APPDIR/"
 cp ui/public/chassie-icon.png "$APPDIR/chassie.png" && cp "$APPDIR/chassie.png" "$APPDIR/.DirIcon"
+chmod -R u+rwX,go+rX "$APPDIR"  # The extracted image is 0700; the AppImage must be readable by everyone.
 find "$APPDIR" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 curl -fsSL -o "$WORK/appimagetool" "$TOOL_URL" && chmod +x "$WORK/appimagetool"
