@@ -515,6 +515,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const mb = bytes => bytes ? ` · ${Math.round(bytes / 1e6)} MB` : "";
         const packs = {};
         voiceData.voices.forEach(v => (packs[v.pack] ??= []).push(v));
+        // Rebuilt on every settings update: keep what the person opened and where they scrolled.
+        const moreOpen = Boolean(list.querySelector("details.more-voices[open]")), scroll = list.scrollTop;
         list.replaceChildren();
         const missing = [];
         for (const [pack, styles] of Object.entries(packs)) {
@@ -540,6 +542,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (heardVoice) use.textContent = `Use ${heardVoice.name} · ${heardVoice.style_name}`;
         if (missing.length) {
             const more = document.createElement("details");
+            more.className = "more-voices"; more.open = moreOpen;
             const summary = document.createElement("summary");summary.textContent = `More voices to download (${missing.length} packs)`;
             more.append(summary, ...missing.map(([pack, names]) => {
                 const row = document.createElement("div");row.className = "memory-item";
@@ -554,6 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }));
             list.append(more);
         }
+        list.scrollTop = scroll;
         document.getElementById("voice-terms").hidden = !missing.length;
         document.getElementById("voice-terms-text").textContent = voiceData.terms;
     }

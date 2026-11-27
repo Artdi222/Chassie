@@ -79,6 +79,9 @@ async def test_voice_panel_download_and_choose(app, root, tmp_path):
             await page.locator('#load-voices').click()
             await page.get_by_text('More voices to download (1 packs)', exact=True).click()
             await page.get_by_text('Pack 3 · 1 character · 58 MB: Namine Ritsu', exact=True).wait_for()
+            await app._broadcast_settings()  # Settings arrive often (status, speech): the opened list must stay open.
+            await page.wait_for_timeout(300)
+            assert await page.get_by_text('Pack 3 · 1 character · 58 MB: Namine Ritsu', exact=True).is_visible()
             await page.get_by_role('button', name='Download').click()
             await page.get_by_text('Accept the VOICEVOX terms below first.', exact=True).wait_for()
             await page.locator('#voice-terms-accept').check()
